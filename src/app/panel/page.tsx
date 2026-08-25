@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useRequireParticipant } from "@/lib/useRequireParticipant";
 import { fetchAspirations, fetchOutputs, fetchSessions, fetchTrackingBoard } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
+import { logActivity } from "@/lib/feed";
+import { isPresenter } from "@/lib/presenter";
 import type { ActivityFeedRow, Aspiration, OutputRow, SessionRow, TrackingBoardRow } from "@/lib/types";
 import Cronograma from "@/components/Cronograma";
 import { aspClasses, findAspiration } from "@/lib/aspirationStyle";
@@ -11,6 +13,7 @@ import usePresence from "@/lib/usePresence";
 
 export default function PanelPage() {
   const participant = useRequireParticipant();
+  const presenter = isPresenter(participant);
   const [sessions, setSessions] = useState<SessionRow[]>([]);
   const [outputs, setOutputs] = useState<OutputRow[]>([]);
   const [aspirations, setAspirations] = useState<Aspiration[]>([]);
@@ -43,6 +46,9 @@ export default function PanelPage() {
       .on("postgres_changes", { event: "*", schema: "public", table: "tracking_board" }, () => {
         fetchTrackingBoard().then(setTracking).catch(console.error);
       })
+      .on("postgres_changes", { event: "*", schema: "public", table: "sessions" }, () => {
+        fetchSessions().then(setSessions).catch(console.error);
+      })
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
@@ -61,10 +67,30 @@ export default function PanelPage() {
 
   if (!participant) return null;
 
+  async function toggleSession(session: SessionRow, next: boolean) {
+    await supabase.from("sessions").update({ is_enabled: next }).eq("id", session.id);
+    setSessions((prev) => prev.map((s) => (s.id === session.id ? { ...s, is_enabled: next } : s)));
+    await logActivity({
+      session_id: session.id,
+      participant_id: participant!.id,
+      event_type: next ? "sesion_habilitada" : "sesion_bloqueada",
+      summary: `${participant!.name} ${next ? "habilitó" : "bloqueó"} la sesión ${session.code}`,
+    });
+  }
+
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
-      <h1 className="text-xl font-bold text-foreground">Panel en vivo</h1>
-      <p className="text-sm text-muted">Lo que cada equipo está desarrollando en tiempo real.</p>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h1 className="text-xl font-bold text-foreground">Panel en vivo</h1>
+          <p className="text-sm text-muted">Lo que cada equipo está desarrollando en tiempo real.</p>
+        </div>
+        {presenter && (
+          <span className="rounded-full bg-brand/15 px-3 py-1 text-xs font-semibold text-brand-dark">
+            🎤 Modo presentador
+          </span>
+        )}
+      </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
@@ -96,7 +122,7 @@ export default function PanelPage() {
 
           <section>
             <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted">Cronograma</h2>
-            <Cronograma sessions={sessions} progress={sessionProgress} />
+            <Cronograma sessions={sessions} progress={sessionProgress} presenter={presenter} onToggleEnabled={toggleSession} />
           </section>
         </div>
 

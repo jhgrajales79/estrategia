@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useSubmission, effectiveAspirationId } from "@/lib/useSubmission";
+import BarChart from "@/components/charts/BarChart";
 import { ActivityComponentProps, inputCls, btnPrimary, btnDanger, SaveIndicator, uid } from "./shared";
 
 interface Candidate {
@@ -71,9 +72,16 @@ export default function VotacionFichas({ activity, session, participant }: Activ
   const totals = content.candidates
     .map((c) => ({ c, total: content.votes.filter((v) => v.candidate_id === c.id).reduce((a, v) => a + v.points, 0) }))
     .sort((a, b) => b.total - a.total);
+  const hasVotes = totals.some((t) => t.total > 0);
 
   return (
     <div className="space-y-4">
+      {hasVotes && (
+        <div className="rounded-lg border border-border bg-card p-3">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Resultados en vivo</p>
+          <BarChart bars={totals.map((t) => ({ label: t.c.text, value: t.total, colorClass: "bg-brand" }))} unit=" pts" />
+        </div>
+      )}
       {allowSubmitCandidates && (
         <div className="rounded-lg border border-border bg-card p-3">
           <p className="mb-2 text-sm font-semibold">Proponer {candidateLabel.toLowerCase()}</p>

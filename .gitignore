@@ -48,4 +48,6 @@ skills-lock.json
 *.docx
 *.pptx
 
-.vercel
+/supabase/.temp/
+/AGENTS.md
+/CLAUDE.md

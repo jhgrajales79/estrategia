@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useSubmission, effectiveAspirationId } from "@/lib/useSubmission";
 import { aspClasses, findAspiration } from "@/lib/aspirationStyle";
-import { ActivityComponentProps, inputCls, textareaCls, btnPrimary, btnDanger, SaveIndicator, uid } from "./shared";
+import { ActivityComponentProps, inputCls, textareaCls, btnPrimary, btnDanger, SaveIndicator, PostIt, uid } from "./shared";
 
 interface Note {
   id: string;
@@ -61,26 +61,26 @@ export default function NotasColectivas({ activity, session, aspirations, partic
           return (
             <div key={cat.key} className="rounded-lg border border-border bg-card p-3">
               <h4 className="mb-2 text-sm font-semibold text-foreground">{cat.label}</h4>
-              <div className="mb-3 space-y-2 max-h-64 overflow-y-auto">
+              <div className="mb-4 flex max-h-72 flex-wrap gap-3 overflow-y-auto p-1">
                 {notesInCat.length === 0 && <p className="text-xs text-muted">Aún no hay notas.</p>}
-                {notesInCat.map((n) => {
+                {notesInCat.map((n, i) => {
                   const asp = findAspiration(aspirations, n.aspiration_id);
                   const cls = aspClasses(asp?.number);
                   return (
-                    <div key={n.id} className={`rounded-md border-l-4 ${cls.border} bg-black/[0.02] p-2 text-sm`}>
+                    <PostIt key={n.id} bgClass={asp ? cls.bgSoft : undefined} index={i} className="w-36">
                       <p className="text-foreground">{n.text}</p>
-                      <div className="mt-1 flex items-center justify-between text-xs text-muted">
+                      <div className="mt-2 flex items-center justify-between text-[11px] text-muted">
                         <span>
                           {n.author}
-                          {n.impact ? ` · impacto ${n.impact}` : ""}
+                          {n.impact ? ` · ${n.impact}` : ""}
                         </span>
                         {n.author === participant.name && (
                           <button className={btnDanger} onClick={() => removeNote(n.id)}>
-                            eliminar
+                            ✕
                           </button>
                         )}
                       </div>
-                    </div>
+                    </PostIt>
                   );
                 })}
               </div>

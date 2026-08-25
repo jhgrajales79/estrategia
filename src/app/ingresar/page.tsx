@@ -87,6 +87,9 @@ export default function IngresarPage() {
               </option>
             ))}
           </select>
+          {role === "facilitador" && (
+            <p className="mt-1 text-xs text-brand-dark">🎤 Como facilitador tendrás los controles para habilitar sesiones y actividades.</p>
+          )}
         </div>
         <div>
           <label className="mb-1 block text-xs font-medium text-muted">Equipo / aspiración</label>

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useSubmission, effectiveAspirationId } from "@/lib/useSubmission";
 import { aspClasses, findAspiration } from "@/lib/aspirationStyle";
-import { ActivityComponentProps, inputCls, btnPrimary, btnDanger, SaveIndicator, uid } from "./shared";
+import { ActivityComponentProps, inputCls, btnPrimary, btnDanger, SaveIndicator, PostIt, uid } from "./shared";
 
 interface Card {
   id: string;
@@ -66,16 +66,16 @@ export default function MapaEstrategico({ activity, session, aspirations, partic
             <div key={p.key} className="rounded-lg border border-border bg-card p-3">
               <h4 className="mb-2 text-sm font-semibold text-foreground">{p.label}</h4>
               <div className="mb-2 flex flex-wrap gap-2">
-                {cardsIn.map((c) => {
+                {cardsIn.map((c, i) => {
                   const asp = findAspiration(aspirations, c.aspiration_id);
                   const cls = aspClasses(asp?.number);
                   return (
-                    <div key={c.id} className={`min-w-48 rounded-md border-l-4 ${cls.border} bg-black/[0.02] p-2 text-sm`}>
+                    <PostIt key={c.id} bgClass={asp ? cls.bgSoft : undefined} index={i} className="w-48">
                       <p className="text-foreground">{c.text}</p>
                       {cardsAbove.length > 0 && (
                         <div className="mt-1 flex flex-wrap gap-1">
                           {cardsAbove.map((above) => (
-                            <label key={above.id} className="flex items-center gap-1 text-xs text-muted">
+                            <label key={above.id} className="flex items-center gap-1 text-[11px] text-muted">
                               <input
                                 type="checkbox"
                                 checked={c.leads_to.includes(above.id)}
@@ -86,12 +86,12 @@ export default function MapaEstrategico({ activity, session, aspirations, partic
                           ))}
                         </div>
                       )}
-                      <div className="mt-1 flex items-center justify-end text-xs text-muted">
+                      <div className="mt-1 flex items-center justify-end text-[11px] text-muted">
                         <button className={btnDanger} onClick={() => removeCard(c.id)}>
-                          eliminar
+                          ✕
                         </button>
                       </div>
-                    </div>
+                    </PostIt>
                   );
                 })}
               </div>

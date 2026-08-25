@@ -38,6 +38,7 @@ export interface SessionRow {
   aspiration_link: string | null;
   order_index: number;
   status: SessionStatus;
+  is_enabled: boolean;
 }
 
 export type ActivityType =
@@ -62,6 +63,7 @@ export interface ActivityRow {
   activity_type: ActivityType;
   config: Record<string, unknown>;
   order_index: number;
+  is_enabled: boolean;
 }
 
 export type SubmissionStatus = "borrador" | "enviado";

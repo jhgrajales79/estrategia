@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useSubmission, effectiveAspirationId } from "@/lib/useSubmission";
 import { aspClasses, findAspiration } from "@/lib/aspirationStyle";
-import { ActivityComponentProps, textareaCls, btnPrimary, btnDanger, SaveIndicator, uid } from "./shared";
+import { ActivityComponentProps, textareaCls, btnPrimary, btnDanger, SaveIndicator, PostIt, uid } from "./shared";
 
 interface Card {
   id: string;
@@ -66,32 +66,32 @@ export default function MatrizCuadrantes({ activity, session, aspirations, parti
           return (
             <div key={q.key} className="rounded-lg border border-border bg-card p-3">
               <h4 className="mb-2 text-sm font-semibold text-foreground">{q.label}</h4>
-              <div className="mb-2 space-y-2 max-h-56 overflow-y-auto">
-                {cardsIn.map((c) => {
+              <div className="mb-3 flex max-h-56 flex-wrap gap-2 overflow-y-auto p-1">
+                {cardsIn.map((c, i) => {
                   const asp = findAspiration(aspirations, c.aspiration_id);
                   const cls = aspClasses(asp?.number);
                   return (
-                    <div key={c.id} className={`rounded-md border-l-4 ${cls.border} bg-black/[0.02] p-2 text-sm`}>
+                    <PostIt key={c.id} bgClass={asp ? cls.bgSoft : undefined} index={i} className="w-32">
                       <p className="text-foreground">
                         {c.star && "⭐ "}
                         {c.text}
                       </p>
-                      <div className="mt-1 flex items-center justify-between text-xs text-muted">
+                      <div className="mt-2 flex items-center justify-between text-[11px] text-muted">
                         <span>{c.author}</span>
                         <span className="flex gap-2">
                           {allowStar && (
-                            <button className="hover:underline" onClick={() => toggleStar(c.id)}>
-                              {starLabel}
+                            <button className="hover:underline" title={starLabel} onClick={() => toggleStar(c.id)}>
+                              ⭐
                             </button>
                           )}
                           {c.author === participant.name && (
                             <button className={btnDanger} onClick={() => removeCard(c.id)}>
-                              eliminar
+                              ✕
                             </button>
                           )}
                         </span>
                       </div>
-                    </div>
+                    </PostIt>
                   );
                 })}
               </div>

@@ -14,6 +14,8 @@
   --asp-2-soft: #dbe9f6;
   --asp-3: #4c8c3f;
   --asp-3-soft: #dfeed8;
+  --postit-yellow: #fdf1a8;
+  --postit-pink: #f9d4e6;
 }
 
 @theme inline {
@@ -30,6 +32,8 @@
   --color-asp-2-soft: var(--asp-2-soft);
   --color-asp-3: var(--asp-3);
   --color-asp-3-soft: var(--asp-3-soft);
+  --color-postit-yellow: var(--postit-yellow);
+  --color-postit-pink: var(--postit-pink);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }

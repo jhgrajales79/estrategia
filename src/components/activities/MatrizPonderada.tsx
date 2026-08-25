@@ -2,6 +2,7 @@
 
 import { useSubmission, effectiveAspirationId } from "@/lib/useSubmission";
 import { aspClasses, findAspiration } from "@/lib/aspirationStyle";
+import BarChart from "@/components/charts/BarChart";
 import { ActivityComponentProps, inputCls, btnPrimary, btnDanger, SaveIndicator, uid } from "./shared";
 
 interface SimpleRow {
@@ -155,9 +156,15 @@ export default function MatrizPonderada({ activity, session, aspirations, partic
           </button>
         </div>
         {ranked.length > 0 && (
-          <div className="rounded-md bg-black/[0.03] p-3 text-sm">
-            <span className="font-medium">Ranking: </span>
-            {ranked.map((r) => strategies.find((s) => s.id === r.id)?.name + ` (${r.total.toFixed(2)})`).join("  ·  ")}
+          <div className="rounded-md bg-black/[0.03] p-3">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Ranking QSPM</p>
+            <BarChart
+              bars={ranked.map((r) => ({
+                label: strategies.find((s) => s.id === r.id)?.name ?? "",
+                value: Number(r.total.toFixed(2)),
+                colorClass: "bg-brand",
+              }))}
+            />
           </div>
         )}
         <SaveIndicator saving={saving} updatedAt={updatedAt} />

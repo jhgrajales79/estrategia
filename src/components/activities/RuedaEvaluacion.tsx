@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useSubmission, effectiveAspirationId } from "@/lib/useSubmission";
+import QuadrantPoint from "@/components/charts/QuadrantPoint";
 import { ActivityComponentProps, inputCls, textareaCls, btnPrimary, btnDanger, SaveIndicator, uid } from "./shared";
 
 interface Item {
@@ -53,10 +54,12 @@ export default function RuedaEvaluacion({ activity, session, participant }: Acti
   }
 
   let posture: string | null = null;
+  let vector: { x: number; y: number } | null = null;
   if (peeaMode && content.items.length > 0) {
     const byAxis = (axis: string) => content.items.filter((i) => i.axis === axis).reduce((a, i) => a + i.score, 0);
     const x = byAxis("VC") * -1 + byAxis("FI"); // ventaja competitiva es negativa por convención PEEA, industria positiva
     const y = byAxis("FF") + byAxis("EE") * -1;
+    vector = { x, y };
     if (x >= 0 && y >= 0) posture = "Agresiva";
     else if (x < 0 && y >= 0) posture = "Conservadora";
     else if (x < 0 && y < 0) posture = "Defensiva";
@@ -111,10 +114,13 @@ export default function RuedaEvaluacion({ activity, session, participant }: Acti
           </button>
         </div>
       )}
-      {posture && (
-        <div className="rounded-md bg-black/[0.03] p-3 text-sm">
-          <span className="font-medium">Postura estratégica (PEEA): </span>
-          {posture}
+      {posture && vector && (
+        <div className="flex flex-wrap items-center gap-4 rounded-md bg-black/[0.03] p-3 text-sm">
+          <QuadrantPoint x={vector.x} y={vector.y} range={scaleMax} />
+          <p>
+            <span className="font-medium">Postura estratégica (PEEA): </span>
+            {posture}
+          </p>
         </div>
       )}
       <SaveIndicator saving={saving} updatedAt={updatedAt} />
