@@ -51,7 +51,8 @@ export type ActivityType =
   | "mapa_estrategico"
   | "tablero_proyectos"
   | "ficha_kpi"
-  | "checklist_salidas";
+  | "checklist_salidas"
+  | "radar_contexto";
 
 export interface ActivityRow {
   id: number;

@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useSubmission, effectiveAspirationId } from "@/lib/useSubmission";
 import { aspClasses, findAspiration } from "@/lib/aspirationStyle";
-import { ActivityComponentProps, inputCls, textareaCls, btnPrimary, btnDanger, SaveIndicator, PostIt, uid } from "./shared";
+import { uploadMedia } from "@/lib/storage";
+import { ActivityComponentProps, inputCls, textareaCls, btnPrimary, btnGhost, btnDanger, SaveIndicator, PostIt, uid } from "./shared";
 
 interface Note {
   id: string;
@@ -15,23 +16,46 @@ interface Note {
 }
 interface Content extends Record<string, unknown> {
   notes: Note[];
+  media: string[];
+  external_link: string;
 }
 
 export default function NotasColectivas({ activity, session, aspirations, participant }: ActivityComponentProps) {
   const categories = (activity.config.categories as { key: string; label: string }[]) ?? [];
   const impactLevels = Boolean(activity.config.impactLevels);
+  const allowMedia = Boolean(activity.config.allowMedia);
+  const externalLinkLabel = (activity.config.externalLinkLabel as string) ?? "Enlace externo";
   const submissionAspId = effectiveAspirationId(activity, participant);
   const { content, save, saving, updatedAt, loaded } = useSubmission<Content>(
     activity,
     session,
     submissionAspId,
     participant,
-    { notes: [] }
+    { notes: [], media: [], external_link: "" }
   );
   const [draft, setDraft] = useState<Record<string, string>>({});
   const [impact, setImpact] = useState<Record<string, Note["impact"]>>({});
+  const [uploading, setUploading] = useState(false);
 
   if (!loaded) return <p className="text-sm text-muted">Cargando…</p>;
+
+  async function handleUpload(file: File) {
+    setUploading(true);
+    try {
+      const url = await uploadMedia(file, `activity-${activity.id}`);
+      save(
+        { ...content, media: [...content.media, url] },
+        { eventType: "foto", summary: `${participant.name} subió una foto en "${activity.title}"` }
+      );
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setUploading(false);
+    }
+  }
+  function removeMedia(url: string) {
+    save({ ...content, media: content.media.filter((m) => m !== url) });
+  }
 
   function addNote(categoryKey: string) {
     const text = (draft[categoryKey] ?? "").trim();
@@ -44,17 +68,59 @@ export default function NotasColectivas({ activity, session, aspirations, partic
       text,
       impact: impactLevels ? impact[categoryKey] ?? "medio" : undefined,
     };
-    const next = { notes: [...content.notes, note] };
+    const next = { ...content, notes: [...content.notes, note] };
     save(next, { eventType: "nota", summary: `${participant.name} agregó una nota en "${activity.title}"` });
     setDraft((d) => ({ ...d, [categoryKey]: "" }));
   }
 
   function removeNote(id: string) {
-    save({ notes: content.notes.filter((n) => n.id !== id) });
+    save({ ...content, notes: content.notes.filter((n) => n.id !== id) });
   }
 
   return (
     <div className="space-y-5">
+      {allowMedia && (
+        <div className="rounded-lg border border-border bg-card p-3">
+          <h4 className="mb-2 text-sm font-semibold text-foreground">Fotos y panel visual</h4>
+          <div className="mb-3 flex flex-wrap gap-2">
+            {content.media.map((url) => (
+              <div key={url} className="group relative h-20 w-20 overflow-hidden rounded-md border border-border">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={url} alt="Foto de la actividad" className="h-full w-full object-cover" />
+                <button
+                  className="absolute right-0.5 top-0.5 rounded-full bg-black/60 px-1 text-xs text-white opacity-0 group-hover:opacity-100"
+                  onClick={() => removeMedia(url)}
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+          <label className={btnGhost + " cursor-pointer"}>
+            {uploading ? "Subiendo…" : "📷 Subir foto"}
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              disabled={uploading}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleUpload(file);
+                e.target.value = "";
+              }}
+            />
+          </label>
+          <div className="mt-3">
+            <label className="mb-1 block text-xs font-medium text-muted">{externalLinkLabel}</label>
+            <input
+              className={inputCls}
+              placeholder="https://..."
+              defaultValue={content.external_link}
+              onBlur={(e) => save({ ...content, external_link: e.target.value })}
+            />
+          </div>
+        </div>
+      )}
       <div className="grid gap-4 md:grid-cols-2">
         {categories.map((cat) => {
           const notesInCat = content.notes.filter((n) => n.category === cat.key);

@@ -10,6 +10,7 @@ import TarjetaEstructurada from "./TarjetaEstructurada";
 import MapaEstrategico from "./MapaEstrategico";
 import TableroProyectos from "./TableroProyectos";
 import FichaKPI from "./FichaKPI";
+import RadarContexto from "./RadarContexto";
 
 export const ACTIVITY_COMPONENTS: Record<ActivityType, ComponentType<ActivityComponentProps>> = {
   notas: NotasColectivas,
@@ -22,6 +23,7 @@ export const ACTIVITY_COMPONENTS: Record<ActivityType, ComponentType<ActivityCom
   tablero_proyectos: TableroProyectos,
   ficha_kpi: FichaKPI,
   checklist_salidas: TarjetaEstructurada,
+  radar_contexto: RadarContexto,
 };
 
 export type { ActivityComponentProps } from "./shared";
