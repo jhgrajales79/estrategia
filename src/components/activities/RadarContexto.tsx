@@ -150,7 +150,7 @@ export default function RadarContexto({ activity, session, participant }: Activi
   }
   function point(size: number, angleDeg: number, radiusFrac: number) {
     const center = size / 2;
-    const maxR = size / 2 - 46;
+    const maxR = size / 2 - 64;
     const rad = (angleDeg * Math.PI) / 180;
     const r = radiusFrac * maxR;
     return { x: center + r * Math.cos(rad), y: center + r * Math.sin(rad) };
@@ -172,26 +172,11 @@ export default function RadarContexto({ activity, session, participant }: Activi
       <div className="relative shrink-0" style={{ width: size, height: size }}>
         <svg width={size} height={size} className="absolute inset-0 overflow-visible">
           {ringFractions.map((f, i) => (
-            <circle key={i} cx={center} cy={center} r={f * (size / 2 - 46)} fill="none" stroke="currentColor" className="text-border" strokeWidth={1} />
+            <circle key={i} cx={center} cy={center} r={f * (size / 2 - 64)} fill="none" stroke="currentColor" className="text-border" strokeWidth={1} />
           ))}
           {axes.map((a, i) => {
             const p = point(size, axisAngle(i), 1);
             return <line key={a.key} x1={center} y1={center} x2={p.x} y2={p.y} stroke="currentColor" className="text-border" strokeWidth={1} />;
-          })}
-          {axes.map((a, i) => {
-            const p = point(size, axisAngle(i), 1.18);
-            return (
-              <text
-                key={a.key}
-                x={p.x}
-                y={p.y}
-                fontSize={size > BASE_SIZE ? 14 : 9.5}
-                textAnchor="middle"
-                className={activeAxis?.key === a.key ? "fill-brand-dark font-bold" : "fill-muted"}
-              >
-                {a.label.length > 18 ? a.label.slice(0, 16) + "…" : a.label}
-              </text>
-            );
           })}
           {hasAny && (
             <polygon
@@ -214,18 +199,31 @@ export default function RadarContexto({ activity, session, participant }: Activi
               )
           )}
         </svg>
+        {axes.map((a, i) => {
+          const p = point(size, axisAngle(i), 1.15);
+          return (
+            <div
+              key={a.key}
+              className={`absolute -translate-x-1/2 -translate-y-1/2 text-center leading-tight ${
+                size > BASE_SIZE ? "w-32 text-sm" : "w-24 text-[11px]"
+              } ${activeAxis?.key === a.key ? "font-bold text-brand-dark" : "text-muted"}`}
+              style={{ left: p.x, top: p.y }}
+            >
+              {a.label}
+            </div>
+          );
+        })}
         {vertices.map(
           (v) =>
             v.winner && (
               <div
                 key={v.axis.key}
-                title={v.winner.text}
                 className={`absolute -translate-x-1/2 -translate-y-[calc(100%+8px)] rounded-sm text-center leading-tight shadow ${
-                  size > BASE_SIZE ? "w-28 text-[11px] p-1.5" : "w-20 text-[9px] p-1"
+                  size > BASE_SIZE ? "w-32 text-[11px] p-1.5" : "w-24 text-[9px] p-1"
                 } ${autoBg(v.winner.round - 1, ROUND_PALETTE)}`}
                 style={{ left: v.x, top: v.y }}
               >
-                {v.winner.text.length > 34 ? v.winner.text.slice(0, 32) + "…" : v.winner.text}
+                {v.winner.text}
                 <div className="mt-0.5 font-semibold text-brand-dark">{voteTotal[v.winner.id] ?? 0} pts</div>
               </div>
             )
@@ -254,7 +252,7 @@ export default function RadarContexto({ activity, session, participant }: Activi
 
       {presenter ? (
         <div className="flex flex-col items-center gap-6 lg:flex-row lg:items-start">
-          <div className="relative">
+          <div className="relative mx-10 my-6">
             {renderRadar(BASE_SIZE)}
             <button
               className={btnGhost + " absolute -bottom-2 -right-2 bg-card"}
