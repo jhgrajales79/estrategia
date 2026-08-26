@@ -162,7 +162,7 @@ export default function VotacionFichas({ activity, session, participant }: Activ
                     {mine ? "✓ Votado" : "Votar"}
                   </button>
                 )}
-                {c.author === participant.name && (
+                {c.author === participant.name && total === 0 && (
                   <button className={btnDanger} onClick={() => removeCandidate(c.id)}>
                     eliminar
                   </button>

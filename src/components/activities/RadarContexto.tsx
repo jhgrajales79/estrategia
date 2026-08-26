@@ -286,7 +286,7 @@ export default function RadarContexto({ activity, session, participant }: Activi
                           {mine ? "✓ Votado" : "Votar"}
                         </button>
                       )}
-                      {s.author === participant.name && (
+                      {s.author === participant.name && total === 0 && (
                         <button className={btnDanger} onClick={() => removeSignal(s.id)}>
                           eliminar
                         </button>
