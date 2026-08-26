@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSubmission, effectiveAspirationId } from "@/lib/useSubmission";
 import { isPresenter } from "@/lib/presenter";
-import { ActivityComponentProps, inputCls, btnPrimary, btnGhost, btnDanger, SaveIndicator, PresenterHint, ToggleSwitch, ROUND_PALETTE, autoBg, uid } from "./shared";
+import { ActivityComponentProps, inputCls, btnPrimary, btnGhost, btnDanger, SaveIndicator, PresenterHint, ROUND_PALETTE, autoBg, uid } from "./shared";
 
 interface Axis {
   key: string;
@@ -27,7 +27,6 @@ interface Content extends Record<string, unknown> {
   activeRound: number;
   signals: Signal[];
   votes: Vote[];
-  showOnlyFocus: boolean;
 }
 
 const BASE_SIZE = 340;
@@ -36,7 +35,6 @@ export default function RadarContexto({ activity, session, participant }: Activi
   const axes = (activity.config.axes as Axis[]) ?? [];
   const rings = (activity.config.rings as string[]) ?? ["Ya nos afecta", "Nos afectará este año", "En el horizonte"];
   const pointsPerPerson = (activity.config.pointsPerPerson as number) ?? 3;
-  const focusCount = (activity.config.focusCount as number) ?? 3;
   const presenter = isPresenter(participant);
   const submissionAspId = effectiveAspirationId(activity, participant);
   const { content, save, saving, updatedAt, loaded } = useSubmission<Content>(
@@ -44,7 +42,7 @@ export default function RadarContexto({ activity, session, participant }: Activi
     session,
     submissionAspId,
     participant,
-    { activeRound: 0, signals: [], votes: [], showOnlyFocus: false }
+    { activeRound: 0, signals: [], votes: [] }
   );
   const [ring, setRing] = useState(0);
   const [text, setText] = useState("");
@@ -76,16 +74,25 @@ export default function RadarContexto({ activity, session, participant }: Activi
     return totals;
   }, [content?.votes]);
 
-  const focusIds = useMemo(() => {
-    if (!content) return new Set<string>();
-    return new Set(
-      Object.entries(voteTotal)
-        .filter(([, total]) => total > 0)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, focusCount)
-        .map(([id]) => id)
-    );
-  }, [voteTotal, focusCount, content]);
+  // La señal más votada de cada dimensión (eje) — es lo único que dibuja el radar.
+  const winnerByAxis = useMemo(() => {
+    const winners: Record<string, Signal | undefined> = {};
+    for (const a of axes) {
+      const inAxis = (content?.signals ?? []).filter((s) => s.axis === a.key);
+      let best: Signal | undefined;
+      let bestVotes = -1;
+      for (const s of inAxis) {
+        const v = voteTotal[s.id] ?? 0;
+        if (v > bestVotes) {
+          best = s;
+          bestVotes = v;
+        }
+      }
+      winners[a.key] = bestVotes > 0 ? best : undefined;
+    }
+    return winners;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [content?.signals, voteTotal]);
 
   if (!loaded) return <p className="text-sm text-muted">Cargando…</p>;
 
@@ -149,15 +156,17 @@ export default function RadarContexto({ activity, session, participant }: Activi
   }
 
   const ringFractions = [0.35, 0.68, 1];
-  const visibleSignals = content.showOnlyFocus ? content.signals.filter((s) => focusIds.has(s.id)) : content.signals;
-  const grouped = new Map<string, Signal[]>();
-  for (const s of visibleSignals) {
-    const key = `${s.axis}-${s.ring}`;
-    grouped.set(key, [...(grouped.get(key) ?? []), s]);
-  }
 
   function renderRadar(size: number) {
     const center = size / 2;
+    const vertices = axes.map((a, i) => {
+      const winner = winnerByAxis[a.key];
+      const radiusFrac = winner ? ringFractions[winner.ring] : 0;
+      return { axis: a, winner, ...point(size, axisAngle(i), radiusFrac) };
+    });
+    const hasAny = vertices.some((v) => v.winner);
+    const polygonPoints = vertices.map((v) => `${v.x},${v.y}`).join(" ");
+
     return (
       <div className="relative shrink-0" style={{ width: size, height: size }}>
         <svg width={size} height={size} className="absolute inset-0 overflow-visible">
@@ -183,31 +192,28 @@ export default function RadarContexto({ activity, session, participant }: Activi
               </text>
             );
           })}
+          {hasAny && <polygon points={polygonPoints} className="fill-brand/15 stroke-brand" strokeWidth={2} />}
+          {vertices.map(
+            (v) =>
+              v.winner && <circle key={v.axis.key} cx={v.x} cy={v.y} r={size > BASE_SIZE ? 6 : 4} className="fill-brand" />
+          )}
         </svg>
-        {visibleSignals.map((s) => {
-          const axisIndex = axes.findIndex((a) => a.key === s.axis);
-          if (axisIndex === -1) return null;
-          const group = grouped.get(`${s.axis}-${s.ring}`) ?? [];
-          const idxInGroup = group.findIndex((g) => g.id === s.id);
-          const spread = (idxInGroup - (group.length - 1) / 2) * 10;
-          const p = point(size, axisAngle(axisIndex) + spread, ringFractions[s.ring]);
-          const chipSize = size > BASE_SIZE ? "w-24 text-[11px] p-1.5" : "w-16 text-[9px] p-1";
-          const isFocus = focusIds.has(s.id);
-          return (
-            <div
-              key={s.id}
-              title={s.text}
-              className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-sm text-center leading-tight shadow ${chipSize} ${autoBg(
-                s.round - 1,
-                ROUND_PALETTE
-              )} ${isFocus ? "ring-2 ring-brand shadow-lg z-10" : ""}`}
-              style={{ left: p.x, top: p.y }}
-            >
-              {isFocus && "🎯 "}
-              {s.text.length > 30 ? s.text.slice(0, 28) + "…" : s.text}
-            </div>
-          );
-        })}
+        {vertices.map(
+          (v) =>
+            v.winner && (
+              <div
+                key={v.axis.key}
+                title={v.winner.text}
+                className={`absolute -translate-x-1/2 -translate-y-[calc(100%+8px)] rounded-sm text-center leading-tight shadow ${
+                  size > BASE_SIZE ? "w-28 text-[11px] p-1.5" : "w-20 text-[9px] p-1"
+                } ${autoBg(v.winner.round - 1, ROUND_PALETTE)}`}
+                style={{ left: v.x, top: v.y }}
+              >
+                {v.winner.text.length > 34 ? v.winner.text.slice(0, 32) + "…" : v.winner.text}
+                <div className="mt-0.5 font-semibold text-brand-dark">{voteTotal[v.winner.id] ?? 0} pts</div>
+              </div>
+            )
+        )}
       </div>
     );
   }
@@ -216,7 +222,7 @@ export default function RadarContexto({ activity, session, participant }: Activi
     <div className="space-y-4">
       {presenter && (
         <div className="rounded-lg border border-border bg-card p-3">
-          <PresenterHint text="Solo puedes controlar las rondas, ver la votación y ampliar el radar." />
+          <PresenterHint text="Ves el radar con la señal más votada de cada dimensión. Controla las rondas y amplía el radar." />
           <div className="mt-3 flex flex-wrap gap-2">
             {axes.map((a, i) => (
               <button key={a.key} className={content.activeRound === i + 1 ? btnPrimary : btnGhost} onClick={() => setRound(i + 1)}>
@@ -227,29 +233,42 @@ export default function RadarContexto({ activity, session, participant }: Activi
               Cerrar rondas
             </button>
           </div>
-          <div className="mt-3">
-            <ToggleSwitch
-              checked={content.showOnlyFocus}
-              onChange={(next) => save({ ...content, showOnlyFocus: next })}
-              label={`Mostrar solo foco (top ${focusCount} votadas)`}
-            />
-          </div>
         </div>
       )}
 
-      <div className="flex flex-col items-center gap-6 lg:flex-row lg:items-start">
-        <div className="relative">
-          {renderRadar(BASE_SIZE)}
-          <button
-            className={btnGhost + " absolute -bottom-2 -right-2 bg-card"}
-            title="Ampliar radar a pantalla completa"
-            onClick={() => setExpanded(true)}
-          >
-            ⛶
-          </button>
+      {presenter ? (
+        <div className="flex flex-col items-center gap-6 lg:flex-row lg:items-start">
+          <div className="relative">
+            {renderRadar(BASE_SIZE)}
+            <button
+              className={btnGhost + " absolute -bottom-2 -right-2 bg-card"}
+              title="Ampliar radar a pantalla completa"
+              onClick={() => setExpanded(true)}
+            >
+              ⛶
+            </button>
+          </div>
+          <div className="w-full flex-1 space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted">Más votada por dimensión</p>
+            {axes.map((a) => {
+              const w = winnerByAxis[a.key];
+              return (
+                <div key={a.key} className="rounded-md border border-border bg-card px-3 py-2 text-sm">
+                  <p className="text-xs font-medium text-muted">{a.label}</p>
+                  {w ? (
+                    <p className="text-foreground">
+                      {w.text} <span className="text-xs font-semibold text-brand">· {voteTotal[w.id] ?? 0} pts</span>
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted">Sin votos aún</p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
-
-        <div className="w-full flex-1 space-y-3">
+      ) : (
+        <div className="space-y-3">
           <div className="flex flex-wrap gap-1.5">
             {rings.map((r, i) => (
               <span key={i} className="rounded-full bg-black/5 px-2 py-1 text-[11px] text-muted">
@@ -257,70 +276,61 @@ export default function RadarContexto({ activity, session, participant }: Activi
               </span>
             ))}
           </div>
-          {!presenter &&
-            (activeAxis ? (
-              <div className="rounded-lg border border-border bg-card p-3">
-                <p className="mb-2 text-sm font-semibold text-foreground">Ronda activa: {activeAxis.label}</p>
-                <div className="mb-2 flex flex-wrap gap-2">
-                  {rings.map((r, i) => (
-                    <button key={i} onClick={() => setRing(i)} className={i === ring ? btnPrimary : btnGhost}>
-                      {r}
-                    </button>
-                  ))}
-                </div>
-                <div className="flex gap-2">
-                  <input
-                    className={inputCls}
-                    placeholder="Señal de cambio del entorno…"
-                    value={text}
-                    onChange={(e) => setText(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && addSignal()}
-                  />
-                  <button className={btnPrimary} onClick={addSignal}>
-                    Agregar
+          {activeAxis ? (
+            <div className="rounded-lg border border-border bg-card p-3">
+              <p className="mb-2 text-sm font-semibold text-foreground">Ronda activa: {activeAxis.label}</p>
+              <div className="mb-2 flex flex-wrap gap-2">
+                {rings.map((r, i) => (
+                  <button key={i} onClick={() => setRing(i)} className={i === ring ? btnPrimary : btnGhost}>
+                    {r}
                   </button>
-                </div>
+                ))}
               </div>
-            ) : (
-              <p className="text-sm text-muted">Esperando a que el facilitador abra una ronda…</p>
-            ))}
+              <div className="flex gap-2">
+                <input
+                  className={inputCls}
+                  placeholder="Señal de cambio del entorno…"
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && addSignal()}
+                />
+                <button className={btnPrimary} onClick={addSignal}>
+                  Agregar
+                </button>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-muted">Esperando a que el facilitador abra una ronda…</p>
+          )}
 
           <div>
             <div className="mb-1 flex items-center justify-between">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted">Vota las más impactantes</p>
-              {!presenter && (
-                <span className="text-xs text-muted">
-                  Fichas: <span className="font-semibold text-foreground">{myRemaining}</span>/{pointsPerPerson}
-                </span>
-              )}
+              <span className="text-xs text-muted">
+                Fichas: <span className="font-semibold text-foreground">{myRemaining}</span>/{pointsPerPerson}
+              </span>
             </div>
             <div className="max-h-64 space-y-1.5 overflow-y-auto">
               {content.signals.map((s) => {
                 const mine = content.votes.find((v) => v.participant_id === participant.id && v.signal_id === s.id)?.points ?? 0;
                 const total = voteTotal[s.id] ?? 0;
-                const isFocus = focusIds.has(s.id);
                 return (
                   <div key={s.id} className="flex items-center justify-between gap-2 rounded-md border border-border bg-card px-2 py-1.5 text-xs">
                     <span className="min-w-0 flex-1 truncate" title={s.text}>
-                      {isFocus && "🎯 "}
                       {axes.find((a) => a.key === s.axis)?.label} · {rings[s.ring]}: {s.text}
                     </span>
                     <span className="flex shrink-0 items-center gap-1.5">
                       <span className="font-semibold text-brand">{total}</span>
-                      {!presenter && (
-                        <>
-                          <button className="w-5 rounded border border-border" onClick={() => voteSignal(s.id, Math.max(0, mine - 1))}>
-                            -
-                          </button>
-                          <button
-                            className="w-5 rounded border border-border disabled:opacity-40"
-                            disabled={myRemaining <= 0}
-                            onClick={() => voteSignal(s.id, mine + 1)}
-                          >
-                            +
-                          </button>
-                        </>
-                      )}
+                      <button className="w-5 rounded border border-border" onClick={() => voteSignal(s.id, Math.max(0, mine - 1))}>
+                        -
+                      </button>
+                      <button
+                        className="w-5 rounded border border-border disabled:opacity-40"
+                        disabled={myRemaining <= 0}
+                        onClick={() => voteSignal(s.id, mine + 1)}
+                      >
+                        +
+                      </button>
                       {s.author === participant.name && (
                         <button className={btnDanger} onClick={() => removeSignal(s.id)}>
                           eliminar
@@ -334,10 +344,10 @@ export default function RadarContexto({ activity, session, participant }: Activi
             </div>
           </div>
         </div>
-      </div>
+      )}
       <SaveIndicator saving={saving} updatedAt={updatedAt} />
 
-      {expanded && (
+      {expanded && presenter && (
         <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-background/98 p-6">
           <button className={btnGhost + " absolute right-6 top-6"} onClick={() => setExpanded(false)}>
             ✕ Cerrar
