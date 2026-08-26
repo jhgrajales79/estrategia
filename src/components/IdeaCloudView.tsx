@@ -46,22 +46,28 @@ export default function IdeaCloudView({ ideas, large = false }: { ideas: Idea[];
         const jitterY = JITTER[i % JITTER.length] * (large ? 1 : 0.6);
         const jitterX = JITTER[(i * 5 + 3) % JITTER.length] * (large ? 1 : 0.6);
         const hue = (i * 137.508) % 360; // ángulo dorado: máxima separación de color entre ideas
-        // Mas votos = fondo mas solido; sin votos = fondo mas transparente.
+        // Sin votos: fondo completamente transparente (solo el borde marca la tarjeta).
+        // A más votos, el fondo se vuelve más solido, más saturado y más brillante.
         const weight = idea.votes / maxVotes; // 0..1
-        const alpha = 0.28 + weight * 0.62; // 0.28 (sin votos) .. 0.9 (la mas votada)
+        const alpha = weight;
+        const saturation = 45 + weight * 45; // 45% .. 90%
+        const lightness = 88 - weight * 18; // 88% (pastel) .. 70% (vivo)
+        const isHot = idea.votes > 4;
         return (
           <span
             key={idea.id}
-            className="inline-block max-w-[85%] whitespace-normal break-words text-center font-extrabold leading-snug text-neutral-800 shadow-lg"
+            className="inline-block max-w-[85%] whitespace-normal break-words text-center font-extrabold leading-snug text-neutral-800"
             style={{
               fontSize,
               padding: `${padY}px ${padX}px`,
               borderRadius: fontSize * 1.4,
-              backgroundColor: `hsl(${hue} 85% 82% / ${alpha})`,
-              boxShadow: `0 4px 14px hsl(${hue} 60% 55% / 0.35)`,
+              border: `1.5px solid hsl(${hue} 60% 55% / ${0.3 + weight * 0.5})`,
+              backgroundColor: `hsl(${hue} ${saturation}% ${lightness}% / ${alpha})`,
+              boxShadow: weight > 0 ? `0 4px ${10 + weight * 16}px hsl(${hue} 70% 55% / ${0.15 + weight * 0.4})` : "none",
               transform: `translate(${jitterX}px, ${jitterY}px) rotate(${rotate}deg)`,
             }}
           >
+            {isHot && "🔥 "}
             {idea.text}
             {idea.votes > 0 && <span className="ml-1.5 text-xs font-normal opacity-70">· {idea.votes}</span>}
           </span>
