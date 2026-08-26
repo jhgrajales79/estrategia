@@ -2,6 +2,9 @@
 
 import { useState } from "react";
 import BarChart from "@/components/charts/BarChart";
+import RadarChartView from "@/components/RadarChartView";
+import IdeaCloudView from "@/components/IdeaCloudView";
+import NotesBoardView from "@/components/NotesBoardView";
 import { aspAbbrev, aspClasses, findAspiration } from "@/lib/aspirationStyle";
 import type { ActivityRow, Aspiration } from "@/lib/types";
 
@@ -39,30 +42,19 @@ function renderContent(activity: ActivityRow, content: Record<string, unknown>, 
   switch (activity.activity_type) {
     case "notas": {
       const categories = asArray<{ key: string; label: string }>(config.categories);
-      const notes = asArray<Record<string, unknown>>(content.notes);
-      if (notes.length === 0) return <Empty />;
-      return (
-        <div className="grid gap-3 sm:grid-cols-2">
-          {categories.map((cat) => {
-            const inCat = notes.filter((n) => n.category === cat.key);
-            if (inCat.length === 0) return null;
-            return (
-              <div key={cat.key}>
-                <p className="mb-1 text-xs font-semibold text-muted">{cat.label}</p>
-                <ul className="space-y-1">
-                  {inCat.map((n, i) => (
-                    <li key={i} className="text-sm text-foreground">
-                      <AspTag aspirations={aspirations} id={(n.aspiration_id as number) ?? null} />
-                      {str(n.text)}
-                      {n.impact ? <span className="text-xs text-muted"> · {str(n.impact)}</span> : null}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            );
-          })}
-        </div>
-      );
+      const rawNotes = asArray<Record<string, unknown>>(content.notes);
+      if (rawNotes.length === 0) return <Empty />;
+      // Mismo tablero de post-its que ve el facilitador (y que se proyecta en /notas).
+      const notes = rawNotes.map((n) => ({
+        id: str(n.id),
+        category: str(n.category),
+        aspiration_id: (n.aspiration_id as number) ?? null,
+        author: str(n.author),
+        text: str(n.text),
+        impact: n.impact as "alto" | "medio" | "bajo" | undefined,
+        highlighted: Boolean(n.highlighted),
+      }));
+      return <NotesBoardView categories={categories} notes={notes} aspirations={aspirations} />;
     }
 
     case "matriz_ponderada": {
@@ -145,6 +137,19 @@ function renderContent(activity: ActivityRow, content: Record<string, unknown>, 
       const candidates = asArray<Record<string, unknown>>(content.candidates);
       const votes = asArray<Record<string, unknown>>(content.votes);
       if (candidates.length === 0) return <Empty />;
+      if (config.cloudView) {
+        // Misma nube de ideas que ve el facilitador (y que se proyecta en /ideas).
+        const ideas = candidates.map((c) => ({
+          id: str(c.id),
+          text: str(c.text),
+          votes: votes.filter((v) => v.candidate_id === c.id).reduce((a, v) => a + Number(v.points ?? 0), 0),
+        }));
+        return (
+          <div style={{ height: 320 }}>
+            <IdeaCloudView ideas={ideas} />
+          </div>
+        );
+      }
       const totals = candidates
         .map((c) => ({
           label: str(c.text),
@@ -259,33 +264,62 @@ function renderContent(activity: ActivityRow, content: Record<string, unknown>, 
     case "radar_contexto": {
       const axes = asArray<{ key: string; label: string }>(config.axes);
       const rings = asArray<string>(config.rings);
-      const signals = asArray<Record<string, unknown>>(content.signals);
+      const rawSignals = asArray<Record<string, unknown>>(content.signals);
       const votes = asArray<Record<string, unknown>>(content.votes);
-      if (signals.length === 0) return <Empty />;
-      const voteTotal = (id: string) => votes.filter((v) => v.signal_id === id).reduce((a, v) => a + Number(v.points ?? 0), 0);
+      if (rawSignals.length === 0) return <Empty />;
+      const signals = rawSignals.map((s) => ({
+        id: str(s.id),
+        axis: str(s.axis),
+        ring: Number(s.ring ?? 0),
+        round: Number(s.round ?? 0),
+        text: str(s.text),
+        author: str(s.author),
+        aspiration_id: (s.aspiration_id as number) ?? null,
+      }));
+      const voteTotal: Record<string, number> = {};
+      for (const v of votes) {
+        const id = str(v.signal_id);
+        voteTotal[id] = (voteTotal[id] ?? 0) + Number(v.points ?? 0);
+      }
+      const winnerByAxis: Record<string, (typeof signals)[number] | undefined> = {};
+      for (const a of axes) {
+        const inAxis = signals.filter((s) => s.axis === a.key);
+        let best: (typeof signals)[number] | undefined;
+        let bestVotes = -1;
+        for (const s of inAxis) {
+          const v = voteTotal[s.id] ?? 0;
+          if (v > bestVotes) {
+            best = s;
+            bestVotes = v;
+          }
+        }
+        winnerByAxis[a.key] = bestVotes > 0 ? best : undefined;
+      }
       return (
-        <div className="space-y-2">
-          {axes.map((a) => {
-            const inAxis = signals.filter((s) => s.axis === a.key);
-            if (inAxis.length === 0) return null;
-            return (
-              <div key={a.key}>
-                <p className="mb-1 text-xs font-semibold text-muted">{a.label}</p>
-                <ul className="space-y-1">
-                  {inAxis
-                    .sort((x, y) => voteTotal(str(y.id)) - voteTotal(str(x.id)))
-                    .map((s, i) => (
-                      <li key={i} className="text-sm text-foreground">
-                        {str(s.text)}{" "}
-                        <span className="text-xs text-muted">
-                          · {rings[Number(s.ring ?? 0)] ?? ""} · {voteTotal(str(s.id))} votos
-                        </span>
-                      </li>
-                    ))}
-                </ul>
-              </div>
-            );
-          })}
+        <div className="flex flex-col items-center gap-4">
+          {/* Mismo radar (poligono de la mas votada por dimension) que ve el facilitador. */}
+          <RadarChartView axes={axes} winnerByAxis={winnerByAxis} voteTotal={voteTotal} />
+          <div className="w-full space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted">Todas las señales</p>
+            {axes.map((a) => {
+              const inAxis = signals.filter((s) => s.axis === a.key);
+              if (inAxis.length === 0) return null;
+              return (
+                <div key={a.key}>
+                  <p className="mb-1 text-xs font-semibold text-muted">{a.label}</p>
+                  <ul className="space-y-1">
+                    {inAxis
+                      .sort((x, y) => (voteTotal[y.id] ?? 0) - (voteTotal[x.id] ?? 0))
+                      .map((s) => (
+                        <li key={s.id} className="text-sm text-foreground">
+                          {s.text} <span className="text-xs text-muted">· {rings[s.ring] ?? ""} · {voteTotal[s.id] ?? 0} votos</span>
+                        </li>
+                      ))}
+                  </ul>
+                </div>
+              );
+            })}
+          </div>
         </div>
       );
     }
