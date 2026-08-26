@@ -4,10 +4,10 @@ interface Idea {
   votes: number;
 }
 
-// Mezcla de ángulos horizontales, diagonales y verticales para un look realmente "crazy".
-const ANGLES = [0, 90, -90, 45, -45, 18, -18, 65, -65, 30, -30, 80, -80, 10, -10, 55, -55];
-const JITTER_Y = [0, 30, -22, 40, -34, 18, -40, 34, -18, 44, -28, 12, -44, 24, -12, 48, -48];
-const JITTER_X = [0, -12, 16, -20, 8, -8, 20, -16, 12, -24, 4, -4, 24, -28, 28, -12, 12];
+// Ángulos moderados (sin verticales completos) para un look "un poco loco" sin que las
+// tarjetas invadan la celda vecina. El espacio (gap) del grid es lo que evita el cruce.
+const ANGLES = [0, -8, 10, -14, 18, -6, 14, -18, 8, -10, 22, -22, 12, -16, 6, -12, 16];
+const JITTER = [0, 6, -5, 8, -7, 4, -8, 7, -4, 9, -6, 3, -9, 5, -3, 8, -5];
 
 export default function IdeaCloudView({ ideas, large = false }: { ideas: Idea[]; large?: boolean }) {
   const maxVotes = Math.max(1, ...ideas.map((i) => i.votes));
@@ -28,7 +28,12 @@ export default function IdeaCloudView({ ideas, large = false }: { ideas: Idea[];
   return (
     <div
       className="grid h-full w-full place-items-center"
-      style={{ gridTemplateRows: `repeat(${rows}, 1fr)`, gridAutoFlow: "column", gridAutoColumns: "minmax(0, 1fr)" }}
+      style={{
+        gridTemplateRows: `repeat(${rows}, 1fr)`,
+        gridAutoFlow: "column",
+        gridAutoColumns: "minmax(0, 1fr)",
+        gap: large ? "1.5rem" : "0.75rem",
+      }}
     >
       {Array.from({ length: rows * cols }).map((_, cell) => {
         const idea = ideas[cell];
@@ -40,8 +45,8 @@ export default function IdeaCloudView({ ideas, large = false }: { ideas: Idea[];
         const padY = fontSize * 0.22;
         const padX = fontSize * 0.55;
         const rotate = ANGLES[i % ANGLES.length];
-        const jitterY = JITTER_Y[i % JITTER_Y.length] * (large ? 1 : 0.6);
-        const jitterX = JITTER_X[i % JITTER_X.length] * (large ? 1 : 0.6);
+        const jitterY = JITTER[i % JITTER.length] * (large ? 1 : 0.6);
+        const jitterX = JITTER[(i * 5 + 3) % JITTER.length] * (large ? 1 : 0.6);
         const hue = (i * 137.508) % 360; // ángulo dorado: máxima separación de color entre ideas
         return (
           <span
