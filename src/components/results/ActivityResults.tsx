@@ -36,7 +36,7 @@ function str(v: unknown): string {
   return typeof v === "string" ? v : v == null ? "" : String(v);
 }
 
-function renderContent(activity: ActivityRow, content: Record<string, unknown>, aspirations: Aspiration[]) {
+function renderContent(activity: ActivityRow, content: Record<string, unknown>, aspirations: Aspiration[], large = false) {
   const config = activity.config as Record<string, unknown>;
 
   switch (activity.activity_type) {
@@ -54,7 +54,7 @@ function renderContent(activity: ActivityRow, content: Record<string, unknown>, 
         impact: n.impact as "alto" | "medio" | "bajo" | undefined,
         highlighted: Boolean(n.highlighted),
       }));
-      return <NotesBoardView categories={categories} notes={notes} aspirations={aspirations} />;
+      return <NotesBoardView categories={categories} notes={notes} aspirations={aspirations} large={large} />;
     }
 
     case "matriz_ponderada": {
@@ -145,8 +145,8 @@ function renderContent(activity: ActivityRow, content: Record<string, unknown>, 
           votes: votes.filter((v) => v.candidate_id === c.id).reduce((a, v) => a + Number(v.points ?? 0), 0),
         }));
         return (
-          <div style={{ height: 320 }}>
-            <IdeaCloudView ideas={ideas} />
+          <div style={{ height: large ? 560 : 320 }}>
+            <IdeaCloudView ideas={ideas} large={large} />
           </div>
         );
       }
@@ -298,7 +298,7 @@ function renderContent(activity: ActivityRow, content: Record<string, unknown>, 
       return (
         <div className="flex flex-col items-center gap-4">
           {/* Mismo radar (poligono de la mas votada por dimension) que ve el facilitador. */}
-          <RadarChartView axes={axes} winnerByAxis={winnerByAxis} voteTotal={voteTotal} />
+          <RadarChartView axes={axes} winnerByAxis={winnerByAxis} voteTotal={voteTotal} size={large ? 560 : 340} />
           <div className="w-full space-y-2">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted">Todas las señales</p>
             {axes.map((a) => {
@@ -329,6 +329,35 @@ function renderContent(activity: ActivityRow, content: Record<string, unknown>, 
   }
 }
 
+function ResultsBody({
+  activity,
+  submissions,
+  aspirations,
+  large = false,
+}: {
+  activity: ActivityRow;
+  submissions: SubmissionLike[];
+  aspirations: Aspiration[];
+  large?: boolean;
+}) {
+  const hasAny = submissions.length > 0;
+  return (
+    <div className="space-y-4">
+      {!hasAny && <Empty />}
+      {submissions.map((s, i) => {
+        const perAspiration = Boolean((activity.config as Record<string, unknown>).perAspiration);
+        const asp = perAspiration ? findAspiration(aspirations, s.aspiration_id) : null;
+        return (
+          <div key={i}>
+            {perAspiration && asp && <p className={`mb-2 text-xs font-bold ${aspClasses(asp.number).text}`}>Aspiración {asp.number}</p>}
+            {renderContent(activity, s.content, aspirations, large)}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function ActivityResults({
   activity,
   submissions,
@@ -339,32 +368,46 @@ export default function ActivityResults({
   aspirations: Aspiration[];
 }) {
   const [open, setOpen] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const hasAny = submissions.length > 0;
 
   return (
     <div className="rounded-lg border border-border bg-card">
-      <button className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left" onClick={() => setOpen((o) => !o)}>
-        <span className="text-sm font-semibold text-foreground">{activity.title}</span>
-        <span className="flex items-center gap-2">
-          {!hasAny && <span className="text-xs text-muted">sin datos</span>}
-          <span className="text-muted">{open ? "▲" : "▼"}</span>
-        </span>
-      </button>
+      <div className="flex items-center gap-2 px-4 py-3">
+        <button className="flex flex-1 items-center justify-between gap-3 text-left" onClick={() => setOpen((o) => !o)}>
+          <span className="text-sm font-semibold text-foreground">{activity.title}</span>
+          <span className="flex items-center gap-2">
+            {!hasAny && <span className="text-xs text-muted">sin datos</span>}
+            <span className="text-muted">{open ? "▲" : "▼"}</span>
+          </span>
+        </button>
+        {hasAny && (
+          <button
+            className="shrink-0 rounded-md border border-border px-2 py-1 text-xs text-muted hover:bg-black/5"
+            title="Ampliar para ver mejor"
+            onClick={() => setExpanded(true)}
+          >
+            ⛶ Ampliar
+          </button>
+        )}
+      </div>
       {open && (
-        <div className="space-y-4 border-t border-border px-4 py-4">
-          {!hasAny && <Empty />}
-          {submissions.map((s, i) => {
-            const perAspiration = Boolean((activity.config as Record<string, unknown>).perAspiration);
-            const asp = perAspiration ? findAspiration(aspirations, s.aspiration_id) : null;
-            return (
-              <div key={i}>
-                {perAspiration && asp && (
-                  <p className={`mb-2 text-xs font-bold ${aspClasses(asp.number).text}`}>Aspiración {asp.number}</p>
-                )}
-                {renderContent(activity, s.content, aspirations)}
-              </div>
-            );
-          })}
+        <div className="border-t border-border px-4 py-4">
+          <ResultsBody activity={activity} submissions={submissions} aspirations={aspirations} />
+        </div>
+      )}
+
+      {expanded && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-background/98 p-6">
+          <div className="mx-auto max-w-4xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-foreground">{activity.title}</h2>
+              <button className="rounded-md border border-border px-3 py-1.5 text-sm" onClick={() => setExpanded(false)}>
+                ✕ Cerrar
+              </button>
+            </div>
+            <ResultsBody activity={activity} submissions={submissions} aspirations={aspirations} large />
+          </div>
         </div>
       )}
     </div>
