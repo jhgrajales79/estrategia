@@ -108,11 +108,20 @@ export default function NotasColectivas({ activity, session, aspirations, partic
       {presenter && (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-card p-3">
           <PresenterHint />
-          <ToggleSwitch
-            checked={content.showOnlyHighlighted}
-            onChange={(next) => save({ ...content, showOnlyHighlighted: next })}
-            label="Mostrar solo destacadas"
-          />
+          <div className="flex items-center gap-3">
+            <ToggleSwitch
+              checked={content.showOnlyHighlighted}
+              onChange={(next) => save({ ...content, showOnlyHighlighted: next })}
+              label="Mostrar solo destacadas"
+            />
+            <button
+              className={btnGhost}
+              title="Ampliar tablero en una pestaña nueva"
+              onClick={() => window.open(`/notas/${activity.id}`, "_blank", "noopener,noreferrer")}
+            >
+              ⛶ Ampliar
+            </button>
+          </div>
         </div>
       )}
       {allowMedia && presenter && (
