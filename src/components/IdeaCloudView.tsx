@@ -36,8 +36,9 @@ export default function IdeaCloudView({ ideas, large = false }: { ideas: Idea[];
         const i = cell;
         const weight = idea.votes / maxVotes; // 0..1
         const fontSize = large ? 15 + weight * 24 : 11 + weight * 14;
-        const padY = large ? 8 + weight * 8 : 5 + weight * 5;
-        const padX = large ? 16 + weight * 12 : 10 + weight * 7;
+        // Padding proporcional al tamaño de letra: el badge se ajusta al texto, no al revés.
+        const padY = fontSize * 0.22;
+        const padX = fontSize * 0.55;
         const rotate = ANGLES[i % ANGLES.length];
         const jitterY = JITTER_Y[i % JITTER_Y.length] * (large ? 1 : 0.6);
         const jitterX = JITTER_X[i % JITTER_X.length] * (large ? 1 : 0.6);
