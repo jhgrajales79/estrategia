@@ -64,9 +64,11 @@ export default function IdeasFullscreenPage({ params }: { params: Promise<{ acti
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-12 bg-background p-8">
-      <h1 className="text-center text-3xl font-bold text-foreground">{activity.title}</h1>
-      <IdeaCloudView ideas={ideas} large />
+    <div className="flex h-screen flex-col overflow-hidden bg-background p-8">
+      <h1 className="shrink-0 text-center text-3xl font-bold text-foreground">{activity.title}</h1>
+      <div className="min-h-0 flex-1">
+        <IdeaCloudView ideas={ideas} large />
+      </div>
     </div>
   );
 }
