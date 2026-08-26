@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSubmission, effectiveAspirationId } from "@/lib/useSubmission";
 import { isPresenter } from "@/lib/presenter";
 import { ActivityComponentProps, inputCls, btnPrimary, btnGhost, btnDanger, SaveIndicator, PresenterHint, ToggleSwitch, ROUND_PALETTE, autoBg, uid } from "./shared";
@@ -17,12 +17,17 @@ interface Signal {
   text: string;
   author: string;
   aspiration_id: number | null;
-  highlighted?: boolean;
+}
+interface Vote {
+  participant_id: string;
+  signal_id: string;
+  points: number;
 }
 interface Content extends Record<string, unknown> {
   activeRound: number;
   signals: Signal[];
-  showOnlyHighlighted: boolean;
+  votes: Vote[];
+  showOnlyFocus: boolean;
 }
 
 const BASE_SIZE = 340;
@@ -30,6 +35,8 @@ const BASE_SIZE = 340;
 export default function RadarContexto({ activity, session, participant }: ActivityComponentProps) {
   const axes = (activity.config.axes as Axis[]) ?? [];
   const rings = (activity.config.rings as string[]) ?? ["Ya nos afecta", "Nos afectará este año", "En el horizonte"];
+  const pointsPerPerson = (activity.config.pointsPerPerson as number) ?? 3;
+  const focusCount = (activity.config.focusCount as number) ?? 3;
   const presenter = isPresenter(participant);
   const submissionAspId = effectiveAspirationId(activity, participant);
   const { content, save, saving, updatedAt, loaded } = useSubmission<Content>(
@@ -37,7 +44,7 @@ export default function RadarContexto({ activity, session, participant }: Activi
     session,
     submissionAspId,
     participant,
-    { activeRound: 0, signals: [], showOnlyHighlighted: false }
+    { activeRound: 0, signals: [], votes: [], showOnlyFocus: false }
   );
   const [ring, setRing] = useState(0);
   const [text, setText] = useState("");
@@ -63,9 +70,28 @@ export default function RadarContexto({ activity, session, participant }: Activi
     return () => window.removeEventListener("keydown", onKey);
   }, [expanded]);
 
+  const voteTotal = useMemo(() => {
+    const totals: Record<string, number> = {};
+    for (const v of content?.votes ?? []) totals[v.signal_id] = (totals[v.signal_id] ?? 0) + v.points;
+    return totals;
+  }, [content?.votes]);
+
+  const focusIds = useMemo(() => {
+    if (!content) return new Set<string>();
+    return new Set(
+      Object.entries(voteTotal)
+        .filter(([, total]) => total > 0)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, focusCount)
+        .map(([id]) => id)
+    );
+  }, [voteTotal, focusCount, content]);
+
   if (!loaded) return <p className="text-sm text-muted">Cargando…</p>;
 
   const activeAxis = content.activeRound > 0 ? axes[content.activeRound - 1] : null;
+  const myUsed = content.votes.filter((v) => v.participant_id === participant.id).reduce((a, v) => a + v.points, 0);
+  const myRemaining = pointsPerPerson - myUsed;
 
   function setRound(n: number) {
     save(
@@ -99,11 +125,16 @@ export default function RadarContexto({ activity, session, participant }: Activi
   }
 
   function removeSignal(id: string) {
-    save({ ...content, signals: content.signals.filter((s) => s.id !== id) });
+    save({ ...content, signals: content.signals.filter((s) => s.id !== id), votes: content.votes.filter((v) => v.signal_id !== id) });
   }
 
-  function toggleHighlight(id: string) {
-    save({ ...content, signals: content.signals.map((s) => (s.id === id ? { ...s, highlighted: !s.highlighted } : s)) });
+  function voteSignal(signalId: string, points: number) {
+    if (presenter || points < 0) return;
+    const others = content.votes.filter((v) => !(v.participant_id === participant.id && v.signal_id === signalId));
+    const usedByOthers = others.filter((v) => v.participant_id === participant.id).reduce((a, v) => a + v.points, 0);
+    if (usedByOthers + points > pointsPerPerson) return;
+    const votes = points === 0 ? others : [...others, { participant_id: participant.id, signal_id: signalId, points }];
+    save({ ...content, votes }, { eventType: "voto_radar", summary: `${participant.name} votó una señal del radar` });
   }
 
   function axisAngle(i: number) {
@@ -118,7 +149,7 @@ export default function RadarContexto({ activity, session, participant }: Activi
   }
 
   const ringFractions = [0.35, 0.68, 1];
-  const visibleSignals = content.showOnlyHighlighted ? content.signals.filter((s) => s.highlighted) : content.signals;
+  const visibleSignals = content.showOnlyFocus ? content.signals.filter((s) => focusIds.has(s.id)) : content.signals;
   const grouped = new Map<string, Signal[]>();
   for (const s of visibleSignals) {
     const key = `${s.axis}-${s.ring}`;
@@ -161,6 +192,7 @@ export default function RadarContexto({ activity, session, participant }: Activi
           const spread = (idxInGroup - (group.length - 1) / 2) * 10;
           const p = point(size, axisAngle(axisIndex) + spread, ringFractions[s.ring]);
           const chipSize = size > BASE_SIZE ? "w-24 text-[11px] p-1.5" : "w-16 text-[9px] p-1";
+          const isFocus = focusIds.has(s.id);
           return (
             <div
               key={s.id}
@@ -168,9 +200,10 @@ export default function RadarContexto({ activity, session, participant }: Activi
               className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-sm text-center leading-tight shadow ${chipSize} ${autoBg(
                 s.round - 1,
                 ROUND_PALETTE
-              )} ${s.highlighted ? "ring-2 ring-brand shadow-lg z-10" : ""}`}
+              )} ${isFocus ? "ring-2 ring-brand shadow-lg z-10" : ""}`}
               style={{ left: p.x, top: p.y }}
             >
+              {isFocus && "🎯 "}
               {s.text.length > 30 ? s.text.slice(0, 28) + "…" : s.text}
             </div>
           );
@@ -183,7 +216,7 @@ export default function RadarContexto({ activity, session, participant }: Activi
     <div className="space-y-4">
       {presenter && (
         <div className="rounded-lg border border-border bg-card p-3">
-          <PresenterHint text="Solo puedes controlar las rondas, resaltar señales y ampliar el radar." />
+          <PresenterHint text="Solo puedes controlar las rondas, ver la votación y ampliar el radar." />
           <div className="mt-3 flex flex-wrap gap-2">
             {axes.map((a, i) => (
               <button key={a.key} className={content.activeRound === i + 1 ? btnPrimary : btnGhost} onClick={() => setRound(i + 1)}>
@@ -194,21 +227,27 @@ export default function RadarContexto({ activity, session, participant }: Activi
               Cerrar rondas
             </button>
           </div>
-          <div className="mt-3 flex flex-wrap items-center gap-3">
+          <div className="mt-3">
             <ToggleSwitch
-              checked={content.showOnlyHighlighted}
-              onChange={(next) => save({ ...content, showOnlyHighlighted: next })}
-              label="Mostrar solo destacadas"
+              checked={content.showOnlyFocus}
+              onChange={(next) => save({ ...content, showOnlyFocus: next })}
+              label={`Mostrar solo foco (top ${focusCount} votadas)`}
             />
-            <button className={btnGhost} onClick={() => setExpanded(true)}>
-              ⛶ Ampliar radar
-            </button>
           </div>
         </div>
       )}
 
       <div className="flex flex-col items-center gap-6 lg:flex-row lg:items-start">
-        {renderRadar(BASE_SIZE)}
+        <div className="relative">
+          {renderRadar(BASE_SIZE)}
+          <button
+            className={btnGhost + " absolute -bottom-2 -right-2 bg-card"}
+            title="Ampliar radar a pantalla completa"
+            onClick={() => setExpanded(true)}
+          >
+            ⛶
+          </button>
+        </div>
 
         <div className="w-full flex-1 space-y-3">
           <div className="flex flex-wrap gap-1.5">
@@ -245,31 +284,54 @@ export default function RadarContexto({ activity, session, participant }: Activi
             ) : (
               <p className="text-sm text-muted">Esperando a que el facilitador abra una ronda…</p>
             ))}
-          <div className="max-h-56 space-y-1 overflow-y-auto text-xs text-muted">
-            {content.signals.map((s) => (
-              <div key={s.id} className="flex items-center justify-between gap-2">
-                <span>
-                  {axes.find((a) => a.key === s.axis)?.label} · {rings[s.ring]}: {s.text}
+
+          <div>
+            <div className="mb-1 flex items-center justify-between">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted">Vota las más impactantes</p>
+              {!presenter && (
+                <span className="text-xs text-muted">
+                  Fichas: <span className="font-semibold text-foreground">{myRemaining}</span>/{pointsPerPerson}
                 </span>
-                <span className="flex items-center gap-2 shrink-0">
-                  {presenter && (
-                    <button
-                      type="button"
-                      title="Destacar"
-                      onClick={() => toggleHighlight(s.id)}
-                      className={s.highlighted ? "opacity-100" : "opacity-40 hover:opacity-80"}
-                    >
-                      📌
-                    </button>
-                  )}
-                  {s.author === participant.name && (
-                    <button className={btnDanger} onClick={() => removeSignal(s.id)}>
-                      eliminar
-                    </button>
-                  )}
-                </span>
-              </div>
-            ))}
+              )}
+            </div>
+            <div className="max-h-64 space-y-1.5 overflow-y-auto">
+              {content.signals.map((s) => {
+                const mine = content.votes.find((v) => v.participant_id === participant.id && v.signal_id === s.id)?.points ?? 0;
+                const total = voteTotal[s.id] ?? 0;
+                const isFocus = focusIds.has(s.id);
+                return (
+                  <div key={s.id} className="flex items-center justify-between gap-2 rounded-md border border-border bg-card px-2 py-1.5 text-xs">
+                    <span className="min-w-0 flex-1 truncate" title={s.text}>
+                      {isFocus && "🎯 "}
+                      {axes.find((a) => a.key === s.axis)?.label} · {rings[s.ring]}: {s.text}
+                    </span>
+                    <span className="flex shrink-0 items-center gap-1.5">
+                      <span className="font-semibold text-brand">{total}</span>
+                      {!presenter && (
+                        <>
+                          <button className="w-5 rounded border border-border" onClick={() => voteSignal(s.id, Math.max(0, mine - 1))}>
+                            -
+                          </button>
+                          <button
+                            className="w-5 rounded border border-border disabled:opacity-40"
+                            disabled={myRemaining <= 0}
+                            onClick={() => voteSignal(s.id, mine + 1)}
+                          >
+                            +
+                          </button>
+                        </>
+                      )}
+                      {s.author === participant.name && (
+                        <button className={btnDanger} onClick={() => removeSignal(s.id)}>
+                          eliminar
+                        </button>
+                      )}
+                    </span>
+                  </div>
+                );
+              })}
+              {content.signals.length === 0 && <p className="text-xs text-muted">Aún no hay señales registradas.</p>}
+            </div>
           </div>
         </div>
       </div>
