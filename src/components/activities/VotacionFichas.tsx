@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useSubmission, effectiveAspirationId } from "@/lib/useSubmission";
 import { isPresenter } from "@/lib/presenter";
 import BarChart from "@/components/charts/BarChart";
-import { ActivityComponentProps, inputCls, btnPrimary, btnDanger, SaveIndicator, PresenterHint, uid } from "./shared";
+import { ActivityComponentProps, inputCls, btnPrimary, btnGhost, btnDanger, SaveIndicator, PresenterHint, uid } from "./shared";
 
 interface Candidate {
   id: string;
@@ -29,6 +29,7 @@ export default function VotacionFichas({ activity, session, participant }: Activ
   const allowSubmitCandidates = Boolean(activity.config.allowSubmitCandidates);
   const candidateLabel = (activity.config.candidateLabel as string) ?? "Candidata";
   const requireOwnerAndDate = Boolean(activity.config.requireOwnerAndDate);
+  const cloudView = Boolean(activity.config.cloudView);
   const presenter = isPresenter(participant);
   const submissionAspId = effectiveAspirationId(activity, participant);
   const { content, save, saving, updatedAt, loaded } = useSubmission<Content>(
@@ -78,7 +79,20 @@ export default function VotacionFichas({ activity, session, participant }: Activ
 
   return (
     <div className="space-y-4">
-      {presenter && <PresenterHint />}
+      {presenter && (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <PresenterHint />
+          {cloudView && (
+            <button
+              className={btnGhost}
+              title="Ampliar como nube de ideas en una pestaña nueva"
+              onClick={() => window.open(`/ideas/${activity.id}`, "_blank", "noopener,noreferrer")}
+            >
+              ⛶ Ampliar
+            </button>
+          )}
+        </div>
+      )}
       {hasVotes && (
         <div className="rounded-lg border border-border bg-card p-3">
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Resultados en vivo</p>
