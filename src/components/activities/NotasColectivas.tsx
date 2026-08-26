@@ -55,6 +55,7 @@ export default function NotasColectivas({ activity, session, aspirations, partic
   const [impact, setImpact] = useState<Record<string, Note["impact"]>>({});
   const [aspirationChoice, setAspirationChoice] = useState<Record<string, string>>({});
   const [uploading, setUploading] = useState(false);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
   if (!loaded) return <p className="text-sm text-muted">Cargando…</p>;
 
@@ -133,8 +134,10 @@ export default function NotasColectivas({ activity, session, aspirations, partic
           <div className="mb-3 flex flex-wrap gap-2">
             {content.media.map((url) => (
               <div key={url} className="group relative h-20 w-20 overflow-hidden rounded-md border border-border">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={url} alt="Foto de la actividad" className="h-full w-full object-cover" />
+                <button className="h-full w-full cursor-zoom-in" title="Ampliar foto" onClick={() => setLightboxUrl(url)}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={url} alt="Foto de la actividad" className="h-full w-full object-cover" />
+                </button>
                 <button
                   className="absolute right-0.5 top-0.5 rounded-full bg-black/60 px-1 text-xs text-white opacity-0 group-hover:opacity-100"
                   onClick={() => removeMedia(url)}
@@ -263,6 +266,26 @@ export default function NotasColectivas({ activity, session, aspirations, partic
         })}
       </div>
       <SaveIndicator saving={saving} updatedAt={updatedAt} />
+      {lightboxUrl && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 p-6"
+          onClick={() => setLightboxUrl(null)}
+        >
+          <button
+            className="absolute right-4 top-4 rounded-md bg-white/10 px-3 py-1.5 text-sm text-white hover:bg-white/20"
+            onClick={() => setLightboxUrl(null)}
+          >
+            ✕ Cerrar
+          </button>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={lightboxUrl}
+            alt="Foto ampliada"
+            className="max-h-full max-w-full rounded-lg object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   );
 }

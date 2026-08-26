@@ -26,6 +26,63 @@ function Empty() {
   return <p className="text-sm text-muted">Sin resultados registrados todavía.</p>;
 }
 
+function MediaGrid({
+  media,
+  externalLink,
+  externalLinkLabel,
+  large = false,
+}: {
+  media: string[];
+  externalLink: string;
+  externalLinkLabel?: string;
+  large?: boolean;
+}) {
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  if (media.length === 0 && !externalLink) return null;
+  return (
+    <div className="mt-3 border-t border-border pt-3">
+      <div className="flex flex-wrap items-center gap-2">
+        {media.map((url) => (
+          <button
+            key={url}
+            className={`overflow-hidden rounded-md border border-border ${large ? "h-24 w-24" : "h-16 w-16"}`}
+            title="Ampliar foto"
+            onClick={() => setLightboxUrl(url)}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={url} alt="Foto de la actividad" className="h-full w-full object-cover" />
+          </button>
+        ))}
+        {externalLink && (
+          <a href={externalLink} target="_blank" rel="noopener noreferrer" className="text-xs text-brand hover:underline">
+            🔗 {externalLinkLabel || "Enlace externo"}
+          </a>
+        )}
+      </div>
+      {lightboxUrl && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 p-6"
+          onClick={() => setLightboxUrl(null)}
+        >
+          <button
+            className="absolute right-4 top-4 rounded-md bg-white/10 px-3 py-1.5 text-sm text-white hover:bg-white/20"
+            onClick={() => setLightboxUrl(null)}
+          >
+            ✕ Cerrar
+          </button>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={lightboxUrl}
+            alt="Foto ampliada"
+            className="max-h-full max-w-full rounded-lg object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
 function asArray<T = unknown>(v: unknown): T[] {
   return Array.isArray(v) ? (v as T[]) : [];
 }
@@ -43,7 +100,10 @@ function renderContent(activity: ActivityRow, content: Record<string, unknown>, 
     case "notas": {
       const categories = asArray<{ key: string; label: string }>(config.categories);
       const rawNotes = asArray<Record<string, unknown>>(content.notes);
-      if (rawNotes.length === 0) return <Empty />;
+      const media = asArray<string>(content.media);
+      const externalLink = str(content.external_link);
+      const externalLinkLabel = str(config.externalLinkLabel);
+      if (rawNotes.length === 0 && media.length === 0 && !externalLink) return <Empty />;
       // Mismo tablero de post-its que ve el facilitador (y que se proyecta en /notas).
       const notes = rawNotes.map((n) => ({
         id: str(n.id),
@@ -54,7 +114,12 @@ function renderContent(activity: ActivityRow, content: Record<string, unknown>, 
         impact: n.impact as "alto" | "medio" | "bajo" | undefined,
         highlighted: Boolean(n.highlighted),
       }));
-      return <NotesBoardView categories={categories} notes={notes} aspirations={aspirations} large={large} />;
+      return (
+        <div>
+          {rawNotes.length > 0 && <NotesBoardView categories={categories} notes={notes} aspirations={aspirations} large={large} />}
+          <MediaGrid media={media} externalLink={externalLink} externalLinkLabel={externalLinkLabel} large={large} />
+        </div>
+      );
     }
 
     case "matriz_ponderada": {
