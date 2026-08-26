@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { useSubmission, effectiveAspirationId } from "@/lib/useSubmission";
+import { isPresenter } from "@/lib/presenter";
 import BarChart from "@/components/charts/BarChart";
-import { ActivityComponentProps, inputCls, btnPrimary, btnDanger, SaveIndicator, uid } from "./shared";
+import { ActivityComponentProps, inputCls, btnPrimary, btnDanger, SaveIndicator, PresenterHint, uid } from "./shared";
 
 interface Candidate {
   id: string;
@@ -28,6 +29,7 @@ export default function VotacionFichas({ activity, session, participant }: Activ
   const allowSubmitCandidates = Boolean(activity.config.allowSubmitCandidates);
   const candidateLabel = (activity.config.candidateLabel as string) ?? "Candidata";
   const requireOwnerAndDate = Boolean(activity.config.requireOwnerAndDate);
+  const presenter = isPresenter(participant);
   const submissionAspId = effectiveAspirationId(activity, participant);
   const { content, save, saving, updatedAt, loaded } = useSubmission<Content>(
     activity,
@@ -76,13 +78,14 @@ export default function VotacionFichas({ activity, session, participant }: Activ
 
   return (
     <div className="space-y-4">
+      {presenter && <PresenterHint />}
       {hasVotes && (
         <div className="rounded-lg border border-border bg-card p-3">
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Resultados en vivo</p>
           <BarChart bars={totals.map((t) => ({ label: t.c.text, value: t.total, colorClass: "bg-brand" }))} unit=" pts" />
         </div>
       )}
-      {allowSubmitCandidates && (
+      {allowSubmitCandidates && !presenter && (
         <div className="rounded-lg border border-border bg-card p-3">
           <p className="mb-2 text-sm font-semibold">Proponer {candidateLabel.toLowerCase()}</p>
           <div className="flex flex-col gap-2 sm:flex-row">
@@ -100,9 +103,11 @@ export default function VotacionFichas({ activity, session, participant }: Activ
         </div>
       )}
 
-      <p className="text-sm text-muted">
-        Tus fichas disponibles: <span className="font-semibold text-foreground">{myRemaining}</span> de {pointsPerPerson}
-      </p>
+      {!presenter && (
+        <p className="text-sm text-muted">
+          Tus fichas disponibles: <span className="font-semibold text-foreground">{myRemaining}</span> de {pointsPerPerson}
+        </p>
+      )}
 
       <div className="space-y-2">
         {totals.map(({ c, total }, idx) => {
@@ -122,13 +127,17 @@ export default function VotacionFichas({ activity, session, participant }: Activ
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-sm font-semibold text-brand">{total} pts</span>
-                <button className={inputCls + " w-8 text-center"} onClick={() => vote(c.id, Math.max(0, mine - 1))}>
-                  -
-                </button>
-                <span className="w-4 text-center text-sm">{mine}</span>
-                <button className={inputCls + " w-8 text-center"} onClick={() => vote(c.id, mine + 1)} disabled={myRemaining <= 0}>
-                  +
-                </button>
+                {!presenter && (
+                  <>
+                    <button className={inputCls + " w-8 text-center"} onClick={() => vote(c.id, Math.max(0, mine - 1))}>
+                      -
+                    </button>
+                    <span className="w-4 text-center text-sm">{mine}</span>
+                    <button className={inputCls + " w-8 text-center"} onClick={() => vote(c.id, mine + 1)} disabled={myRemaining <= 0}>
+                      +
+                    </button>
+                  </>
+                )}
                 {c.author === participant.name && (
                   <button className={btnDanger} onClick={() => removeCandidate(c.id)}>
                     eliminar

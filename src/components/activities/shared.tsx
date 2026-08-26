@@ -43,26 +43,56 @@ export function uid() {
 
 const ROTATIONS = [-2.5, 1.5, -1, 2, -1.8, 1, -2, 2.2];
 
+// Paletas automáticas: nunca se elige el color a mano.
+export const NEUTRAL_PALETTE = ["bg-postit-yellow", "bg-postit-pink", "bg-postit-blue", "bg-postit-green", "bg-postit-orange"];
+export const ROUND_PALETTE = ["bg-postit-yellow", "bg-postit-blue", "bg-postit-pink", "bg-postit-green", "bg-postit-orange"];
+
+export function autoBg(index: number, palette: string[] = NEUTRAL_PALETTE) {
+  return palette[index % palette.length];
+}
+
 export function PostIt({
   bgClass,
   index = 0,
+  highlighted = false,
   className = "",
   children,
 }: {
   bgClass?: string;
   index?: number;
+  highlighted?: boolean;
   className?: string;
   children: ReactNode;
 }) {
-  const rotate = ROTATIONS[index % ROTATIONS.length];
+  const rotate = highlighted ? 0 : ROTATIONS[index % ROTATIONS.length];
   return (
     <div
-      className={`relative rounded-sm p-3 text-sm shadow-md ${bgClass ?? "bg-postit-yellow"} ${className}`}
+      className={`relative rounded-sm p-3 text-sm shadow-md ${bgClass ?? autoBg(index)} ${
+        highlighted ? "ring-2 ring-brand shadow-lg scale-105" : ""
+      } ${className}`}
       style={{ transform: `rotate(${rotate}deg)` }}
     >
       <span className="absolute -top-1.5 left-1/2 h-3 w-8 -translate-x-1/2 rounded-sm bg-black/10" />
+      {highlighted && <span className="absolute -right-1.5 -top-1.5 text-sm">📌</span>}
       {children}
     </div>
+  );
+}
+
+export function PresenterHint({ text = "Modo presentador: solo puedes visualizar, resaltar y controlar la actividad." }: { text?: string }) {
+  return <p className="rounded-md bg-brand/10 px-3 py-2 text-xs text-brand-dark">🎤 {text}</p>;
+}
+
+export function PinToggle({ pinned, onClick, title = "Destacar" }: { pinned: boolean; onClick: () => void; title?: string }) {
+  return (
+    <button
+      type="button"
+      title={title}
+      onClick={onClick}
+      className={`text-xs ${pinned ? "opacity-100" : "opacity-40 hover:opacity-80"}`}
+    >
+      📌
+    </button>
   );
 }
 

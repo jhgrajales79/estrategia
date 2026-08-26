@@ -16,6 +16,9 @@
   --asp-3-soft: #dfeed8;
   --postit-yellow: #fdf1a8;
   --postit-pink: #f9d4e6;
+  --postit-blue: #cfe6f9;
+  --postit-green: #dcf0cf;
+  --postit-orange: #fbe0c4;
 }
 
 @theme inline {
@@ -34,6 +37,9 @@
   --color-asp-3-soft: var(--asp-3-soft);
   --color-postit-yellow: var(--postit-yellow);
   --color-postit-pink: var(--postit-pink);
+  --color-postit-blue: var(--postit-blue);
+  --color-postit-green: var(--postit-green);
+  --color-postit-orange: var(--postit-orange);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }

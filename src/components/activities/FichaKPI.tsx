@@ -2,7 +2,8 @@
 
 import { useSubmission, effectiveAspirationId } from "@/lib/useSubmission";
 import { aspClasses, findAspiration } from "@/lib/aspirationStyle";
-import { ActivityComponentProps, inputCls, btnPrimary, btnDanger, SaveIndicator, uid } from "./shared";
+import { isPresenter } from "@/lib/presenter";
+import { ActivityComponentProps, inputCls, btnPrimary, btnDanger, SaveIndicator, PresenterHint, uid } from "./shared";
 
 interface Kpi {
   id: string;
@@ -19,6 +20,7 @@ interface Content extends Record<string, unknown> {
 }
 
 export default function FichaKPI({ activity, session, aspirations, participant }: ActivityComponentProps) {
+  const presenter = isPresenter(participant);
   const submissionAspId = effectiveAspirationId(activity, participant);
   const { content, save, saving, updatedAt, loaded } = useSubmission<Content>(
     activity,
@@ -61,30 +63,39 @@ export default function FichaKPI({ activity, session, aspirations, participant }
 
   return (
     <div className="space-y-3">
+      {presenter && <PresenterHint />}
       {content.kpis.map((k) => {
         const asp = findAspiration(aspirations, k.aspiration_id);
         const cls = aspClasses(asp?.number);
         return (
           <div key={k.id} className={`rounded-lg border-l-4 ${cls.border} border border-border bg-card p-3`}>
-            <div className="mb-2 flex justify-end">
-              <button className={btnDanger} onClick={() => removeKpi(k.id)}>
-                eliminar
-              </button>
-            </div>
+            {!presenter && (
+              <div className="mb-2 flex justify-end">
+                <button className={btnDanger} onClick={() => removeKpi(k.id)}>
+                  eliminar
+                </button>
+              </div>
+            )}
             <div className="grid gap-3 sm:grid-cols-3">
               {fields.map((f) => (
                 <div key={f.key}>
                   <label className="mb-1 block text-xs font-medium text-muted">{f.label}</label>
-                  <input className={inputCls} value={k[f.key] as string} onChange={(e) => setField(k.id, f.key, e.target.value)} />
+                  {presenter ? (
+                    <p className="rounded-md bg-black/[0.03] px-3 py-1.5 text-sm text-foreground min-h-8">{k[f.key] || "—"}</p>
+                  ) : (
+                    <input className={inputCls} value={k[f.key] as string} onChange={(e) => setField(k.id, f.key, e.target.value)} />
+                  )}
                 </div>
               ))}
             </div>
           </div>
         );
       })}
-      <button className={btnPrimary} onClick={addKpi}>
-        + Indicador
-      </button>
+      {!presenter && (
+        <button className={btnPrimary} onClick={addKpi}>
+          + Indicador
+        </button>
+      )}
       <SaveIndicator saving={saving} updatedAt={updatedAt} />
     </div>
   );

@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { useSubmission, effectiveAspirationId } from "@/lib/useSubmission";
+import { isPresenter } from "@/lib/presenter";
 import QuadrantPoint from "@/components/charts/QuadrantPoint";
-import { ActivityComponentProps, inputCls, textareaCls, btnPrimary, btnDanger, SaveIndicator, uid } from "./shared";
+import { ActivityComponentProps, inputCls, textareaCls, btnPrimary, btnDanger, SaveIndicator, PresenterHint, uid } from "./shared";
 
 interface Item {
   id: string;
@@ -29,6 +30,7 @@ export default function RuedaEvaluacion({ activity, session, participant }: Acti
   const dynamicItems = Boolean(activity.config.dynamicItems);
   const peeaMode = Boolean(activity.config.peeaMode);
   const fixedItems = (activity.config.items as Item[]) ?? [];
+  const presenter = isPresenter(participant);
   const submissionAspId = effectiveAspirationId(activity, participant);
   const { content, save, saving, updatedAt, loaded } = useSubmission<Content>(
     activity,
@@ -68,6 +70,7 @@ export default function RuedaEvaluacion({ activity, session, participant }: Acti
 
   return (
     <div className="space-y-3">
+      {presenter && <PresenterHint />}
       <div className="space-y-2">
         {content.items.map((item) => (
           <div key={item.id} className="flex flex-col gap-2 rounded-lg border border-border bg-card p-3 sm:flex-row sm:items-center">
@@ -76,32 +79,42 @@ export default function RuedaEvaluacion({ activity, session, participant }: Acti
                 {item.label}
                 {item.axis && <span className="ml-2 text-xs text-muted">({AXIS_LABEL[item.axis]})</span>}
               </p>
-              <input
-                className={textareaCls + " mt-1"}
-                placeholder="Sustento / nota…"
-                value={item.note ?? ""}
-                onChange={(e) => setItem(item.id, { note: e.target.value })}
-              />
+              {presenter ? (
+                item.note && <p className="mt-1 text-xs text-muted">{item.note}</p>
+              ) : (
+                <input
+                  className={textareaCls + " mt-1"}
+                  placeholder="Sustento / nota…"
+                  value={item.note ?? ""}
+                  onChange={(e) => setItem(item.id, { note: e.target.value })}
+                />
+              )}
             </div>
             <div className="flex items-center gap-2">
-              <input
-                type="range"
-                min={0}
-                max={scaleMax}
-                value={item.score}
-                onChange={(e) => setItem(item.id, { score: Number(e.target.value) })}
-              />
-              <span className="w-6 text-center text-sm font-semibold">{item.score}</span>
-              {dynamicItems && (
-                <button className={btnDanger} onClick={() => removeItem(item.id)}>
-                  quitar
-                </button>
+              {presenter ? (
+                <span className="text-sm font-semibold">{item.score}</span>
+              ) : (
+                <>
+                  <input
+                    type="range"
+                    min={0}
+                    max={scaleMax}
+                    value={item.score}
+                    onChange={(e) => setItem(item.id, { score: Number(e.target.value) })}
+                  />
+                  <span className="w-6 text-center text-sm font-semibold">{item.score}</span>
+                  {dynamicItems && (
+                    <button className={btnDanger} onClick={() => removeItem(item.id)}>
+                      quitar
+                    </button>
+                  )}
+                </>
               )}
             </div>
           </div>
         ))}
       </div>
-      {dynamicItems && (
+      {dynamicItems && !presenter && (
         <div className="flex gap-2">
           <input
             className={inputCls}

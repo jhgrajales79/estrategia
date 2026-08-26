@@ -2,8 +2,9 @@
 
 import { useSubmission, effectiveAspirationId } from "@/lib/useSubmission";
 import { aspClasses, findAspiration } from "@/lib/aspirationStyle";
+import { isPresenter } from "@/lib/presenter";
 import BarChart from "@/components/charts/BarChart";
-import { ActivityComponentProps, inputCls, btnPrimary, btnDanger, SaveIndicator, uid } from "./shared";
+import { ActivityComponentProps, inputCls, btnPrimary, btnDanger, SaveIndicator, PresenterHint, uid } from "./shared";
 
 interface SimpleRow {
   id: string;
@@ -32,6 +33,7 @@ export default function MatrizPonderada({ activity, session, aspirations, partic
   const mode = (activity.config.mode as string) ?? "simple";
   const scaleMax = (activity.config.scaleMax as number) ?? 4;
   const interpretHint = activity.config.interpretHint as string | undefined;
+  const presenter = isPresenter(participant);
   const submissionAspId = effectiveAspirationId(activity, participant);
   const { content, save, saving, updatedAt, loaded } = useSubmission<Content>(
     activity,
@@ -86,6 +88,7 @@ export default function MatrizPonderada({ activity, session, aspirations, partic
 
     return (
       <div className="space-y-3">
+        {presenter && <PresenterHint />}
         <div className="overflow-x-auto rounded-lg border border-border">
           <table className="min-w-full text-sm">
             <thead className="bg-black/[0.03]">
@@ -94,10 +97,12 @@ export default function MatrizPonderada({ activity, session, aspirations, partic
                 <th className="p-2 text-left font-medium w-24">Peso</th>
                 {strategies.map((s) => (
                   <th key={s.id} className="p-2 text-left font-medium min-w-40">
-                    <input className={inputCls} value={s.name} onChange={(e) => setStrategy(s.id, e.target.value)} />
-                    <button className={btnDanger} onClick={() => removeStrategy(s.id)}>
-                      quitar
-                    </button>
+                    <input className={inputCls} value={s.name} disabled={presenter} onChange={(e) => setStrategy(s.id, e.target.value)} />
+                    {!presenter && (
+                      <button className={btnDanger} onClick={() => removeStrategy(s.id)}>
+                        quitar
+                      </button>
+                    )}
                   </th>
                 ))}
               </tr>
@@ -106,10 +111,12 @@ export default function MatrizPonderada({ activity, session, aspirations, partic
               {factors.map((f) => (
                 <tr key={f.id} className="border-t border-border">
                   <td className="p-2">
-                    <input className={inputCls} value={f.name} onChange={(e) => setFactor(f.id, { name: e.target.value })} />
-                    <button className={btnDanger} onClick={() => removeFactor(f.id)}>
-                      quitar
-                    </button>
+                    <input className={inputCls} value={f.name} disabled={presenter} onChange={(e) => setFactor(f.id, { name: e.target.value })} />
+                    {!presenter && (
+                      <button className={btnDanger} onClick={() => removeFactor(f.id)}>
+                        quitar
+                      </button>
+                    )}
                   </td>
                   <td className="p-2">
                     <input
@@ -117,6 +124,7 @@ export default function MatrizPonderada({ activity, session, aspirations, partic
                       step="0.01"
                       className={inputCls}
                       value={f.peso}
+                      disabled={presenter}
                       onChange={(e) => setFactor(f.id, { peso: parseFloat(e.target.value) || 0 })}
                     />
                   </td>
@@ -128,6 +136,7 @@ export default function MatrizPonderada({ activity, session, aspirations, partic
                         max={scaleMax}
                         className={inputCls}
                         value={content.ratings[f.id]?.[s.id] ?? ""}
+                        disabled={presenter}
                         onChange={(e) => setRating(f.id, s.id, parseFloat(e.target.value) || 0)}
                       />
                     </td>
@@ -147,14 +156,16 @@ export default function MatrizPonderada({ activity, session, aspirations, partic
             </tbody>
           </table>
         </div>
-        <div className="flex gap-2">
-          <button className={btnPrimary} onClick={addFactor}>
-            + Factor
-          </button>
-          <button className={btnPrimary} onClick={addStrategy}>
-            + Estrategia
-          </button>
-        </div>
+        {!presenter && (
+          <div className="flex gap-2">
+            <button className={btnPrimary} onClick={addFactor}>
+              + Factor
+            </button>
+            <button className={btnPrimary} onClick={addStrategy}>
+              + Estrategia
+            </button>
+          </div>
+        )}
         {ranked.length > 0 && (
           <div className="rounded-md bg-black/[0.03] p-3">
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Ranking QSPM</p>
@@ -188,6 +199,7 @@ export default function MatrizPonderada({ activity, session, aspirations, partic
 
   return (
     <div className="space-y-3">
+      {presenter && <PresenterHint />}
       <div className="overflow-x-auto rounded-lg border border-border">
         <table className="min-w-full text-sm">
           <thead className="bg-black/[0.03]">
@@ -207,12 +219,13 @@ export default function MatrizPonderada({ activity, session, aspirations, partic
               return (
                 <tr key={r.id} className="border-t border-border">
                   <td className="p-2">
-                    <input className={inputCls} value={r.factor} onChange={(e) => setRow(r.id, { factor: e.target.value })} />
+                    <input className={inputCls} value={r.factor} disabled={presenter} onChange={(e) => setRow(r.id, { factor: e.target.value })} />
                   </td>
                   <td className="p-2">
                     <select
                       className={inputCls}
                       value={r.aspiration_id ?? ""}
+                      disabled={presenter}
                       onChange={(e) => setRow(r.id, { aspiration_id: e.target.value ? Number(e.target.value) : null })}
                     >
                       <option value="">—</option>
@@ -229,6 +242,7 @@ export default function MatrizPonderada({ activity, session, aspirations, partic
                       step="0.01"
                       className={inputCls}
                       value={r.peso}
+                      disabled={presenter}
                       onChange={(e) => setRow(r.id, { peso: parseFloat(e.target.value) || 0 })}
                     />
                   </td>
@@ -239,14 +253,17 @@ export default function MatrizPonderada({ activity, session, aspirations, partic
                       max={scaleMax}
                       className={inputCls}
                       value={r.calificacion}
+                      disabled={presenter}
                       onChange={(e) => setRow(r.id, { calificacion: parseFloat(e.target.value) || 0 })}
                     />
                   </td>
                   <td className={`p-2 font-medium ${cls.text}`}>{(r.peso * r.calificacion).toFixed(2)}</td>
                   <td className="p-2">
-                    <button className={btnDanger} onClick={() => removeRow(r.id)}>
-                      quitar
-                    </button>
+                    {!presenter && (
+                      <button className={btnDanger} onClick={() => removeRow(r.id)}>
+                        quitar
+                      </button>
+                    )}
                   </td>
                 </tr>
               );
@@ -263,9 +280,11 @@ export default function MatrizPonderada({ activity, session, aspirations, partic
           </tbody>
         </table>
       </div>
-      <button className={btnPrimary} onClick={addRow}>
-        + Factor
-      </button>
+      {!presenter && (
+        <button className={btnPrimary} onClick={addRow}>
+          + Factor
+        </button>
+      )}
       {interpretHint && <p className="text-xs text-muted">{interpretHint}</p>}
       <SaveIndicator saving={saving} updatedAt={updatedAt} />
     </div>

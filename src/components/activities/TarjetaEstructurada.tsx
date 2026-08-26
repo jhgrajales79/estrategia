@@ -2,7 +2,8 @@
 
 import { useSubmission, effectiveAspirationId } from "@/lib/useSubmission";
 import { aspClasses, findAspiration } from "@/lib/aspirationStyle";
-import { ActivityComponentProps, inputCls, textareaCls, btnPrimary, btnDanger, SaveIndicator, uid } from "./shared";
+import { isPresenter } from "@/lib/presenter";
+import { ActivityComponentProps, inputCls, textareaCls, btnPrimary, btnDanger, SaveIndicator, PresenterHint, uid } from "./shared";
 
 interface FieldDef {
   key: string;
@@ -18,7 +19,20 @@ interface Content extends Record<string, unknown> {
   values: Record<string, string>;
 }
 
-function FieldInput({ field, value, onChange }: { field: FieldDef; value: string; onChange: (v: string) => void }) {
+function FieldInput({
+  field,
+  value,
+  onChange,
+  readOnly,
+}: {
+  field: FieldDef;
+  value: string;
+  onChange: (v: string) => void;
+  readOnly?: boolean;
+}) {
+  if (readOnly) {
+    return <p className="rounded-md bg-black/[0.03] px-3 py-1.5 text-sm text-foreground min-h-8">{value || "—"}</p>;
+  }
   if (field.type === "textarea") {
     return <textarea className={textareaCls} placeholder={field.label} value={value} onChange={(e) => onChange(e.target.value)} />;
   }
@@ -37,6 +51,7 @@ export default function TarjetaEstructurada({ activity, session, aspirations, pa
   const fields = (activity.config.fields as FieldDef[]) ?? [];
   const repeatable = Boolean(activity.config.repeatable);
   const repeatLabel = (activity.config.repeatLabel as string) ?? "Registro";
+  const presenter = isPresenter(participant);
   const submissionAspId = effectiveAspirationId(activity, participant);
   const { content, save, saving, updatedAt, loaded } = useSubmission<Content>(
     activity,
@@ -54,11 +69,12 @@ export default function TarjetaEstructurada({ activity, session, aspirations, pa
     }
     return (
       <div className="space-y-3">
+        {presenter && <PresenterHint />}
         <div className="grid gap-3 sm:grid-cols-2">
           {fields.map((f) => (
             <div key={f.key} className={f.type === "textarea" ? "sm:col-span-2" : ""}>
               <label className="mb-1 block text-xs font-medium text-muted">{f.label}</label>
-              <FieldInput field={f} value={content.values[f.key] ?? ""} onChange={(v) => setValue(f.key, v)} />
+              <FieldInput field={f} value={content.values[f.key] ?? ""} onChange={(v) => setValue(f.key, v)} readOnly={presenter} />
             </div>
           ))}
         </div>
@@ -80,6 +96,7 @@ export default function TarjetaEstructurada({ activity, session, aspirations, pa
 
   return (
     <div className="space-y-3">
+      {presenter && <PresenterHint />}
       {content.entries.map((entry) => {
         const asp = findAspiration(aspirations, (entry.aspiration_id as number) ?? null);
         const cls = aspClasses(asp?.number);
@@ -87,9 +104,11 @@ export default function TarjetaEstructurada({ activity, session, aspirations, pa
           <div key={entry.id} className={`rounded-lg border-l-4 ${cls.border} border border-border bg-card p-3`}>
             <div className="mb-2 flex items-center justify-between">
               <span className="text-xs font-semibold text-muted">{repeatLabel}</span>
-              <button className={btnDanger} onClick={() => removeEntry(entry.id)}>
-                eliminar
-              </button>
+              {!presenter && (
+                <button className={btnDanger} onClick={() => removeEntry(entry.id)}>
+                  eliminar
+                </button>
+              )}
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               {fields.map((f) => (
@@ -99,6 +118,7 @@ export default function TarjetaEstructurada({ activity, session, aspirations, pa
                     field={f}
                     value={(entry[f.key] as string) ?? ""}
                     onChange={(v) => setEntryField(entry.id, f.key, v)}
+                    readOnly={presenter}
                   />
                 </div>
               ))}
@@ -106,9 +126,11 @@ export default function TarjetaEstructurada({ activity, session, aspirations, pa
           </div>
         );
       })}
-      <button className={btnPrimary} onClick={addEntry}>
-        + {repeatLabel}
-      </button>
+      {!presenter && (
+        <button className={btnPrimary} onClick={addEntry}>
+          + {repeatLabel}
+        </button>
+      )}
       <SaveIndicator saving={saving} updatedAt={updatedAt} />
     </div>
   );

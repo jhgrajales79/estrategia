@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useSubmission, effectiveAspirationId } from "@/lib/useSubmission";
 import { aspClasses, findAspiration } from "@/lib/aspirationStyle";
-import { ActivityComponentProps, textareaCls, btnPrimary, btnDanger, SaveIndicator, PostIt, uid } from "./shared";
+import { isPresenter } from "@/lib/presenter";
+import { ActivityComponentProps, textareaCls, btnPrimary, btnDanger, SaveIndicator, PostIt, PresenterHint, PinToggle, ToggleSwitch, uid } from "./shared";
 
 interface Card {
   id: string;
@@ -12,22 +13,25 @@ interface Card {
   aspiration_id: number | null;
   author: string;
   star?: boolean;
+  highlighted?: boolean;
 }
 interface Content extends Record<string, unknown> {
   cards: Card[];
+  showOnlyHighlighted: boolean;
 }
 
 export default function MatrizCuadrantes({ activity, session, aspirations, participant }: ActivityComponentProps) {
   const quadrants = (activity.config.quadrants as { key: string; label: string }[]) ?? [];
   const allowStar = Boolean(activity.config.allowStar);
   const starLabel = (activity.config.starLabel as string) ?? "Destacar";
+  const presenter = isPresenter(participant);
   const submissionAspId = effectiveAspirationId(activity, participant);
   const { content, save, saving, updatedAt, loaded } = useSubmission<Content>(
     activity,
     session,
     submissionAspId,
     participant,
-    { cards: [] }
+    { cards: [], showOnlyHighlighted: false }
   );
   const [draft, setDraft] = useState<Record<string, string>>({});
 
@@ -44,25 +48,39 @@ export default function MatrizCuadrantes({ activity, session, aspirations, parti
       author: participant.name,
     };
     save(
-      { cards: [...content.cards, card] },
+      { ...content, cards: [...content.cards, card] },
       { eventType: "tarjeta", summary: `${participant.name} agregó una tarjeta en "${activity.title}"` }
     );
     setDraft((d) => ({ ...d, [quadrantKey]: "" }));
   }
   function toggleStar(id: string) {
-    save({ cards: content.cards.map((c) => (c.id === id ? { ...c, star: !c.star } : c)) });
+    save({ ...content, cards: content.cards.map((c) => (c.id === id ? { ...c, star: !c.star } : c)) });
+  }
+  function toggleHighlight(id: string) {
+    save({ ...content, cards: content.cards.map((c) => (c.id === id ? { ...c, highlighted: !c.highlighted } : c)) });
   }
   function removeCard(id: string) {
-    save({ cards: content.cards.filter((c) => c.id !== id) });
+    save({ ...content, cards: content.cards.filter((c) => c.id !== id) });
   }
 
   const cols = quadrants.length <= 3 ? quadrants.length : 2;
 
   return (
     <div className="space-y-4">
+      {presenter && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-card p-3">
+          <PresenterHint />
+          <ToggleSwitch
+            checked={content.showOnlyHighlighted}
+            onChange={(next) => save({ ...content, showOnlyHighlighted: next })}
+            label="Mostrar solo destacadas"
+          />
+        </div>
+      )}
       <div className={`grid gap-3`} style={{ gridTemplateColumns: `repeat(${cols}, minmax(0,1fr))` }}>
         {quadrants.map((q) => {
-          const cardsIn = content.cards.filter((c) => c.quadrant === q.key);
+          const allCardsIn = content.cards.filter((c) => c.quadrant === q.key);
+          const cardsIn = content.showOnlyHighlighted ? allCardsIn.filter((c) => c.highlighted) : allCardsIn;
           return (
             <div key={q.key} className="rounded-lg border border-border bg-card p-3">
               <h4 className="mb-2 text-sm font-semibold text-foreground">{q.label}</h4>
@@ -71,15 +89,16 @@ export default function MatrizCuadrantes({ activity, session, aspirations, parti
                   const asp = findAspiration(aspirations, c.aspiration_id);
                   const cls = aspClasses(asp?.number);
                   return (
-                    <PostIt key={c.id} bgClass={asp ? cls.bgSoft : undefined} index={i} className="w-32">
+                    <PostIt key={c.id} bgClass={asp ? cls.bgSoft : undefined} index={i} highlighted={c.highlighted} className="w-32">
                       <p className="text-foreground">
                         {c.star && "⭐ "}
                         {c.text}
                       </p>
                       <div className="mt-2 flex items-center justify-between text-[11px] text-muted">
                         <span>{c.author}</span>
-                        <span className="flex gap-2">
-                          {allowStar && (
+                        <span className="flex items-center gap-1.5">
+                          {presenter && <PinToggle pinned={Boolean(c.highlighted)} onClick={() => toggleHighlight(c.id)} />}
+                          {allowStar && !presenter && (
                             <button className="hover:underline" title={starLabel} onClick={() => toggleStar(c.id)}>
                               ⭐
                             </button>
@@ -95,15 +114,19 @@ export default function MatrizCuadrantes({ activity, session, aspirations, parti
                   );
                 })}
               </div>
-              <textarea
-                className={textareaCls}
-                placeholder="Agregar tarjeta…"
-                value={draft[q.key] ?? ""}
-                onChange={(e) => setDraft((d) => ({ ...d, [q.key]: e.target.value }))}
-              />
-              <button className={btnPrimary + " mt-2"} onClick={() => addCard(q.key)}>
-                Agregar
-              </button>
+              {!presenter && (
+                <>
+                  <textarea
+                    className={textareaCls}
+                    placeholder="Agregar tarjeta…"
+                    value={draft[q.key] ?? ""}
+                    onChange={(e) => setDraft((d) => ({ ...d, [q.key]: e.target.value }))}
+                  />
+                  <button className={btnPrimary + " mt-2"} onClick={() => addCard(q.key)}>
+                    Agregar
+                  </button>
+                </>
+              )}
             </div>
           );
         })}

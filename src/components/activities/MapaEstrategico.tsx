@@ -3,28 +3,33 @@
 import { useState } from "react";
 import { useSubmission, effectiveAspirationId } from "@/lib/useSubmission";
 import { aspClasses, findAspiration } from "@/lib/aspirationStyle";
-import { ActivityComponentProps, inputCls, btnPrimary, btnDanger, SaveIndicator, PostIt, uid } from "./shared";
+import { isPresenter } from "@/lib/presenter";
+import { ActivityComponentProps, inputCls, btnPrimary, btnDanger, SaveIndicator, PostIt, PresenterHint, PinToggle, ToggleSwitch, uid } from "./shared";
 
 interface Card {
   id: string;
   perspective: string;
   aspiration_id: number | null;
+  author: string;
   text: string;
   leads_to: string[];
+  highlighted?: boolean;
 }
 interface Content extends Record<string, unknown> {
   cards: Card[];
+  showOnlyHighlighted: boolean;
 }
 
 export default function MapaEstrategico({ activity, session, aspirations, participant }: ActivityComponentProps) {
   const perspectives = (activity.config.perspectives as { key: string; label: string }[]) ?? [];
+  const presenter = isPresenter(participant);
   const submissionAspId = effectiveAspirationId(activity, participant);
   const { content, save, saving, updatedAt, loaded } = useSubmission<Content>(
     activity,
     session,
     submissionAspId,
     participant,
-    { cards: [] }
+    { cards: [], showOnlyHighlighted: false }
   );
   const [draft, setDraft] = useState<Record<string, string>>({});
 
@@ -33,19 +38,33 @@ export default function MapaEstrategico({ activity, session, aspirations, partic
   function addCard(perspectiveKey: string) {
     const text = (draft[perspectiveKey] ?? "").trim();
     if (!text) return;
-    const card: Card = { id: uid(), perspective: perspectiveKey, aspiration_id: participant.aspiration_id, text, leads_to: [] };
-    save({ cards: [...content.cards, card] }, { eventType: "objetivo", summary: `${participant.name} agregó un objetivo en el mapa estratégico` });
+    const card: Card = {
+      id: uid(),
+      perspective: perspectiveKey,
+      aspiration_id: participant.aspiration_id,
+      author: participant.name,
+      text,
+      leads_to: [],
+    };
+    save(
+      { ...content, cards: [...content.cards, card] },
+      { eventType: "objetivo", summary: `${participant.name} agregó un objetivo en el mapa estratégico` }
+    );
     setDraft((d) => ({ ...d, [perspectiveKey]: "" }));
   }
   function removeCard(id: string) {
-    save({ cards: content.cards.filter((c) => c.id !== id).map((c) => ({ ...c, leads_to: c.leads_to.filter((l) => l !== id) })) });
+    save({ ...content, cards: content.cards.filter((c) => c.id !== id).map((c) => ({ ...c, leads_to: c.leads_to.filter((l) => l !== id) })) });
   }
   function toggleLeadsTo(fromId: string, toId: string) {
     save({
+      ...content,
       cards: content.cards.map((c) =>
         c.id === fromId ? { ...c, leads_to: c.leads_to.includes(toId) ? c.leads_to.filter((l) => l !== toId) : [...c.leads_to, toId] } : c
       ),
     });
+  }
+  function toggleHighlight(id: string) {
+    save({ ...content, cards: content.cards.map((c) => (c.id === id ? { ...c, highlighted: !c.highlighted } : c)) });
   }
 
   // orden de abajo hacia arriba: última perspectiva de la lista es la base
@@ -53,10 +72,21 @@ export default function MapaEstrategico({ activity, session, aspirations, partic
 
   return (
     <div className="space-y-4">
+      {presenter && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-card p-3">
+          <PresenterHint />
+          <ToggleSwitch
+            checked={content.showOnlyHighlighted}
+            onChange={(next) => save({ ...content, showOnlyHighlighted: next })}
+            label="Mostrar solo destacadas"
+          />
+        </div>
+      )}
       <p className="text-xs text-muted">Perspectivas de abajo hacia arriba, tal como en el paredón estratégico.</p>
       <div className="space-y-3">
         {orderedPerspectives.map((p) => {
-          const cardsIn = content.cards.filter((c) => c.perspective === p.key);
+          const allCardsIn = content.cards.filter((c) => c.perspective === p.key);
+          const cardsIn = content.showOnlyHighlighted ? allCardsIn.filter((c) => c.highlighted) : allCardsIn;
           const cardsAbove = content.cards.filter((c) => {
             const idxThis = perspectives.findIndex((x) => x.key === p.key);
             const idxCard = perspectives.findIndex((x) => x.key === c.perspective);
@@ -70,7 +100,7 @@ export default function MapaEstrategico({ activity, session, aspirations, partic
                   const asp = findAspiration(aspirations, c.aspiration_id);
                   const cls = aspClasses(asp?.number);
                   return (
-                    <PostIt key={c.id} bgClass={asp ? cls.bgSoft : undefined} index={i} className="w-48">
+                    <PostIt key={c.id} bgClass={asp ? cls.bgSoft : undefined} index={i} highlighted={c.highlighted} className="w-48">
                       <p className="text-foreground">{c.text}</p>
                       {cardsAbove.length > 0 && (
                         <div className="mt-1 flex flex-wrap gap-1">
@@ -86,26 +116,31 @@ export default function MapaEstrategico({ activity, session, aspirations, partic
                           ))}
                         </div>
                       )}
-                      <div className="mt-1 flex items-center justify-end text-[11px] text-muted">
-                        <button className={btnDanger} onClick={() => removeCard(c.id)}>
-                          ✕
-                        </button>
+                      <div className="mt-1 flex items-center justify-end gap-1.5 text-[11px] text-muted">
+                        {presenter && <PinToggle pinned={Boolean(c.highlighted)} onClick={() => toggleHighlight(c.id)} />}
+                        {c.author === participant.name && (
+                          <button className={btnDanger} onClick={() => removeCard(c.id)}>
+                            ✕
+                          </button>
+                        )}
                       </div>
                     </PostIt>
                   );
                 })}
               </div>
-              <div className="flex gap-2">
-                <input
-                  className={inputCls}
-                  placeholder="Nuevo objetivo estratégico…"
-                  value={draft[p.key] ?? ""}
-                  onChange={(e) => setDraft((d) => ({ ...d, [p.key]: e.target.value }))}
-                />
-                <button className={btnPrimary} onClick={() => addCard(p.key)}>
-                  Agregar
-                </button>
-              </div>
+              {!presenter && (
+                <div className="flex gap-2">
+                  <input
+                    className={inputCls}
+                    placeholder="Nuevo objetivo estratégico…"
+                    value={draft[p.key] ?? ""}
+                    onChange={(e) => setDraft((d) => ({ ...d, [p.key]: e.target.value }))}
+                  />
+                  <button className={btnPrimary} onClick={() => addCard(p.key)}>
+                    Agregar
+                  </button>
+                </div>
+              )}
             </div>
           );
         })}
