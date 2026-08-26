@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useSubmission, effectiveAspirationId } from "@/lib/useSubmission";
-import { aspClasses, findAspiration } from "@/lib/aspirationStyle";
+import { aspAbbrev, aspClasses, findAspiration } from "@/lib/aspirationStyle";
 import { uploadMedia } from "@/lib/storage";
 import { isPresenter } from "@/lib/presenter";
 import {
@@ -176,32 +176,48 @@ export default function NotasColectivas({ activity, session, aspirations, partic
           return (
             <div key={cat.key} className="rounded-lg border border-border bg-card p-3">
               <h4 className="mb-2 text-sm font-semibold text-foreground">{cat.label}</h4>
-              <div className="mb-4 flex max-h-72 flex-wrap gap-3 overflow-y-auto p-1">
-                {notesInCat.length === 0 && <p className="text-xs text-muted">Aún no hay notas.</p>}
-                {notesInCat.map((n, i) => {
-                  const asp = findAspiration(aspirations, n.aspiration_id);
-                  const cls = aspClasses(asp?.number);
-                  return (
-                    <PostIt key={n.id} bgClass={asp ? cls.bgSoft : undefined} index={i} highlighted={n.highlighted} className="w-36">
-                      <p className="text-foreground">{n.text}</p>
-                      <div className="mt-2 flex items-center justify-between text-[11px] text-muted">
-                        <span>
-                          {n.author}
-                          {n.impact ? ` · ${n.impact}` : ""}
-                        </span>
-                        <span className="flex items-center gap-1.5">
-                          {presenter && <PinToggle pinned={Boolean(n.highlighted)} onClick={() => toggleHighlight(n.id)} />}
-                          {n.author === participant.name && (
-                            <button className={btnDanger} onClick={() => removeNote(n.id)}>
-                              ✕
-                            </button>
-                          )}
-                        </span>
+              {presenter ? (
+                <div className="mb-4 flex max-h-72 flex-wrap gap-3 overflow-y-auto p-1">
+                  {notesInCat.length === 0 && <p className="text-xs text-muted">Aún no hay notas.</p>}
+                  {notesInCat.map((n, i) => {
+                    const asp = findAspiration(aspirations, n.aspiration_id);
+                    const cls = aspClasses(asp?.number);
+                    const abbrev = aspAbbrev(aspirations, n.aspiration_id);
+                    return (
+                      <PostIt key={n.id} bgClass={asp ? cls.bgSoft : undefined} index={i} highlighted={n.highlighted} className="w-36">
+                        <p className="text-foreground">{n.text}</p>
+                        <div className="mt-2 flex items-center justify-between text-[11px] text-muted">
+                          <span className="font-semibold">
+                            {abbrev ?? "—"}
+                            {n.impact ? ` · ${n.impact}` : ""}
+                          </span>
+                          <PinToggle pinned={Boolean(n.highlighted)} onClick={() => toggleHighlight(n.id)} />
+                        </div>
+                      </PostIt>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="mb-4 max-h-72 space-y-1.5 overflow-y-auto">
+                  {notesInCat.length === 0 && <p className="text-xs text-muted">Aún no hay notas.</p>}
+                  {notesInCat.map((n) => {
+                    const abbrev = aspAbbrev(aspirations, n.aspiration_id);
+                    return (
+                      <div key={n.id} className="flex items-start justify-between gap-2 text-sm">
+                        <p className="text-foreground">
+                          {abbrev && <span className="font-semibold text-brand-dark">{abbrev}: </span>}
+                          {n.text}
+                        </p>
+                        {n.author === participant.name && (
+                          <button className={btnDanger + " shrink-0"} onClick={() => removeNote(n.id)}>
+                            ✕
+                          </button>
+                        )}
                       </div>
-                    </PostIt>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              )}
               {!presenter && (
                 <div className="flex flex-col gap-2">
                   {selectableAspiration && (

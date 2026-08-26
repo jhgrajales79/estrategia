@@ -1,4 +1,4 @@
-import { aspClasses, findAspiration } from "@/lib/aspirationStyle";
+import { aspAbbrev, aspClasses, findAspiration } from "@/lib/aspirationStyle";
 import { PostIt } from "@/components/activities/shared";
 import type { Aspiration } from "@/lib/types";
 
@@ -44,6 +44,7 @@ export default function NotesBoardView({
               {inCat.map((n, i) => {
                 const asp = findAspiration(aspirations, n.aspiration_id);
                 const cls = aspClasses(asp?.number);
+                const abbrev = aspAbbrev(aspirations, n.aspiration_id);
                 return (
                   <PostIt
                     key={n.id}
@@ -53,8 +54,8 @@ export default function NotesBoardView({
                     className={large ? "w-56 text-base p-4" : "w-36"}
                   >
                     <p className="text-foreground">{n.text}</p>
-                    <p className={`mt-2 text-muted ${large ? "text-sm" : "text-[11px]"}`}>
-                      {n.author}
+                    <p className={`mt-2 font-semibold text-muted ${large ? "text-sm" : "text-[11px]"}`}>
+                      {abbrev ?? "—"}
                       {n.impact ? ` · ${n.impact}` : ""}
                     </p>
                   </PostIt>

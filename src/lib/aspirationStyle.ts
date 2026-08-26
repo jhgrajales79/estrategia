@@ -17,3 +17,8 @@ export function findAspiration(aspirations: Aspiration[], id: number | null | un
   if (id === null || id === undefined) return null;
   return aspirations.find((a) => a.id === id) ?? null;
 }
+
+export function aspAbbrev(aspirations: Aspiration[], id: number | null | undefined): string | null {
+  const asp = findAspiration(aspirations, id);
+  return asp ? `ASP${asp.number}` : null;
+}
