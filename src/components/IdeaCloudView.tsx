@@ -22,7 +22,9 @@ export default function IdeaCloudView({ ideas, large = false }: { ideas: Idea[];
   // (en vez de amontonarlas en una sola línea arriba).
   const rows = Math.max(3, Math.min(6, Math.ceil(Math.sqrt(ideas.length * 1.5))));
   const cols = Math.ceil(ideas.length / rows);
-  const maxVotes = Math.max(1, ...ideas.map((i) => i.votes));
+  // Escala absoluta de 8 tonos: cada voto adicional sube un tono, tope en 8 votos
+  // (no depende de cual sea la idea mas votada).
+  const MAX_TONE_VOTES = 8;
 
   return (
     <div
@@ -47,8 +49,10 @@ export default function IdeaCloudView({ ideas, large = false }: { ideas: Idea[];
         const jitterX = JITTER[(i * 5 + 3) % JITTER.length] * (large ? 1 : 0.6);
         const hue = (i * 137.508) % 360; // ángulo dorado: máxima separación de color entre ideas
         // Sin votos: fondo completamente transparente (solo el borde marca la tarjeta).
-        // A más votos, el fondo se vuelve más solido, más saturado y más brillante.
-        const weight = idea.votes / maxVotes; // 0..1
+        // A más votos, el fondo se vuelve más solido, más saturado y más brillante,
+        // en 8 tonos (voto 1 = tono 1/8 ... voto 8+ = tono 8/8).
+        const tone = Math.min(idea.votes, MAX_TONE_VOTES);
+        const weight = tone / MAX_TONE_VOTES; // 0..1
         const alpha = weight;
         const saturation = 45 + weight * 45; // 45% .. 90%
         const lightness = 88 - weight * 18; // 88% (pastel) .. 70% (vivo)
