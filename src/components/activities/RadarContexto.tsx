@@ -196,14 +196,14 @@ export default function RadarContexto({ activity, session, participant }: Activi
           {hasAny && (
             <polygon
               points={polygonPoints}
-              className="fill-[#2f9e4f]/15 stroke-[#2f9e4f]/60"
-              strokeWidth={2}
+              className="fill-[#2f9e4f]/[0.06] stroke-[#2f9e4f]/40"
+              strokeWidth={1.5}
               strokeLinejoin="round"
             />
           )}
           {vertices.map(
             (v) =>
-              v.winner && <circle key={v.axis.key} cx={v.x} cy={v.y} r={size > BASE_SIZE ? 6 : 4} className="fill-[#2f9e4f]" />
+              v.winner && <circle key={v.axis.key} cx={v.x} cy={v.y} r={size > BASE_SIZE ? 5 : 3.5} className="fill-[#2f9e4f]/80" />
           )}
         </svg>
         {vertices.map(
