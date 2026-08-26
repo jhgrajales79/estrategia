@@ -25,6 +25,18 @@ export async function fetchActivities(sessionId: number): Promise<ActivityRow[]>
   return data as ActivityRow[];
 }
 
+export async function fetchActivityById(id: number): Promise<ActivityRow | null> {
+  const { data, error } = await supabase.from("activities").select("*").eq("id", id).maybeSingle();
+  if (error) throw error;
+  return data as ActivityRow | null;
+}
+
+export async function fetchSessionById(id: number): Promise<SessionRow | null> {
+  const { data, error } = await supabase.from("sessions").select("*").eq("id", id).maybeSingle();
+  if (error) throw error;
+  return data as SessionRow | null;
+}
+
 export async function fetchOutputs(sessionId?: number): Promise<OutputRow[]> {
   let q = supabase.from("outputs").select("*").order("order_index");
   if (sessionId) q = q.eq("session_id", sessionId);

@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useSubmission, effectiveAspirationId } from "@/lib/useSubmission";
 import { isPresenter } from "@/lib/presenter";
-import { ActivityComponentProps, inputCls, btnPrimary, btnGhost, btnDanger, SaveIndicator, PresenterHint, ROUND_PALETTE_SOFT, autoBg, uid } from "./shared";
+import RadarChartView from "@/components/RadarChartView";
+import { ActivityComponentProps, inputCls, btnPrimary, btnGhost, btnDanger, SaveIndicator, PresenterHint, uid } from "./shared";
 
 interface Axis {
   key: string;
@@ -30,8 +31,6 @@ interface Content extends Record<string, unknown> {
   votes: Vote[];
 }
 
-const BASE_SIZE = 340;
-
 export default function RadarContexto({ activity, session, participant }: ActivityComponentProps) {
   const axes = (activity.config.axes as Axis[]) ?? [];
   const rings = (activity.config.rings as string[]) ?? ["Ya nos afecta", "Nos afectará este año", "En el horizonte"];
@@ -47,27 +46,6 @@ export default function RadarContexto({ activity, session, participant }: Activi
   );
   const [ring, setRing] = useState(0);
   const [text, setText] = useState("");
-  const [expanded, setExpanded] = useState(false);
-  const [viewportSize, setViewportSize] = useState(BASE_SIZE);
-
-  useEffect(() => {
-    if (!expanded) return;
-    function computeSize() {
-      setViewportSize(Math.round(Math.min(window.innerWidth, window.innerHeight) * 0.82));
-    }
-    computeSize();
-    window.addEventListener("resize", computeSize);
-    return () => window.removeEventListener("resize", computeSize);
-  }, [expanded]);
-
-  useEffect(() => {
-    if (!expanded) return;
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setExpanded(false);
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [expanded]);
 
   const voteTotal = useMemo(() => {
     const totals: Record<string, number> = {};
@@ -162,93 +140,6 @@ export default function RadarContexto({ activity, session, participant }: Activi
     save({ ...content, votes }, { eventType: "voto_radar", summary: `${participant.name} votó una señal del radar` });
   }
 
-  function axisAngle(i: number) {
-    return -90 + (360 / axes.length) * i;
-  }
-  function point(size: number, angleDeg: number, radiusFrac: number) {
-    const center = size / 2;
-    const maxR = size / 2 - 64;
-    const rad = (angleDeg * Math.PI) / 180;
-    const r = radiusFrac * maxR;
-    return { x: center + r * Math.cos(rad), y: center + r * Math.sin(rad) };
-  }
-
-  const ringFractions = [0.35, 0.68, 1];
-
-  function renderRadar(size: number) {
-    const center = size / 2;
-    const vertices = axes.map((a, i) => {
-      const winner = winnerByAxis[a.key];
-      const radiusFrac = winner ? ringFractions[winner.ring] : 0;
-      return { axis: a, winner, ...point(size, axisAngle(i), radiusFrac) };
-    });
-    const hasAny = vertices.some((v) => v.winner);
-    const polygonPoints = vertices.map((v) => `${v.x},${v.y}`).join(" ");
-
-    return (
-      <div className="relative shrink-0" style={{ width: size, height: size }}>
-        <svg width={size} height={size} className="absolute inset-0 overflow-visible">
-          {ringFractions.map((f, i) => (
-            <circle key={i} cx={center} cy={center} r={f * (size / 2 - 64)} fill="none" stroke="currentColor" className="text-border" strokeWidth={1} />
-          ))}
-          {axes.map((a, i) => {
-            const p = point(size, axisAngle(i), 1);
-            return <line key={a.key} x1={center} y1={center} x2={p.x} y2={p.y} stroke="currentColor" className="text-border" strokeWidth={1} />;
-          })}
-          {hasAny && (
-            <polygon
-              points={polygonPoints}
-              style={{ fill: "rgba(47, 158, 79, 0.12)", stroke: "rgba(47, 158, 79, 0.5)" }}
-              strokeWidth={1.5}
-              strokeLinejoin="round"
-            />
-          )}
-          {vertices.map(
-            (v) =>
-              v.winner && (
-                <circle
-                  key={v.axis.key}
-                  cx={v.x}
-                  cy={v.y}
-                  r={size > BASE_SIZE ? 5 : 3.5}
-                  style={{ fill: "rgba(47, 158, 79, 0.85)" }}
-                />
-              )
-          )}
-        </svg>
-        {axes.map((a, i) => {
-          const p = point(size, axisAngle(i), 1.15);
-          return (
-            <div
-              key={a.key}
-              className={`absolute -translate-x-1/2 -translate-y-1/2 text-center leading-tight ${
-                size > BASE_SIZE ? "w-32 text-sm" : "w-24 text-[11px]"
-              } ${activeAxis?.key === a.key ? "font-bold text-brand-dark" : "text-muted"}`}
-              style={{ left: p.x, top: p.y }}
-            >
-              {a.label}
-            </div>
-          );
-        })}
-        {vertices.map(
-          (v) =>
-            v.winner && (
-              <div
-                key={v.axis.key}
-                className={`absolute -translate-x-1/2 -translate-y-[calc(100%+8px)] rounded-sm text-center leading-tight shadow ${
-                  size > BASE_SIZE ? "w-32 text-[11px] p-1.5" : "w-24 text-[9px] p-1"
-                } ${autoBg(v.winner.round - 1, ROUND_PALETTE_SOFT)} backdrop-blur-sm`}
-                style={{ left: v.x, top: v.y }}
-              >
-                {v.winner.text}
-                <div className="mt-0.5 font-semibold text-brand-dark">{voteTotal[v.winner.id] ?? 0} pts</div>
-              </div>
-            )
-        )}
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-4">
       {presenter && (
@@ -293,11 +184,11 @@ export default function RadarContexto({ activity, session, participant }: Activi
       {presenter ? (
         <div className="flex flex-col items-center gap-6 lg:flex-row lg:items-start">
           <div className="relative mx-10 my-6">
-            {renderRadar(BASE_SIZE)}
+            <RadarChartView axes={axes} winnerByAxis={winnerByAxis} voteTotal={voteTotal} activeAxisKey={activeAxis?.key ?? null} />
             <button
               className={btnGhost + " absolute -bottom-2 -right-2 bg-card"}
-              title="Ampliar radar a pantalla completa"
-              onClick={() => setExpanded(true)}
+              title="Ampliar radar en una pestaña nueva"
+              onClick={() => window.open(`/radar/${activity.id}`, "_blank", "noopener,noreferrer")}
             >
               ⛶
             </button>
@@ -412,16 +303,6 @@ export default function RadarContexto({ activity, session, participant }: Activi
         </div>
       )}
       <SaveIndicator saving={saving} updatedAt={updatedAt} />
-
-      {expanded && presenter && (
-        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-background/98 p-6">
-          <h2 className="text-xl font-bold text-foreground">{activity.title}</h2>
-          <button className={btnGhost + " absolute right-6 top-6"} onClick={() => setExpanded(false)}>
-            ✕ Cerrar
-          </button>
-          {renderRadar(viewportSize)}
-        </div>
-      )}
     </div>
   );
 }
