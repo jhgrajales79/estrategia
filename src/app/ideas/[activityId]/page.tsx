@@ -64,7 +64,10 @@ export default function IdeasFullscreenPage({ params }: { params: Promise<{ acti
   }
 
   return (
-    <div className="grid h-screen grid-rows-[auto_1fr] gap-4 overflow-hidden bg-background p-8">
+    <div
+      className="grid gap-4 overflow-hidden bg-background p-8"
+      style={{ height: "100vh", gridTemplateRows: "auto 1fr" }}
+    >
       <h1 className="text-center text-3xl font-bold text-foreground">{activity.title}</h1>
       <div className="min-h-0 min-w-0">
         <IdeaCloudView ideas={ideas} large />
