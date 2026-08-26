@@ -40,6 +40,7 @@ export default function NotasColectivas({ activity, session, aspirations, partic
   const categories = (activity.config.categories as { key: string; label: string }[]) ?? [];
   const impactLevels = Boolean(activity.config.impactLevels);
   const allowMedia = Boolean(activity.config.allowMedia);
+  const selectableAspiration = Boolean(activity.config.selectableAspiration);
   const externalLinkLabel = (activity.config.externalLinkLabel as string) ?? "Enlace externo";
   const presenter = isPresenter(participant);
   const submissionAspId = effectiveAspirationId(activity, participant);
@@ -52,6 +53,7 @@ export default function NotasColectivas({ activity, session, aspirations, partic
   );
   const [draft, setDraft] = useState<Record<string, string>>({});
   const [impact, setImpact] = useState<Record<string, Note["impact"]>>({});
+  const [aspirationChoice, setAspirationChoice] = useState<Record<string, string>>({});
   const [uploading, setUploading] = useState(false);
 
   if (!loaded) return <p className="text-sm text-muted">Cargando…</p>;
@@ -77,10 +79,13 @@ export default function NotasColectivas({ activity, session, aspirations, partic
   function addNote(categoryKey: string) {
     const text = (draft[categoryKey] ?? "").trim();
     if (!text) return;
+    const chosen = aspirationChoice[categoryKey];
+    if (selectableAspiration && !chosen) return;
+    const aspirationId = selectableAspiration ? Number(chosen) : participant.aspiration_id;
     const note: Note = {
       id: uid(),
       category: categoryKey,
-      aspiration_id: participant.aspiration_id,
+      aspiration_id: aspirationId,
       author: participant.name,
       text,
       impact: impactLevels ? impact[categoryKey] ?? "medio" : undefined,
@@ -190,6 +195,20 @@ export default function NotasColectivas({ activity, session, aspirations, partic
               </div>
               {!presenter && (
                 <div className="flex flex-col gap-2">
+                  {selectableAspiration && (
+                    <select
+                      className={inputCls}
+                      value={aspirationChoice[cat.key] ?? ""}
+                      onChange={(e) => setAspirationChoice((a) => ({ ...a, [cat.key]: e.target.value }))}
+                    >
+                      <option value="">Selecciona la aspiración…</option>
+                      {aspirations.map((a) => (
+                        <option key={a.id} value={a.id}>
+                          Aspiración {a.number} — {a.name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                   <textarea
                     className={textareaCls}
                     placeholder="Escribe tu aporte…"
