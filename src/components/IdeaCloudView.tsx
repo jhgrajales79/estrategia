@@ -22,6 +22,7 @@ export default function IdeaCloudView({ ideas, large = false }: { ideas: Idea[];
   // (en vez de amontonarlas en una sola línea arriba).
   const rows = Math.max(3, Math.min(6, Math.ceil(Math.sqrt(ideas.length * 1.5))));
   const cols = Math.ceil(ideas.length / rows);
+  const maxVotes = Math.max(1, ...ideas.map((i) => i.votes));
 
   return (
     <div
@@ -45,6 +46,9 @@ export default function IdeaCloudView({ ideas, large = false }: { ideas: Idea[];
         const jitterY = JITTER[i % JITTER.length] * (large ? 1 : 0.6);
         const jitterX = JITTER[(i * 5 + 3) % JITTER.length] * (large ? 1 : 0.6);
         const hue = (i * 137.508) % 360; // ángulo dorado: máxima separación de color entre ideas
+        // Mas votos = fondo mas solido; sin votos = fondo mas transparente.
+        const weight = idea.votes / maxVotes; // 0..1
+        const alpha = 0.28 + weight * 0.62; // 0.28 (sin votos) .. 0.9 (la mas votada)
         return (
           <span
             key={idea.id}
@@ -53,7 +57,7 @@ export default function IdeaCloudView({ ideas, large = false }: { ideas: Idea[];
               fontSize,
               padding: `${padY}px ${padX}px`,
               borderRadius: fontSize * 1.4,
-              backgroundColor: `hsl(${hue} 85% 82%)`,
+              backgroundColor: `hsl(${hue} 85% 82% / ${alpha})`,
               boxShadow: `0 4px 14px hsl(${hue} 60% 55% / 0.35)`,
               transform: `translate(${jitterX}px, ${jitterY}px) rotate(${rotate}deg)`,
             }}
