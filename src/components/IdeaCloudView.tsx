@@ -40,8 +40,8 @@ export default function IdeaCloudView({ ideas, large = false }: { ideas: Idea[];
         if (!idea) return <div key={`empty-${cell}`} />;
         const i = cell;
         const weight = idea.votes / maxVotes; // 0..1
-        const fontSize = large ? 15 + weight * 24 : 11 + weight * 14;
-        // Padding proporcional al tamaño de letra: el badge se ajusta al texto, no al revés.
+        // Escala mas suave: mas votos = mas grande, pero sin salirse nunca de una sola linea.
+        const fontSize = large ? 14 + weight * 10 : 10 + weight * 6;
         const padY = fontSize * 0.22;
         const padX = fontSize * 0.55;
         const rotate = ANGLES[i % ANGLES.length];
@@ -49,15 +49,16 @@ export default function IdeaCloudView({ ideas, large = false }: { ideas: Idea[];
         const jitterX = JITTER[(i * 5 + 3) % JITTER.length] * (large ? 1 : 0.6);
         const hue = (i * 137.508) % 360; // ángulo dorado: máxima separación de color entre ideas
         // Salvaguarda: si una idea quedó guardada con texto largo, se recorta para no romper el layout.
-        const maxChars = large ? 50 : 34;
+        const maxChars = large ? 34 : 24;
         const label = idea.text.length > maxChars ? idea.text.slice(0, maxChars - 1).trimEnd() + "…" : idea.text;
         return (
           <span
             key={idea.id}
             title={idea.text}
-            className="inline-block max-w-[90%] text-center font-extrabold leading-snug text-neutral-800 shadow-lg"
+            className="inline-block max-w-[92%] overflow-hidden whitespace-nowrap text-ellipsis font-extrabold text-neutral-800 shadow-lg"
             style={{
               fontSize,
+              lineHeight: 1,
               padding: `${padY}px ${padX}px`,
               borderRadius: 999,
               backgroundColor: `hsl(${hue} 85% 82%)`,
