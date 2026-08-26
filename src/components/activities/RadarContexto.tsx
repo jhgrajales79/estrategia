@@ -135,12 +135,13 @@ export default function RadarContexto({ activity, session, participant }: Activi
     save({ ...content, signals: content.signals.filter((s) => s.id !== id), votes: content.votes.filter((v) => v.signal_id !== id) });
   }
 
-  function voteSignal(signalId: string, points: number) {
-    if (presenter || points < 0) return;
-    const others = content.votes.filter((v) => !(v.participant_id === participant.id && v.signal_id === signalId));
-    const usedByOthers = others.filter((v) => v.participant_id === participant.id).reduce((a, v) => a + v.points, 0);
-    if (usedByOthers + points > pointsPerPerson) return;
-    const votes = points === 0 ? others : [...others, { participant_id: participant.id, signal_id: signalId, points }];
+  function toggleVote(signalId: string) {
+    if (presenter) return;
+    const already = content.votes.some((v) => v.participant_id === participant.id && v.signal_id === signalId);
+    if (!already && myRemaining <= 0) return;
+    const votes = already
+      ? content.votes.filter((v) => !(v.participant_id === participant.id && v.signal_id === signalId))
+      : [...content.votes, { participant_id: participant.id, signal_id: signalId, points: 1 }];
     save({ ...content, votes }, { eventType: "voto_radar", summary: `${participant.name} votó una señal del radar` });
   }
 
@@ -307,12 +308,12 @@ export default function RadarContexto({ activity, session, participant }: Activi
             <div className="mb-1 flex items-center justify-between">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted">Vota las más impactantes</p>
               <span className="text-xs text-muted">
-                Fichas: <span className="font-semibold text-foreground">{myRemaining}</span>/{pointsPerPerson}
+                Votos disponibles: <span className="font-semibold text-foreground">{myRemaining}</span>/{pointsPerPerson}
               </span>
             </div>
             <div className="max-h-64 space-y-1.5 overflow-y-auto">
               {content.signals.map((s) => {
-                const mine = content.votes.find((v) => v.participant_id === participant.id && v.signal_id === s.id)?.points ?? 0;
+                const mine = content.votes.some((v) => v.participant_id === participant.id && v.signal_id === s.id);
                 const total = voteTotal[s.id] ?? 0;
                 return (
                   <div key={s.id} className="flex items-center justify-between gap-2 rounded-md border border-border bg-card px-2 py-1.5 text-xs">
@@ -321,15 +322,14 @@ export default function RadarContexto({ activity, session, participant }: Activi
                     </span>
                     <span className="flex shrink-0 items-center gap-1.5">
                       <span className="font-semibold text-brand">{total}</span>
-                      <button className="w-5 rounded border border-border" onClick={() => voteSignal(s.id, Math.max(0, mine - 1))}>
-                        -
-                      </button>
                       <button
-                        className="w-5 rounded border border-border disabled:opacity-40"
-                        disabled={myRemaining <= 0}
-                        onClick={() => voteSignal(s.id, mine + 1)}
+                        className={`rounded border px-2 py-0.5 ${
+                          mine ? "border-brand bg-brand/10 text-brand-dark" : "border-border"
+                        } disabled:opacity-40`}
+                        disabled={!mine && myRemaining <= 0}
+                        onClick={() => toggleVote(s.id)}
                       >
-                        +
+                        {mine ? "✓ Votado" : "Votar"}
                       </button>
                       {s.author === participant.name && (
                         <button className={btnDanger} onClick={() => removeSignal(s.id)}>
