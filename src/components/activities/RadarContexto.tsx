@@ -362,6 +362,7 @@ export default function RadarContexto({ activity, session, participant }: Activi
 
       {expanded && presenter && (
         <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-background/98 p-6">
+          <h2 className="text-xl font-bold text-foreground">{activity.title}</h2>
           <button className={btnGhost + " absolute right-6 top-6"} onClick={() => setExpanded(false)}>
             ✕ Cerrar
           </button>
