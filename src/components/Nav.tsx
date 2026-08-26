@@ -9,6 +9,7 @@ import { getStoredParticipant, clearStoredParticipant, StoredParticipant } from 
 const LINKS = [
   { href: "/panel", label: "Panel en vivo" },
   { href: "/sesiones", label: "Sesiones" },
+  { href: "/nuestro-trabajo", label: "Nuestro trabajo" },
   { href: "/metas", label: "Metas" },
   { href: "/tablero", label: "Tablero" },
 ];

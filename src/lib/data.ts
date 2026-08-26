@@ -57,6 +57,18 @@ export async function fetchTrackingBoard(): Promise<TrackingBoardRow[]> {
   return data as TrackingBoardRow[];
 }
 
+export async function fetchSubmissionsByActivityIds(
+  ids: number[]
+): Promise<{ activity_id: number; aspiration_id: number | null; content: Record<string, unknown>; updated_at: string }[]> {
+  if (ids.length === 0) return [];
+  const { data, error } = await supabase
+    .from("submissions")
+    .select("activity_id, aspiration_id, content, updated_at")
+    .in("activity_id", ids);
+  if (error) throw error;
+  return data as { activity_id: number; aspiration_id: number | null; content: Record<string, unknown>; updated_at: string }[];
+}
+
 export interface SessionMedia {
   session_id: number;
   activity_title: string;
