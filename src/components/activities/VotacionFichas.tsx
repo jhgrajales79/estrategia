@@ -30,6 +30,7 @@ export default function VotacionFichas({ activity, session, participant }: Activ
   const candidateLabel = (activity.config.candidateLabel as string) ?? "Candidata";
   const requireOwnerAndDate = Boolean(activity.config.requireOwnerAndDate);
   const cloudView = Boolean(activity.config.cloudView);
+  const maxTextLength = (activity.config.maxTextLength as number) ?? (cloudView ? 40 : 140);
   const presenter = isPresenter(participant);
   const submissionAspId = effectiveAspirationId(activity, participant);
   const { content, save, saving, updatedAt, loaded } = useSubmission<Content>(
@@ -103,7 +104,13 @@ export default function VotacionFichas({ activity, session, participant }: Activ
         <div className="rounded-lg border border-border bg-card p-3">
           <p className="mb-2 text-sm font-semibold">Proponer {candidateLabel.toLowerCase()}</p>
           <div className="flex flex-col gap-2 sm:flex-row">
-            <input className={inputCls} placeholder={candidateLabel} value={newText} onChange={(e) => setNewText(e.target.value)} />
+            <input
+              className={inputCls}
+              placeholder={candidateLabel}
+              maxLength={maxTextLength}
+              value={newText}
+              onChange={(e) => setNewText(e.target.value.slice(0, maxTextLength))}
+            />
             {requireOwnerAndDate && (
               <>
                 <input className={inputCls} placeholder="Doliente" value={newOwner} onChange={(e) => setNewOwner(e.target.value)} />
@@ -114,6 +121,9 @@ export default function VotacionFichas({ activity, session, participant }: Activ
               Agregar
             </button>
           </div>
+          <p className="mt-1 text-xs text-muted">
+            {newText.length}/{maxTextLength} caracteres{cloudView ? " · ideas cortas se leen mejor en la nube" : ""}
+          </p>
         </div>
       )}
 

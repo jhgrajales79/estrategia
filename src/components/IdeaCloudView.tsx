@@ -48,9 +48,13 @@ export default function IdeaCloudView({ ideas, large = false }: { ideas: Idea[];
         const jitterY = JITTER[i % JITTER.length] * (large ? 1 : 0.6);
         const jitterX = JITTER[(i * 5 + 3) % JITTER.length] * (large ? 1 : 0.6);
         const hue = (i * 137.508) % 360; // ángulo dorado: máxima separación de color entre ideas
+        // Salvaguarda: si una idea quedó guardada con texto largo, se recorta para no romper el layout.
+        const maxChars = large ? 50 : 34;
+        const label = idea.text.length > maxChars ? idea.text.slice(0, maxChars - 1).trimEnd() + "…" : idea.text;
         return (
           <span
             key={idea.id}
+            title={idea.text}
             className="inline-block max-w-[90%] text-center font-extrabold leading-snug text-neutral-800 shadow-lg"
             style={{
               fontSize,
@@ -61,7 +65,7 @@ export default function IdeaCloudView({ ideas, large = false }: { ideas: Idea[];
               transform: `translate(${jitterX}px, ${jitterY}px) rotate(${rotate}deg)`,
             }}
           >
-            {idea.text}
+            {label}
             {idea.votes > 0 && <span className="ml-1.5 text-xs font-normal opacity-70">· {idea.votes}</span>}
           </span>
         );
