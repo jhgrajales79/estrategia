@@ -22,7 +22,7 @@ export default function IdeaCloudView({ ideas, large = false }: { ideas: Idea[];
 
   // Grilla de N x M que reparte las ideas en varias filas, usando todo el alto disponible
   // (en vez de amontonarlas en una sola línea arriba).
-  const rows = Math.max(2, Math.min(5, Math.round(Math.sqrt(ideas.length * 0.6))));
+  const rows = Math.max(3, Math.min(6, Math.ceil(Math.sqrt(ideas.length * 1.5))));
   const cols = Math.ceil(ideas.length / rows);
 
   return (
@@ -45,10 +45,11 @@ export default function IdeaCloudView({ ideas, large = false }: { ideas: Idea[];
         return (
           <span
             key={idea.id}
-            className="inline-block max-w-[90%] rounded-2xl text-center font-extrabold leading-snug text-neutral-800 shadow-lg"
+            className="inline-block max-w-[90%] text-center font-extrabold leading-snug text-neutral-800 shadow-lg"
             style={{
               fontSize,
               padding: `${padY}px ${padX}px`,
+              borderRadius: 999,
               backgroundColor: `hsl(${hue} 85% 82%)`,
               boxShadow: `0 4px 14px hsl(${hue} 60% 55% / 0.35)`,
               transform: `translate(${jitterX}px, ${jitterY}px) rotate(${rotate}deg)`,
