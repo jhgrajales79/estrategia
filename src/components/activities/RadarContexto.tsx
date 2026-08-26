@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSubmission, effectiveAspirationId } from "@/lib/useSubmission";
 import { isPresenter } from "@/lib/presenter";
-import { ActivityComponentProps, inputCls, btnPrimary, btnGhost, btnDanger, SaveIndicator, PresenterHint, ToggleSwitch, ROUND_PALETTE_SOFT, autoBg, uid } from "./shared";
+import { ActivityComponentProps, inputCls, btnPrimary, btnGhost, btnDanger, SaveIndicator, PresenterHint, ROUND_PALETTE_SOFT, autoBg, uid } from "./shared";
 
 interface Axis {
   key: string;
@@ -25,9 +25,9 @@ interface Vote {
 }
 interface Content extends Record<string, unknown> {
   activeRound: number;
+  votingRound: number;
   signals: Signal[];
   votes: Vote[];
-  votingEnabled: boolean;
 }
 
 const BASE_SIZE = 340;
@@ -43,7 +43,7 @@ export default function RadarContexto({ activity, session, participant }: Activi
     session,
     submissionAspId,
     participant,
-    { activeRound: 0, signals: [], votes: [], votingEnabled: false }
+    { activeRound: 0, votingRound: 0, signals: [], votes: [] }
   );
   const [ring, setRing] = useState(0);
   const [text, setText] = useState("");
@@ -98,6 +98,7 @@ export default function RadarContexto({ activity, session, participant }: Activi
   if (!loaded) return <p className="text-sm text-muted">Cargando…</p>;
 
   const activeAxis = content.activeRound > 0 ? axes[content.activeRound - 1] : null;
+  const votingAxis = content.votingRound > 0 ? axes[content.votingRound - 1] : null;
   const myUsed = content.votes.filter((v) => v.participant_id === participant.id).reduce((a, v) => a + v.points, 0);
   const myRemaining = pointsPerPerson - myUsed;
 
@@ -110,6 +111,19 @@ export default function RadarContexto({ activity, session, participant }: Activi
           n === 0
             ? `${participant.name} cerró las rondas del radar`
             : `${participant.name} abrió la ronda "${axes[n - 1]?.label}" del radar`,
+      }
+    );
+  }
+
+  function setVotingRound(n: number) {
+    save(
+      { ...content, votingRound: n },
+      {
+        eventType: "ronda_votacion",
+        summary:
+          n === 0
+            ? `${participant.name} cerró la votación del radar`
+            : `${participant.name} abrió la votación de "${axes[n - 1]?.label}" en el radar`,
       }
     );
   }
@@ -137,7 +151,9 @@ export default function RadarContexto({ activity, session, participant }: Activi
   }
 
   function toggleVote(signalId: string) {
-    if (presenter || !content.votingEnabled) return;
+    if (presenter || !votingAxis) return;
+    const signal = content.signals.find((s) => s.id === signalId);
+    if (!signal || signal.axis !== votingAxis.key) return;
     const already = content.votes.some((v) => v.participant_id === participant.id && v.signal_id === signalId);
     if (!already && myRemaining <= 0) return;
     const votes = already
@@ -248,21 +264,29 @@ export default function RadarContexto({ activity, session, participant }: Activi
               Cerrar rondas
             </button>
           </div>
-          <div className="mt-3 border-t border-border pt-3">
-            <ToggleSwitch
-              checked={content.votingEnabled}
-              onChange={(next) =>
-                save(
-                  { ...content, votingEnabled: next },
-                  {
-                    eventType: next ? "votacion_habilitada" : "votacion_bloqueada",
-                    summary: `${participant.name} ${next ? "habilitó" : "bloqueó"} la votación del radar`,
-                  }
-                )
-              }
-              label="Habilitar votación (al cierre de todas las rondas)"
-            />
-          </div>
+          {content.activeRound === 0 ? (
+            <div className="mt-3 border-t border-border pt-3">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Votación por ronda</p>
+              <div className="flex flex-wrap gap-2">
+                {axes.map((a, i) => (
+                  <button
+                    key={a.key}
+                    className={content.votingRound === i + 1 ? btnPrimary : btnGhost}
+                    onClick={() => setVotingRound(i + 1)}
+                  >
+                    Votar: {a.label}
+                  </button>
+                ))}
+                <button className={btnGhost} onClick={() => setVotingRound(0)}>
+                  Cerrar votación
+                </button>
+              </div>
+            </div>
+          ) : (
+            <p className="mt-3 border-t border-border pt-3 text-xs text-muted">
+              La votación por ronda se habilita cuando cierres todas las rondas de recolección.
+            </p>
+          )}
         </div>
       )}
 
@@ -335,18 +359,22 @@ export default function RadarContexto({ activity, session, participant }: Activi
 
           <div>
             <div className="mb-1 flex items-center justify-between">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted">Vota las más impactantes</p>
-              {content.votingEnabled && (
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+                {votingAxis ? `Vota: ${votingAxis.label}` : "Votación"}
+              </p>
+              {votingAxis && (
                 <span className="text-xs text-muted">
                   Votos disponibles: <span className="font-semibold text-foreground">{myRemaining}</span>/{pointsPerPerson}
                 </span>
               )}
             </div>
-            {!content.votingEnabled && (
-              <p className="mb-2 text-xs text-muted">La votación se habilitará cuando el facilitador cierre todas las rondas.</p>
+            {!votingAxis && (
+              <p className="mb-2 text-xs text-muted">
+                La votación se habilita, ronda por ronda, cuando el facilitador cierra la recolección de señales.
+              </p>
             )}
             <div className="max-h-64 space-y-1.5 overflow-y-auto">
-              {content.signals.map((s) => {
+              {(votingAxis ? content.signals.filter((s) => s.axis === votingAxis.key) : content.signals).map((s) => {
                 const mine = content.votes.some((v) => v.participant_id === participant.id && v.signal_id === s.id);
                 const total = voteTotal[s.id] ?? 0;
                 return (
@@ -356,7 +384,7 @@ export default function RadarContexto({ activity, session, participant }: Activi
                     </span>
                     <span className="flex shrink-0 items-center gap-1.5">
                       <span className="font-semibold text-brand">{total}</span>
-                      {content.votingEnabled && (
+                      {votingAxis && (
                         <button
                           className={`rounded border px-2 py-0.5 ${
                             mine ? "border-brand bg-brand/10 text-brand-dark" : "border-border"
@@ -376,7 +404,9 @@ export default function RadarContexto({ activity, session, participant }: Activi
                   </div>
                 );
               })}
-              {content.signals.length === 0 && <p className="text-xs text-muted">Aún no hay señales registradas.</p>}
+              {(votingAxis ? content.signals.filter((s) => s.axis === votingAxis.key) : content.signals).length === 0 && (
+                <p className="text-xs text-muted">Aún no hay señales registradas.</p>
+              )}
             </div>
           </div>
         </div>
