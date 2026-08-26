@@ -44,3 +44,37 @@ export async function fetchTrackingBoard(): Promise<TrackingBoardRow[]> {
   if (error) throw error;
   return data as TrackingBoardRow[];
 }
+
+export interface SessionMedia {
+  session_id: number;
+  activity_title: string;
+  media: string[];
+  external_link: string | null;
+}
+
+export async function fetchSessionMedia(): Promise<SessionMedia[]> {
+  const { data: acts, error: actsError } = await supabase
+    .from("activities")
+    .select("id, session_id, title")
+    .contains("config", { allowMedia: true });
+  if (actsError) throw actsError;
+  if (!acts || acts.length === 0) return [];
+
+  const ids = acts.map((a) => a.id);
+  const { data: subs, error: subsError } = await supabase.from("submissions").select("activity_id, content").in("activity_id", ids);
+  if (subsError) throw subsError;
+
+  const result: SessionMedia[] = [];
+  for (const a of acts) {
+    const sub = subs?.find((s) => s.activity_id === a.id);
+    const content = (sub?.content ?? {}) as { media?: string[]; external_link?: string };
+    if ((content.media?.length ?? 0) === 0 && !content.external_link) continue;
+    result.push({
+      session_id: a.session_id,
+      activity_title: a.title,
+      media: content.media ?? [],
+      external_link: content.external_link || null,
+    });
+  }
+  return result;
+}

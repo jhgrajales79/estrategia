@@ -110,9 +110,12 @@ export default function NotasColectivas({ activity, session, aspirations, partic
           />
         </div>
       )}
-      {allowMedia && !presenter && (
+      {allowMedia && presenter && (
         <div className="rounded-lg border border-border bg-card p-3">
           <h4 className="mb-2 text-sm font-semibold text-foreground">Fotos y panel visual</h4>
+          <p className="mb-2 text-xs text-muted">
+            Solo tú, como facilitador, gestionas esto. Los participantes lo verán en el panel de avance, no aquí en la sesión.
+          </p>
           <div className="mb-3 flex flex-wrap gap-2">
             {content.media.map((url) => (
               <div key={url} className="group relative h-20 w-20 overflow-hidden rounded-md border border-border">
@@ -150,14 +153,6 @@ export default function NotasColectivas({ activity, session, aspirations, partic
               onBlur={(e) => save({ ...content, external_link: e.target.value })}
             />
           </div>
-        </div>
-      )}
-      {allowMedia && presenter && content.media.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {content.media.map((url) => (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img key={url} src={url} alt="Foto de la actividad" className="h-20 w-20 rounded-md border border-border object-cover" />
-          ))}
         </div>
       )}
       <div className="grid gap-4 md:grid-cols-2">
