@@ -46,6 +46,8 @@ const ROTATIONS = [-2.5, 1.5, -1, 2, -1.8, 1, -2, 2.2];
 // Paletas automáticas: nunca se elige el color a mano.
 export const NEUTRAL_PALETTE = ["bg-postit-yellow", "bg-postit-pink", "bg-postit-blue", "bg-postit-green", "bg-postit-orange"];
 export const ROUND_PALETTE = ["bg-postit-yellow", "bg-postit-blue", "bg-postit-pink", "bg-postit-green", "bg-postit-orange"];
+// Variantes translúcidas (mismo orden) para superficies que no deben congestionar la vista, como el radar.
+export const ROUND_PALETTE_SOFT = ["bg-postit-yellow/50", "bg-postit-blue/50", "bg-postit-pink/50", "bg-postit-green/50", "bg-postit-orange/50"];
 
 export function autoBg(index: number, palette: string[] = NEUTRAL_PALETTE) {
   return palette[index % palette.length];

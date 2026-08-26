@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSubmission, effectiveAspirationId } from "@/lib/useSubmission";
 import { isPresenter } from "@/lib/presenter";
-import { ActivityComponentProps, inputCls, btnPrimary, btnGhost, btnDanger, SaveIndicator, PresenterHint, ROUND_PALETTE, autoBg, uid } from "./shared";
+import { ActivityComponentProps, inputCls, btnPrimary, btnGhost, btnDanger, SaveIndicator, PresenterHint, ROUND_PALETTE_SOFT, autoBg, uid } from "./shared";
 
 interface Axis {
   key: string;
@@ -220,7 +220,7 @@ export default function RadarContexto({ activity, session, participant }: Activi
                 key={v.axis.key}
                 className={`absolute -translate-x-1/2 -translate-y-[calc(100%+8px)] rounded-sm text-center leading-tight shadow ${
                   size > BASE_SIZE ? "w-32 text-[11px] p-1.5" : "w-24 text-[9px] p-1"
-                } ${autoBg(v.winner.round - 1, ROUND_PALETTE)}`}
+                } ${autoBg(v.winner.round - 1, ROUND_PALETTE_SOFT)} backdrop-blur-sm`}
                 style={{ left: v.x, top: v.y }}
               >
                 {v.winner.text}
@@ -329,8 +329,8 @@ export default function RadarContexto({ activity, session, participant }: Activi
                 const mine = content.votes.some((v) => v.participant_id === participant.id && v.signal_id === s.id);
                 const total = voteTotal[s.id] ?? 0;
                 return (
-                  <div key={s.id} className="flex items-center justify-between gap-2 rounded-md border border-border bg-card px-2 py-1.5 text-xs">
-                    <span className="min-w-0 flex-1 truncate" title={s.text}>
+                  <div key={s.id} className="flex items-start justify-between gap-2 rounded-md border border-border bg-card px-2 py-1.5 text-xs">
+                    <span className="min-w-0 flex-1">
                       {axes.find((a) => a.key === s.axis)?.label} · {rings[s.ring]}: {s.text}
                     </span>
                     <span className="flex shrink-0 items-center gap-1.5">
