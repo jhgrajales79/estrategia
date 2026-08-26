@@ -65,7 +65,7 @@ export default function IdeasFullscreenPage({ params }: { params: Promise<{ acti
 
   return (
     <div
-      className="grid gap-4 overflow-hidden bg-background p-8"
+      className="grid gap-10 overflow-hidden bg-background p-8"
       style={{ height: "100vh", gridTemplateRows: "auto 1fr" }}
     >
       <h1 className="text-center text-3xl font-bold text-foreground">{activity.title}</h1>
