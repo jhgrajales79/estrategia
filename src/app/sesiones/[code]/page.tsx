@@ -160,13 +160,22 @@ export default function SessionDetailPage({ params }: { params: Promise<{ code: 
 
           <div className="mt-8">
             <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted">Salidas / resultados esperados</h2>
+            {!presenter && (
+              <p className="mb-2 text-xs text-muted">Solo el facilitador puede marcar las salidas como logradas.</p>
+            )}
             <div className="space-y-2 rounded-xl border border-border bg-card p-4">
               {outputs.map((o) => {
                 const asp = findAspiration(aspirations, o.aspiration_id);
                 const cls = aspClasses(asp?.number);
                 return (
-                  <label key={o.id} className="flex items-start gap-2 text-sm">
-                    <input type="checkbox" className="mt-0.5" checked={o.is_done} onChange={() => toggleOutput(o)} />
+                  <label key={o.id} className={`flex items-start gap-2 text-sm ${presenter ? "" : "cursor-default"}`}>
+                    <input
+                      type="checkbox"
+                      className="mt-0.5 disabled:cursor-default"
+                      checked={o.is_done}
+                      disabled={!presenter}
+                      onChange={() => presenter && toggleOutput(o)}
+                    />
                     <span className={o.is_done ? "text-muted line-through" : "text-foreground"}>{o.description}</span>
                     {asp && <span className={`ml-auto shrink-0 text-xs font-medium ${cls.text}`}>Asp. {asp.number}</span>}
                   </label>
