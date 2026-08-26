@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSubmission, effectiveAspirationId } from "@/lib/useSubmission";
 import { isPresenter } from "@/lib/presenter";
-import { ActivityComponentProps, inputCls, btnPrimary, btnGhost, btnDanger, SaveIndicator, PresenterHint, ROUND_PALETTE_SOFT, autoBg, uid } from "./shared";
+import { ActivityComponentProps, inputCls, btnPrimary, btnGhost, btnDanger, SaveIndicator, PresenterHint, ToggleSwitch, ROUND_PALETTE_SOFT, autoBg, uid } from "./shared";
 
 interface Axis {
   key: string;
@@ -27,6 +27,7 @@ interface Content extends Record<string, unknown> {
   activeRound: number;
   signals: Signal[];
   votes: Vote[];
+  votingEnabled: boolean;
 }
 
 const BASE_SIZE = 340;
@@ -42,7 +43,7 @@ export default function RadarContexto({ activity, session, participant }: Activi
     session,
     submissionAspId,
     participant,
-    { activeRound: 0, signals: [], votes: [] }
+    { activeRound: 0, signals: [], votes: [], votingEnabled: false }
   );
   const [ring, setRing] = useState(0);
   const [text, setText] = useState("");
@@ -136,7 +137,7 @@ export default function RadarContexto({ activity, session, participant }: Activi
   }
 
   function toggleVote(signalId: string) {
-    if (presenter) return;
+    if (presenter || !content.votingEnabled) return;
     const already = content.votes.some((v) => v.participant_id === participant.id && v.signal_id === signalId);
     if (!already && myRemaining <= 0) return;
     const votes = already
@@ -247,6 +248,21 @@ export default function RadarContexto({ activity, session, participant }: Activi
               Cerrar rondas
             </button>
           </div>
+          <div className="mt-3 border-t border-border pt-3">
+            <ToggleSwitch
+              checked={content.votingEnabled}
+              onChange={(next) =>
+                save(
+                  { ...content, votingEnabled: next },
+                  {
+                    eventType: next ? "votacion_habilitada" : "votacion_bloqueada",
+                    summary: `${participant.name} ${next ? "habilitó" : "bloqueó"} la votación del radar`,
+                  }
+                )
+              }
+              label="Habilitar votación (al cierre de todas las rondas)"
+            />
+          </div>
         </div>
       )}
 
@@ -320,10 +336,15 @@ export default function RadarContexto({ activity, session, participant }: Activi
           <div>
             <div className="mb-1 flex items-center justify-between">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted">Vota las más impactantes</p>
-              <span className="text-xs text-muted">
-                Votos disponibles: <span className="font-semibold text-foreground">{myRemaining}</span>/{pointsPerPerson}
-              </span>
+              {content.votingEnabled && (
+                <span className="text-xs text-muted">
+                  Votos disponibles: <span className="font-semibold text-foreground">{myRemaining}</span>/{pointsPerPerson}
+                </span>
+              )}
             </div>
+            {!content.votingEnabled && (
+              <p className="mb-2 text-xs text-muted">La votación se habilitará cuando el facilitador cierre todas las rondas.</p>
+            )}
             <div className="max-h-64 space-y-1.5 overflow-y-auto">
               {content.signals.map((s) => {
                 const mine = content.votes.some((v) => v.participant_id === participant.id && v.signal_id === s.id);
@@ -335,15 +356,17 @@ export default function RadarContexto({ activity, session, participant }: Activi
                     </span>
                     <span className="flex shrink-0 items-center gap-1.5">
                       <span className="font-semibold text-brand">{total}</span>
-                      <button
-                        className={`rounded border px-2 py-0.5 ${
-                          mine ? "border-brand bg-brand/10 text-brand-dark" : "border-border"
-                        } disabled:opacity-40`}
-                        disabled={!mine && myRemaining <= 0}
-                        onClick={() => toggleVote(s.id)}
-                      >
-                        {mine ? "✓ Votado" : "Votar"}
-                      </button>
+                      {content.votingEnabled && (
+                        <button
+                          className={`rounded border px-2 py-0.5 ${
+                            mine ? "border-brand bg-brand/10 text-brand-dark" : "border-border"
+                          } disabled:opacity-40`}
+                          disabled={!mine && myRemaining <= 0}
+                          onClick={() => toggleVote(s.id)}
+                        >
+                          {mine ? "✓ Votado" : "Votar"}
+                        </button>
+                      )}
                       {s.author === participant.name && (
                         <button className={btnDanger} onClick={() => removeSignal(s.id)}>
                           eliminar
