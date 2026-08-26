@@ -69,7 +69,9 @@ export default function IdeaCloudView({ ideas, large = false }: { ideas: Idea[];
           >
             {isHot && "🔥 "}
             {idea.text}
-            {idea.votes > 0 && <span className="ml-1.5 text-xs font-normal opacity-70">· {idea.votes}</span>}
+            <span className="ml-1.5 text-xs font-normal opacity-70">
+              · {idea.votes} {idea.votes === 1 ? "voto" : "votos"}
+            </span>
           </span>
         );
       })}
