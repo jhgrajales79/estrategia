@@ -47,7 +47,7 @@ export default function VotacionFichas({ activity, session, participant }: Activ
   if (!loaded) return <p className="text-sm text-muted">Cargando…</p>;
 
   const myVotes = content.votes.filter((v) => v.participant_id === participant.id);
-  const myUsed = myVotes.reduce((a, v) => a + v.points, 0);
+  const myUsed = myVotes.length;
   const myRemaining = pointsPerPerson - myUsed;
 
   function addCandidate() {
@@ -64,12 +64,12 @@ export default function VotacionFichas({ activity, session, participant }: Activ
   function removeCandidate(id: string) {
     save({ candidates: content.candidates.filter((c) => c.id !== id), votes: content.votes.filter((v) => v.candidate_id !== id) });
   }
-  function vote(candidateId: string, points: number) {
-    if (points < 0) return;
-    const others = content.votes.filter((v) => !(v.participant_id === participant.id && v.candidate_id === candidateId));
-    const usedByOthers = others.filter((v) => v.participant_id === participant.id).reduce((a, v) => a + v.points, 0);
-    if (usedByOthers + points > pointsPerPerson) return;
-    const votes = points === 0 ? others : [...others, { participant_id: participant.id, participant_name: participant.name, candidate_id: candidateId, points }];
+  function toggleVote(candidateId: string) {
+    const already = content.votes.some((v) => v.participant_id === participant.id && v.candidate_id === candidateId);
+    if (!already && myRemaining <= 0) return;
+    const votes = already
+      ? content.votes.filter((v) => !(v.participant_id === participant.id && v.candidate_id === candidateId))
+      : [...content.votes, { participant_id: participant.id, participant_name: participant.name, candidate_id: candidateId, points: 1 }];
     save({ ...content, votes }, { eventType: "voto", summary: `${participant.name} votó en "${activity.title}"` });
   }
 
@@ -129,13 +129,13 @@ export default function VotacionFichas({ activity, session, participant }: Activ
 
       {!presenter && (
         <p className="text-sm text-muted">
-          Tus fichas disponibles: <span className="font-semibold text-foreground">{myRemaining}</span> de {pointsPerPerson}
+          Votos disponibles: <span className="font-semibold text-foreground">{myRemaining}</span> de {pointsPerPerson} (1 voto por idea)
         </p>
       )}
 
       <div className="space-y-2">
         {totals.map(({ c, total }, idx) => {
-          const mine = myVotes.find((v) => v.candidate_id === c.id)?.points ?? 0;
+          const mine = myVotes.some((v) => v.candidate_id === c.id);
           return (
             <div key={c.id} className="flex flex-col gap-2 rounded-lg border border-border bg-card p-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
@@ -152,15 +152,15 @@ export default function VotacionFichas({ activity, session, participant }: Activ
               <div className="flex items-center gap-2">
                 <span className="text-sm font-semibold text-brand">{total} pts</span>
                 {!presenter && (
-                  <>
-                    <button className={inputCls + " w-8 text-center"} onClick={() => vote(c.id, Math.max(0, mine - 1))}>
-                      -
-                    </button>
-                    <span className="w-4 text-center text-sm">{mine}</span>
-                    <button className={inputCls + " w-8 text-center"} onClick={() => vote(c.id, mine + 1)} disabled={myRemaining <= 0}>
-                      +
-                    </button>
-                  </>
+                  <button
+                    className={`rounded-md border px-3 py-1.5 text-sm ${
+                      mine ? "border-brand bg-brand/10 text-brand-dark" : "border-border"
+                    } disabled:opacity-40`}
+                    disabled={!mine && myRemaining <= 0}
+                    onClick={() => toggleVote(c.id)}
+                  >
+                    {mine ? "✓ Votado" : "Votar"}
+                  </button>
                 )}
                 {c.author === participant.name && (
                   <button className={btnDanger} onClick={() => removeCandidate(c.id)}>

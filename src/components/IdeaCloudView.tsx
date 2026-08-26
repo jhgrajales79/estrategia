@@ -10,8 +10,6 @@ const ANGLES = [0, -8, 10, -14, 18, -6, 14, -18, 8, -10, 22, -22, 12, -16, 6, -1
 const JITTER = [0, 6, -5, 8, -7, 4, -8, 7, -4, 9, -6, 3, -9, 5, -3, 8, -5];
 
 export default function IdeaCloudView({ ideas, large = false }: { ideas: Idea[]; large?: boolean }) {
-  const maxVotes = Math.max(1, ...ideas.map((i) => i.votes));
-
   if (ideas.length === 0) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -29,7 +27,7 @@ export default function IdeaCloudView({ ideas, large = false }: { ideas: Idea[];
     <div
       className="grid h-full w-full place-items-center"
       style={{
-        gridTemplateRows: `repeat(${rows}, 1fr)`,
+        gridTemplateRows: `repeat(${rows}, minmax(min-content, 1fr))`,
         gridAutoFlow: "column",
         gridAutoColumns: "minmax(0, 1fr)",
         gap: large ? "1.5rem" : "0.75rem",
@@ -39,34 +37,28 @@ export default function IdeaCloudView({ ideas, large = false }: { ideas: Idea[];
         const idea = ideas[cell];
         if (!idea) return <div key={`empty-${cell}`} />;
         const i = cell;
-        const weight = idea.votes / maxVotes; // 0..1
-        // Escala mas suave: mas votos = mas grande, pero sin salirse nunca de una sola linea.
-        const fontSize = large ? 14 + weight * 10 : 10 + weight * 6;
-        const padY = fontSize * 0.22;
-        const padX = fontSize * 0.55;
+        // Mismo tamaño para todas: los votos no cambian el tamaño de la tarjeta.
+        const fontSize = large ? 18 : 13;
+        const padY = fontSize * 0.4;
+        const padX = fontSize * 0.7;
         const rotate = ANGLES[i % ANGLES.length];
         const jitterY = JITTER[i % JITTER.length] * (large ? 1 : 0.6);
         const jitterX = JITTER[(i * 5 + 3) % JITTER.length] * (large ? 1 : 0.6);
         const hue = (i * 137.508) % 360; // ángulo dorado: máxima separación de color entre ideas
-        // Salvaguarda: si una idea quedó guardada con texto largo, se recorta para no romper el layout.
-        const maxChars = large ? 34 : 24;
-        const label = idea.text.length > maxChars ? idea.text.slice(0, maxChars - 1).trimEnd() + "…" : idea.text;
         return (
           <span
             key={idea.id}
-            title={idea.text}
-            className="inline-block max-w-[92%] overflow-hidden whitespace-nowrap text-ellipsis font-extrabold text-neutral-800 shadow-lg"
+            className="inline-block max-w-[85%] whitespace-normal break-words text-center font-extrabold leading-snug text-neutral-800 shadow-lg"
             style={{
               fontSize,
-              lineHeight: 1,
               padding: `${padY}px ${padX}px`,
-              borderRadius: 999,
+              borderRadius: fontSize * 1.4,
               backgroundColor: `hsl(${hue} 85% 82%)`,
               boxShadow: `0 4px 14px hsl(${hue} 60% 55% / 0.35)`,
               transform: `translate(${jitterX}px, ${jitterY}px) rotate(${rotate}deg)`,
             }}
           >
-            {label}
+            {idea.text}
             {idea.votes > 0 && <span className="ml-1.5 text-xs font-normal opacity-70">· {idea.votes}</span>}
           </span>
         );
