@@ -112,6 +112,16 @@ const COMPETITORS: (Square & { delay: number })[] = [
 const ORIGIN: Square = { col: 0, row: 7 };
 const GOAL: Square = { col: 7, row: 0 };
 
+// Una jugada descrita a la vez, sincronizada con el turno de cada pieza (no todo el texto de golpe).
+const CAPTIONS: { text: string; start: number; end: number }[] = [
+  { text: "♞ El caballo anticipa el terreno con saltos calculados en L.", start: 0, end: 2.2 },
+  { text: "♝ El alfil avanza en diagonal, aprovechando cada oportunidad.", start: 2.2, end: 4.4 },
+  { text: "♜ La torre ejecuta con determinación, en línea recta hacia la meta.", start: 4.4, end: 6.6 },
+  { text: "♟ El peón verde sostiene el frente, paso a paso.", start: 6.6, end: 8.8 },
+  { text: "♟ El peón morado refuerza el avance del equipo.", start: 8.8, end: 11 },
+  { text: "♛ El equipo converge en el objetivo, protegiendo los recursos (♚) y vigilando a la competencia (♟).", start: 11, end: PIECE_DURATION },
+];
+
 function squareStyle(s: Square): CSSProperties {
   return { left: pct(s.col), top: pct(s.row), transform: "translate(-50%, -50%)" };
 }
@@ -138,6 +148,31 @@ function buildPieceKeyframes(name: string, waypoints: Square[]) {
   lines.push(frame(endPct, waypoints[segments], "opacity: 1;"));
   lines.push(frame(97, waypoints[segments], "opacity: 0;"));
   lines.push(frame(100, waypoints[segments], "opacity: 0;"));
+
+  return `@keyframes ${name} {\n${lines.join("\n")}\n}`;
+}
+
+function buildCaptionKeyframes(name: string, startSec: number, endSec: number, fadeSec = 0.3) {
+  const toPct = (s: number) => Number(((s / PIECE_DURATION) * 100).toFixed(2));
+  const startPct = toPct(startSec);
+  const endPct = toPct(endSec);
+  const fadePct = toPct(fadeSec);
+  const lines: string[] = [];
+
+  if (startPct <= 0) {
+    lines.push(`0% { opacity: 1; }`);
+  } else {
+    lines.push(`0% { opacity: 0; }`);
+    const fadeInStart = Math.max(startPct - fadePct, 0);
+    if (fadeInStart > 0) lines.push(`${fadeInStart}% { opacity: 0; }`);
+    lines.push(`${startPct}% { opacity: 1; }`);
+  }
+
+  const fadeOutStart = Math.max(endPct - fadePct, startPct);
+  if (fadeOutStart > startPct) lines.push(`${fadeOutStart}% { opacity: 1; }`);
+  const clampedEnd = Math.min(endPct, 100);
+  lines.push(`${clampedEnd}% { opacity: 0; }`);
+  if (clampedEnd < 100) lines.push(`100% { opacity: 0; }`);
 
   return `@keyframes ${name} {\n${lines.join("\n")}\n}`;
 }
@@ -202,17 +237,19 @@ export default function ChessboardAnimation() {
         ))}
       </div>
 
-      <p className="mt-3 text-center text-[11px] leading-relaxed text-muted">
-        Cada pieza juega su turno, como jugadas estratégicas de un mismo equipo: el <strong className="text-foreground">caballo (♞)</strong>{" "}
-        anticipa el terreno con saltos calculados en L, el <strong className="text-foreground">alfil (♝)</strong> avanza en diagonal buscando
-        oportunidades, la <strong className="text-foreground">torre (♜)</strong> ejecuta con determinación en línea recta y los{" "}
-        <strong className="text-foreground">peones (♟ verde y morado)</strong> sostienen el frente paso a paso. Mientras tanto se observan los
-        movimientos de la <strong className="text-foreground">competencia (♟ naranja)</strong>, protegiendo los{" "}
-        <strong className="text-foreground">recursos (♚)</strong> hasta converger juntos en el{" "}
-        <strong className="text-foreground">objetivo de negocio (♛)</strong>.
-      </p>
+      <div className="relative mt-3 min-h-[46px] px-1 text-center text-[11px] leading-relaxed text-muted">
+        {CAPTIONS.map((c, i) => (
+          <p key={i} className={`chess-caption chess-caption-${i} absolute inset-0 flex items-center justify-center`}>
+            {c.text}
+          </p>
+        ))}
+      </div>
 
       <style>{`
+        ${CAPTIONS.map((c, i) => buildCaptionKeyframes(`chess-caption-move-${i}`, c.start, c.end)).join("\n")}
+        ${CAPTIONS.map((c, i) => `.chess-caption-${i} { opacity: 0; animation: chess-caption-move-${i} ${PIECE_DURATION}s linear infinite; }`).join(
+          "\n"
+        )}
         ${TEAM_PIECES.map((p, i) => buildPieceKeyframes(`chess-team-move-${i}`, p.waypoints)).join("\n")}
         ${TEAM_PIECES.map(
           (p, i) =>
@@ -246,6 +283,7 @@ export default function ChessboardAnimation() {
             const last = p.waypoints[p.waypoints.length - 1];
             return `.chess-team-piece-${i} { left: ${pct(last.col)}; top: ${pct(last.row)}; transform: translate(-50%, -50%); }`;
           }).join("\n")}
+          .chess-caption { animation: none !important; opacity: 1 !important; position: static !important; display: block; margin-bottom: 4px; }
         }
       `}</style>
     </div>
