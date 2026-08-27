@@ -7,7 +7,6 @@ import { supabase } from "@/lib/supabase";
 import type { ParticipantRole } from "@/lib/types";
 import { setStoredParticipant, getStoredParticipant } from "@/lib/participant";
 import { inputCls, btnPrimary } from "@/components/activities/shared";
-import RoadmapAnimation from "@/components/RoadmapAnimation";
 import ChessboardAnimation from "@/components/ChessboardAnimation";
 
 const FACILITADOR_PASSWORD = "therion01";
@@ -67,7 +66,6 @@ export default function IngresarPage() {
   return (
     <div className="mx-auto flex min-h-[80vh] max-w-md flex-col items-center justify-center px-4 py-12">
       <Image src="/socya-logo.png" alt="Socya" width={140} height={58} className="mb-4" />
-      <RoadmapAnimation />
       <ChessboardAnimation />
       <form onSubmit={handleSubmit} className="w-full space-y-4 rounded-xl border border-border bg-card p-6 shadow-sm">
         <h1 className="text-lg font-semibold text-foreground">Ingresa a la sesión</h1>

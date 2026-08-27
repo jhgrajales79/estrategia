@@ -3,12 +3,13 @@
 const SIZE = 8;
 const LIGHT_SQUARE = "#eef1ea";
 
+// Cada salto es un movimiento real de caballo en "L" (2+1 casillas en perpendicular).
 const WAYPOINTS = [
   { col: 0, row: 7 }, // origen: recursos que se protegen
-  { col: 1, row: 5 },
-  { col: 3, row: 4 },
-  { col: 5, row: 2 },
-  { col: 7, row: 0 }, // objetivo: la meta de negocio
+  { col: 1, row: 5 }, // L: +1,-2
+  { col: 3, row: 4 }, // L: +2,-1
+  { col: 4, row: 2 }, // L: +1,-2
+  { col: 6, row: 1 }, // L: +2,-1 — objetivo: la meta de negocio
 ];
 
 function pct(n: number) {
