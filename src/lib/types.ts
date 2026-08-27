@@ -8,13 +8,7 @@ export interface Aspiration {
   hex: string;
 }
 
-export type ParticipantRole =
-  | "patrocinador"
-  | "facilitador"
-  | "lider_aspiracion"
-  | "comite"
-  | "relator"
-  | "participante";
+export type ParticipantRole = "facilitador" | "participante";
 
 export interface Participant {
   id: string;

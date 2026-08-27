@@ -4,37 +4,26 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { supabase } from "@/lib/supabase";
-import { fetchAspirations } from "@/lib/data";
-import type { Aspiration, ParticipantRole } from "@/lib/types";
+import type { ParticipantRole } from "@/lib/types";
 import { setStoredParticipant, getStoredParticipant } from "@/lib/participant";
 import { inputCls, btnPrimary } from "@/components/activities/shared";
 
-const ROLES: { value: ParticipantRole; label: string }[] = [
-  { value: "participante", label: "Participante" },
-  { value: "lider_aspiracion", label: "Líder de aspiración" },
-  { value: "comite", label: "Comité de planeación" },
-  { value: "facilitador", label: "Facilitador" },
-  { value: "relator", label: "Relator" },
-  { value: "patrocinador", label: "Patrocinador (dirección ejecutiva)" },
-];
+const FACILITADOR_PASSWORD = "therion01";
 
 export default function IngresarPage() {
   const router = useRouter();
-  const [aspirations, setAspirations] = useState<Aspiration[]>([]);
   const [name, setName] = useState("");
   const [role, setRole] = useState<ParticipantRole>("participante");
-  const [aspirationId, setAspirationId] = useState<string>("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchAspirations().then(setAspirations).catch(console.error);
     const existing = getStoredParticipant();
     if (existing) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setName(existing.name);
       setRole(existing.role);
-      setAspirationId(existing.aspiration_id ? String(existing.aspiration_id) : "");
     }
   }, []);
 
@@ -44,6 +33,10 @@ export default function IngresarPage() {
       setError("Escribe tu nombre.");
       return;
     }
+    if (role === "facilitador" && password !== FACILITADOR_PASSWORD) {
+      setError("Clave de facilitador incorrecta.");
+      return;
+    }
     setLoading(true);
     setError(null);
     const { data, error: insertError } = await supabase
@@ -51,7 +44,7 @@ export default function IngresarPage() {
       .insert({
         name: name.trim(),
         role,
-        aspiration_id: aspirationId ? Number(aspirationId) : null,
+        aspiration_id: null,
       })
       .select("id")
       .single();
@@ -64,7 +57,7 @@ export default function IngresarPage() {
       id: data.id,
       name: name.trim(),
       role,
-      aspiration_id: aspirationId ? Number(aspirationId) : null,
+      aspiration_id: null,
     });
     router.push("/panel");
   }
@@ -80,28 +73,34 @@ export default function IngresarPage() {
         </div>
         <div>
           <label className="mb-1 block text-xs font-medium text-muted">Rol</label>
-          <select className={inputCls} value={role} onChange={(e) => setRole(e.target.value as ParticipantRole)}>
-            {ROLES.map((r) => (
-              <option key={r.value} value={r.value}>
-                {r.label}
-              </option>
-            ))}
+          <select
+            className={inputCls}
+            value={role}
+            onChange={(e) => {
+              setRole(e.target.value as ParticipantRole);
+              setPassword("");
+              setError(null);
+            }}
+          >
+            <option value="participante">Participante</option>
+            <option value="facilitador">Facilitador</option>
           </select>
           {role === "facilitador" && (
             <p className="mt-1 text-xs text-brand-dark">🎤 Como facilitador tendrás los controles para habilitar sesiones y actividades.</p>
           )}
         </div>
-        <div>
-          <label className="mb-1 block text-xs font-medium text-muted">Equipo / aspiración</label>
-          <select className={inputCls} value={aspirationId} onChange={(e) => setAspirationId(e.target.value)}>
-            <option value="">Transversal / comité (sin equipo fijo)</option>
-            {aspirations.map((a) => (
-              <option key={a.id} value={a.id}>
-                Aspiración {a.number} — {a.name}
-              </option>
-            ))}
-          </select>
-        </div>
+        {role === "facilitador" && (
+          <div>
+            <label className="mb-1 block text-xs font-medium text-muted">Clave de facilitador</label>
+            <input
+              type="password"
+              className={inputCls}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+            />
+          </div>
+        )}
         {error && <p className="text-sm text-red-600">{error}</p>}
         <button type="submit" className={btnPrimary + " w-full justify-center"} disabled={loading}>
           {loading ? "Ingresando…" : "Entrar"}
