@@ -24,8 +24,9 @@ interface TeamPiece {
   waypoints: Square[];
 }
 
-// Tres piezas del equipo, cada una con un tipo de movimiento distinto (L, diagonal, recto),
-// que avanzan en paralelo y convergen cerca del objetivo: la estrategia se logra en equipo.
+// Cinco piezas del equipo, cada una con un tipo de movimiento distinto (L, diagonal, recto, avance),
+// que avanzan escalonadas y convergen en una misma línea de formación cerca del objetivo:
+// la estrategia se logra en equipo, no con una sola jugada.
 const TEAM_PIECES: TeamPiece[] = [
   {
     glyph: "♞",
@@ -47,7 +48,7 @@ const TEAM_PIECES: TeamPiece[] = [
     color: "#2f6fb0",
     size: 18,
     duration: 7,
-    delay: 1.3,
+    delay: 1.1,
     // Movimientos diagonales de alfil.
     waypoints: [
       { col: 1, row: 7 },
@@ -60,7 +61,7 @@ const TEAM_PIECES: TeamPiece[] = [
     color: "#a3541f",
     size: 18,
     duration: 7,
-    delay: 2.6,
+    delay: 2.2,
     // Movimientos rectos de torre.
     waypoints: [
       { col: 0, row: 4 },
@@ -68,12 +69,41 @@ const TEAM_PIECES: TeamPiece[] = [
       { col: 5, row: 1 },
     ],
   },
+  {
+    glyph: "♟",
+    color: "#4c8c3f",
+    size: 16,
+    duration: 7,
+    delay: 3.3,
+    // Avance recto de peón, columna por columna.
+    waypoints: [
+      { col: 2, row: 7 },
+      { col: 2, row: 5 },
+      { col: 2, row: 3 },
+      { col: 2, row: 1 },
+    ],
+  },
+  {
+    glyph: "♟",
+    color: "#6b5b95",
+    size: 16,
+    duration: 7,
+    delay: 4.4,
+    // Avance recto de peón, columna por columna.
+    waypoints: [
+      { col: 3, row: 6 },
+      { col: 3, row: 4 },
+      { col: 3, row: 2 },
+      { col: 3, row: 1 },
+    ],
+  },
 ];
 
 const COMPETITORS: (Square & { delay: number })[] = [
   { col: 5, row: 5, delay: 0 },
-  { col: 2, row: 2, delay: 1.6 },
-  { col: 6, row: 4, delay: 3.1 },
+  { col: 2, row: 2, delay: 1.2 },
+  { col: 6, row: 3, delay: 2.4 },
+  { col: 5, row: 6, delay: 3.6 },
 ];
 
 const ORIGIN: Square = { col: 0, row: 7 };
@@ -133,6 +163,16 @@ export default function ChessboardAnimation() {
           ♚
         </div>
 
+        <div
+          className="chess-goal-glow pointer-events-none absolute rounded-full"
+          style={{
+            ...squareStyle(GOAL),
+            width: 30,
+            height: 30,
+            background: "radial-gradient(circle, rgba(201,154,46,0.6), rgba(201,154,46,0) 72%)",
+          }}
+        />
+
         <div className="chess-goal pointer-events-none absolute text-[16px] leading-none" style={{ ...squareStyle(GOAL), color: "#c99a2e" }}>
           ♛
         </div>
@@ -159,7 +199,7 @@ export default function ChessboardAnimation() {
       </div>
 
       <div className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[11px] text-muted">
-        <span>♞♝♜ Estrategia en equipo</span>
+        <span>♞♝♜♟ Estrategia en equipo</span>
         <span>♟ Movimientos de la competencia</span>
         <span>♚ Recursos protegidos</span>
         <span>♛ Objetivo de negocio</span>
@@ -178,6 +218,14 @@ export default function ChessboardAnimation() {
           0%, 100% { transform: translate(-50%, -50%) scale(1); }
           50% { transform: translate(-50%, -50%) scale(1.3); }
         }
+        .chess-goal-glow {
+          animation: chess-goal-glow-anim 7s ease-out infinite;
+        }
+        @keyframes chess-goal-glow-anim {
+          0%, 76% { opacity: 0; transform: translate(-50%, -50%) scale(0.6); }
+          90% { opacity: 1; transform: translate(-50%, -50%) scale(2.1); }
+          100% { opacity: 0; transform: translate(-50%, -50%) scale(2.4); }
+        }
         .chess-competitor {
           animation: chess-competitor-pulse 3.4s ease-in-out infinite;
         }
@@ -186,7 +234,7 @@ export default function ChessboardAnimation() {
           80% { opacity: 1; }
         }
         @media (prefers-reduced-motion: reduce) {
-          .chess-team-piece, .chess-goal, .chess-competitor { animation: none !important; opacity: 1 !important; }
+          .chess-team-piece, .chess-goal, .chess-competitor, .chess-goal-glow { animation: none !important; opacity: 1 !important; }
           ${TEAM_PIECES.map((p, i) => {
             const last = p.waypoints[p.waypoints.length - 1];
             return `.chess-team-piece-${i} { left: ${pct(last.col)}; top: ${pct(last.row)}; transform: translate(-50%, -50%); }`;
