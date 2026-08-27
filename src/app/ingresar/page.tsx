@@ -65,10 +65,11 @@ export default function IngresarPage() {
 
   return (
     <div className="mx-auto flex min-h-[80vh] max-w-md flex-col items-center justify-center px-4 py-12">
-      <Image src="/socya-logo.png" alt="Socya" width={140} height={58} className="mb-4" />
+      <Image src="/socya-logo.png" alt="Socya" width={140} height={58} className="mb-1" />
+      <h1 className="mb-4 text-sm font-semibold uppercase tracking-wide text-brand-dark">Planeación Estratégica</h1>
       <ChessboardAnimation />
       <form onSubmit={handleSubmit} className="w-full space-y-4 rounded-xl border border-border bg-card p-6 shadow-sm">
-        <h1 className="text-lg font-semibold text-foreground">Ingresa a la sesión</h1>
+        <h2 className="text-lg font-semibold text-foreground">Ingresa a la sesión</h2>
         <div>
           <label className="mb-1 block text-xs font-medium text-muted">Nombre completo</label>
           <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej. María Pérez" />

@@ -1,19 +1,111 @@
 "use client";
 
+import type { CSSProperties } from "react";
+
 const SIZE = 8;
 const LIGHT_SQUARE = "#eef1ea";
-
-// Cada salto es un movimiento real de caballo en "L" (2+1 casillas en perpendicular).
-const WAYPOINTS = [
-  { col: 0, row: 7 }, // origen: recursos que se protegen
-  { col: 1, row: 5 }, // L: +1,-2
-  { col: 3, row: 4 }, // L: +2,-1
-  { col: 4, row: 2 }, // L: +1,-2
-  { col: 6, row: 1 }, // L: +2,-1 — objetivo: la meta de negocio
-];
+const DARK_SQUARE = "#5f8f4f"; // verde más suave que el brand-dark, para que las fichas resalten
 
 function pct(n: number) {
   return `${((n + 0.5) / SIZE) * 100}%`;
+}
+
+interface Square {
+  col: number;
+  row: number;
+}
+
+interface TeamPiece {
+  glyph: string;
+  color: string;
+  size: number;
+  duration: number;
+  delay: number;
+  waypoints: Square[];
+}
+
+// Tres piezas del equipo, cada una con un tipo de movimiento distinto (L, diagonal, recto),
+// que avanzan en paralelo y convergen cerca del objetivo: la estrategia se logra en equipo.
+const TEAM_PIECES: TeamPiece[] = [
+  {
+    glyph: "♞",
+    color: "var(--brand)",
+    size: 18,
+    duration: 7,
+    delay: 0,
+    // Movimientos reales de caballo en "L" (2+1 casillas en perpendicular).
+    waypoints: [
+      { col: 0, row: 7 },
+      { col: 1, row: 5 },
+      { col: 3, row: 4 },
+      { col: 4, row: 2 },
+      { col: 6, row: 1 },
+    ],
+  },
+  {
+    glyph: "♝",
+    color: "#2f6fb0",
+    size: 18,
+    duration: 7,
+    delay: 1.3,
+    // Movimientos diagonales de alfil.
+    waypoints: [
+      { col: 1, row: 7 },
+      { col: 4, row: 4 },
+      { col: 7, row: 1 },
+    ],
+  },
+  {
+    glyph: "♜",
+    color: "#a3541f",
+    size: 18,
+    duration: 7,
+    delay: 2.6,
+    // Movimientos rectos de torre.
+    waypoints: [
+      { col: 0, row: 4 },
+      { col: 0, row: 1 },
+      { col: 5, row: 1 },
+    ],
+  },
+];
+
+const COMPETITORS: (Square & { delay: number })[] = [
+  { col: 5, row: 5, delay: 0 },
+  { col: 2, row: 2, delay: 1.6 },
+  { col: 6, row: 4, delay: 3.1 },
+];
+
+const ORIGIN: Square = { col: 0, row: 7 };
+const GOAL: Square = { col: 7, row: 0 };
+
+function squareStyle(s: Square): CSSProperties {
+  return { left: pct(s.col), top: pct(s.row), transform: "translate(-50%, -50%)" };
+}
+
+function buildPieceKeyframes(name: string, waypoints: Square[]) {
+  const startPct = 4;
+  const endPct = 92;
+  const segments = waypoints.length - 1;
+  const frame = (p: number, s: Square, extra?: string) =>
+    `${p}% { left: ${pct(s.col)}; top: ${pct(s.row)}; transform: translate(-50%, -50%);${extra ? ` ${extra}` : ""} }`;
+
+  const lines: string[] = [];
+  lines.push(frame(0, waypoints[0], "opacity: 0;"));
+  lines.push(frame(startPct, waypoints[0], "opacity: 1;"));
+  for (let i = 1; i <= segments; i++) {
+    const arrival = startPct + ((endPct - startPct) * i) / segments;
+    lines.push(frame(Number(arrival.toFixed(2)), waypoints[i]));
+    if (i < segments) {
+      const pause = Math.min(arrival + 1.5, endPct - 0.5);
+      lines.push(frame(Number(pause.toFixed(2)), waypoints[i]));
+    }
+  }
+  lines.push(frame(endPct, waypoints[segments], "opacity: 1;"));
+  lines.push(frame(97, waypoints[segments], "opacity: 0;"));
+  lines.push(frame(100, waypoints[segments], "opacity: 0;"));
+
+  return `@keyframes ${name} {\n${lines.join("\n")}\n}`;
 }
 
 export default function ChessboardAnimation() {
@@ -21,75 +113,64 @@ export default function ChessboardAnimation() {
   for (let row = 0; row < SIZE; row++) {
     for (let col = 0; col < SIZE; col++) {
       const dark = (row + col) % 2 === 1;
-      squares.push(<div key={`${row}-${col}`} style={{ background: dark ? "var(--brand-dark)" : LIGHT_SQUARE }} />);
+      squares.push(<div key={`${row}-${col}`} style={{ background: dark ? DARK_SQUARE : LIGHT_SQUARE }} />);
     }
   }
 
-  const origin = WAYPOINTS[0];
-  const goal = WAYPOINTS[WAYPOINTS.length - 1];
-  const competitor = { col: 5, row: 5 };
-
   return (
     <div className="mb-6 w-full max-w-md rounded-xl border border-border bg-card p-4 shadow-sm">
-      <div className="relative mx-auto w-full max-w-[240px]">
+      <div className="relative mx-auto w-full max-w-[260px]">
         <div
           className="grid overflow-hidden rounded-md border border-border"
           style={{ gridTemplateColumns: `repeat(${SIZE}, 1fr)`, gridTemplateRows: `repeat(${SIZE}, 1fr)`, aspectRatio: "1 / 1" }}
           role="img"
-          aria-label="Tablero de ajedrez animado: anticipar movimientos, analizar a la competencia y avanzar hacia el objetivo de negocio"
+          aria-label="Tablero de ajedrez animado: el equipo avanza en conjunto, evalúa a la competencia y protege los recursos para alcanzar el objetivo de negocio"
         >
           {squares}
         </div>
 
-        <div
-          className="pointer-events-none absolute text-[15px] leading-none"
-          style={{ left: pct(origin.col), top: pct(origin.row), transform: "translate(-50%, -50%)", color: "var(--brand-dark)" }}
-        >
+        <div className="pointer-events-none absolute text-[15px] leading-none" style={{ ...squareStyle(ORIGIN), color: "var(--brand-dark)" }}>
           ♚
         </div>
 
-        <div
-          className="chess-goal pointer-events-none absolute text-[15px] leading-none"
-          style={{ left: pct(goal.col), top: pct(goal.row), transform: "translate(-50%, -50%)", color: "#c99a2e" }}
-        >
+        <div className="chess-goal pointer-events-none absolute text-[16px] leading-none" style={{ ...squareStyle(GOAL), color: "#c99a2e" }}>
           ♛
         </div>
 
-        <div
-          className="chess-competitor pointer-events-none absolute text-[15px] leading-none"
-          style={{ left: pct(competitor.col), top: pct(competitor.row), transform: "translate(-50%, -50%)", color: "var(--asp-1)" }}
-        >
-          ♟
-        </div>
+        {COMPETITORS.map((c, i) => (
+          <div
+            key={i}
+            className="chess-competitor pointer-events-none absolute text-[14px] leading-none"
+            style={{ ...squareStyle(c), color: "var(--asp-1)", animationDelay: `${c.delay}s` }}
+          >
+            ♟
+          </div>
+        ))}
 
-        <div className="chess-piece pointer-events-none absolute text-[17px] leading-none" style={{ color: "var(--brand)" }}>
-          ♞
-        </div>
+        {TEAM_PIECES.map((p, i) => (
+          <div
+            key={i}
+            className={`chess-team-piece chess-team-piece-${i} pointer-events-none absolute leading-none`}
+            style={{ ...squareStyle(p.waypoints[0]), fontSize: p.size, color: p.color }}
+          >
+            {p.glyph}
+          </div>
+        ))}
       </div>
 
       <div className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[11px] text-muted">
-        <span>♚ Recursos protegidos</span>
+        <span>♞♝♜ Estrategia en equipo</span>
         <span>♟ Movimientos de la competencia</span>
+        <span>♚ Recursos protegidos</span>
         <span>♛ Objetivo de negocio</span>
       </div>
 
       <style>{`
-        .chess-piece {
-          animation: chess-move-anim 7s ease-in-out infinite;
-        }
-        @keyframes chess-move-anim {
-          0%   { left: ${pct(WAYPOINTS[0].col)}; top: ${pct(WAYPOINTS[0].row)}; transform: translate(-50%, -50%); opacity: 0; }
-          4%   { opacity: 1; }
-          20%  { left: ${pct(WAYPOINTS[1].col)}; top: ${pct(WAYPOINTS[1].row)}; transform: translate(-50%, -50%); }
-          24%  { left: ${pct(WAYPOINTS[1].col)}; top: ${pct(WAYPOINTS[1].row)}; transform: translate(-50%, -50%); }
-          44%  { left: ${pct(WAYPOINTS[2].col)}; top: ${pct(WAYPOINTS[2].row)}; transform: translate(-50%, -50%); }
-          48%  { left: ${pct(WAYPOINTS[2].col)}; top: ${pct(WAYPOINTS[2].row)}; transform: translate(-50%, -50%); }
-          68%  { left: ${pct(WAYPOINTS[3].col)}; top: ${pct(WAYPOINTS[3].row)}; transform: translate(-50%, -50%); }
-          72%  { left: ${pct(WAYPOINTS[3].col)}; top: ${pct(WAYPOINTS[3].row)}; transform: translate(-50%, -50%); }
-          92%  { left: ${pct(WAYPOINTS[4].col)}; top: ${pct(WAYPOINTS[4].row)}; transform: translate(-50%, -50%); opacity: 1; }
-          97%  { opacity: 0; }
-          100% { left: ${pct(WAYPOINTS[4].col)}; top: ${pct(WAYPOINTS[4].row)}; transform: translate(-50%, -50%); opacity: 0; }
-        }
+        ${TEAM_PIECES.map((p, i) => buildPieceKeyframes(`chess-team-move-${i}`, p.waypoints)).join("\n")}
+        ${TEAM_PIECES.map(
+          (p, i) =>
+            `.chess-team-piece-${i} { animation: chess-team-move-${i} ${p.duration}s ease-in-out infinite; animation-delay: ${p.delay}s; }`
+        ).join("\n")}
         .chess-goal {
           animation: chess-goal-pulse 2.2s ease-in-out infinite;
         }
@@ -105,8 +186,11 @@ export default function ChessboardAnimation() {
           80% { opacity: 1; }
         }
         @media (prefers-reduced-motion: reduce) {
-          .chess-piece, .chess-goal, .chess-competitor { animation: none !important; }
-          .chess-piece { left: ${pct(goal.col)}; top: ${pct(goal.row)}; transform: translate(-50%, -50%); opacity: 1; }
+          .chess-team-piece, .chess-goal, .chess-competitor { animation: none !important; opacity: 1 !important; }
+          ${TEAM_PIECES.map((p, i) => {
+            const last = p.waypoints[p.waypoints.length - 1];
+            return `.chess-team-piece-${i} { left: ${pct(last.col)}; top: ${pct(last.row)}; transform: translate(-50%, -50%); }`;
+          }).join("\n")}
         }
       `}</style>
     </div>
