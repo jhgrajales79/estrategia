@@ -1,19 +1,26 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f6f7f5;
-  --foreground: #1f2421;
+  /* Identidad Socya — ver .agents/skills/design/design.md.txt */
+  --background: #f4f7f6; /* bg-soft */
+  --foreground: #1a1a1a; /* text-dark */
   --card: #ffffff;
-  --border: #dfe3de;
-  --muted: #667066;
-  --brand: #4c7a3a;
-  --brand-dark: #35562a;
-  --asp-1: #e2711d;
-  --asp-1-soft: #fbe6d4;
-  --asp-2: #2f6fb0;
-  --asp-2-soft: #dbe9f6;
-  --asp-3: #4c8c3f;
-  --asp-3-soft: #dfeed8;
+  --border: #e0e8e6;
+  --muted: #5f6b67;
+  --brand: #80c612; /* Verde Lima — primario */
+  --brand-hover: #6ba30f; /* Verde Lima oscurecido, para hover manteniendo texto oscuro */
+  --brand-dark: #087062; /* Verde Socya — secundario */
+  --dark: #123c49; /* Azul Noche */
+  --accent-blue: #00a0df; /* Azul Cielo — arquetipo Protectora */
+  --accent-yellow: #f3c400; /* Amarillo Oro — alertas, KPIs, logros */
+  --accent-orange: #ff8300; /* Naranja — arquetipo Humana */
+  /* Aspiraciones mapeadas a los 3 arquetipos de marca */
+  --asp-1: #ff8300; /* Asp. 1 Gente y cultura — Humana */
+  --asp-1-soft: #ffe7cc;
+  --asp-2: #00a0df; /* Asp. 2 Territorios y comunidades — Protectora */
+  --asp-2-soft: #d6f0fa;
+  --asp-3: #087062; /* Asp. 3 Autosostenibilidad — Especialista (Verde Socya) */
+  --asp-3-soft: #d9ede9;
   --postit-yellow: #fdf1a8;
   --postit-pink: #f9d4e6;
   --postit-blue: #cfe6f9;
@@ -28,7 +35,12 @@
   --color-border: var(--border);
   --color-muted: var(--muted);
   --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
   --color-brand-dark: var(--brand-dark);
+  --color-dark: var(--dark);
+  --color-accent-blue: var(--accent-blue);
+  --color-accent-yellow: var(--accent-yellow);
+  --color-accent-orange: var(--accent-orange);
   --color-asp-1: var(--asp-1);
   --color-asp-1-soft: var(--asp-1-soft);
   --color-asp-2: var(--asp-2);
@@ -40,8 +52,11 @@
   --color-postit-blue: var(--postit-blue);
   --color-postit-green: var(--postit-green);
   --color-postit-orange: var(--postit-orange);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-inter);
   --font-mono: var(--font-geist-mono);
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
 }
 
 body {
@@ -49,4 +64,3 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans), system-ui, sans-serif;
 }
-

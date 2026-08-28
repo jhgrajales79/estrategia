@@ -18,7 +18,7 @@ export const inputCls =
 export const textareaCls = inputCls + " resize-y min-h-16";
 
 export const btnPrimary =
-  "inline-flex items-center gap-1.5 rounded-md bg-brand px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-dark transition-colors disabled:opacity-50";
+  "inline-flex items-center gap-1.5 rounded-md bg-brand px-3 py-1.5 text-sm font-semibold text-dark hover:bg-brand-hover transition-colors disabled:opacity-50";
 
 export const btnGhost =
   "inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-black/5 transition-colors";

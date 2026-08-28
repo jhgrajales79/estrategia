@@ -39,7 +39,7 @@ export default function Nav() {
               key={l.href}
               href={l.href}
               className={`shrink-0 whitespace-nowrap rounded-md px-3 py-1.5 font-medium transition-colors ${
-                pathname.startsWith(l.href) ? "bg-brand text-white" : "text-foreground hover:bg-black/5"
+                pathname.startsWith(l.href) ? "bg-brand text-dark" : "text-foreground hover:bg-black/5"
               }`}
             >
               {l.label}

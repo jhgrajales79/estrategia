@@ -108,7 +108,7 @@ export default function RadarFullscreenPage({ params }: { params: Promise<{ acti
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-background p-6">
-      <h1 className="text-2xl font-bold text-foreground">{activity.title}</h1>
+      <h1 className="text-2xl font-bold text-dark">{activity.title}</h1>
       <RadarChartView axes={axes} winnerByAxis={winnerByAxis} voteTotal={voteTotal} size={size} activeAxisKey={activeAxisKey} />
     </div>
   );

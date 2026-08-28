@@ -63,7 +63,7 @@ export default function RadarChartView({
         {hasAny && (
           <polygon
             points={polygonPoints}
-            style={{ fill: "rgba(47, 158, 79, 0.12)", stroke: "rgba(47, 158, 79, 0.5)" }}
+            style={{ fill: "rgba(8, 112, 98, 0.12)", stroke: "rgba(8, 112, 98, 0.55)" }}
             strokeWidth={1.5}
             strokeLinejoin="round"
           />
@@ -71,7 +71,7 @@ export default function RadarChartView({
         {vertices.map(
           (v) =>
             v.winner && (
-              <circle key={v.axis.key} cx={v.x} cy={v.y} r={size > BASE_SIZE ? 5 : 3.5} style={{ fill: "rgba(47, 158, 79, 0.85)" }} />
+              <circle key={v.axis.key} cx={v.x} cy={v.y} r={size > BASE_SIZE ? 5 : 3.5} style={{ fill: "rgba(8, 112, 98, 0.9)" }} />
             )
         )}
       </svg>

@@ -63,7 +63,7 @@ export default function NotasFullscreenPage({ params }: { params: Promise<{ acti
 
   return (
     <div className="min-h-screen bg-background p-8">
-      <h1 className="mb-8 text-center text-3xl font-bold text-foreground">{activity.title}</h1>
+      <h1 className="mb-8 text-center text-3xl font-bold text-dark">{activity.title}</h1>
       <NotesBoardView categories={categories} notes={content.notes} aspirations={aspirations} showOnlyHighlighted={content.showOnlyHighlighted} large />
     </div>
   );

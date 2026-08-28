@@ -69,7 +69,7 @@ export default function TableroPage() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
-      <h1 className="text-xl font-bold text-foreground">Tablero de seguimiento — acumulado anual</h1>
+      <h1 className="text-xl font-bold text-dark">Tablero de seguimiento — acumulado anual</h1>
       <p className="mb-6 text-sm text-muted">Planeación vs. ejecución por aspiración e indicadores consolidados desde la S6.</p>
 
       <div className="grid gap-4 sm:grid-cols-3">

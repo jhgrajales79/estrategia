@@ -87,7 +87,7 @@ export default function PanelPage() {
     <div className="mx-auto max-w-6xl px-4 py-8">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h1 className="text-xl font-bold text-foreground">Panel en vivo</h1>
+          <h1 className="text-xl font-bold text-dark">Panel en vivo</h1>
           <p className="text-sm text-muted">Lo que cada equipo está desarrollando en tiempo real.</p>
         </div>
         {presenter && (

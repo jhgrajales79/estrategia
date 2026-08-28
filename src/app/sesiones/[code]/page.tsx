@@ -126,7 +126,7 @@ export default function SessionDetailPage({ params }: { params: Promise<{ code: 
     <div className="mx-auto max-w-4xl px-4 py-8">
       <div className="mb-6 rounded-xl border border-border bg-card p-5 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h1 className="text-xl font-bold text-foreground">
+          <h1 className="text-xl font-bold text-dark">
             {session.code} · {session.name}
           </h1>
           <div className="flex items-center gap-3">

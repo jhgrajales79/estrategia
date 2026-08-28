@@ -64,7 +64,7 @@ export default function NuestroTrabajoPage() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">
-      <h1 className="text-xl font-bold text-foreground">Nuestro trabajo</h1>
+      <h1 className="text-xl font-bold text-dark">Nuestro trabajo</h1>
       <p className="mb-6 text-sm text-muted">Los resultados de cada ejercicio, sesión por sesión.</p>
 
       <div className="mb-6 flex flex-wrap gap-1.5 border-b border-border pb-3">
@@ -80,7 +80,7 @@ export default function NuestroTrabajoPage() {
                 locked
                   ? "cursor-not-allowed bg-black/5 text-muted opacity-50"
                   : activeTab === s.id
-                    ? "bg-brand text-white"
+                    ? "bg-brand text-dark"
                     : "bg-black/5 text-foreground hover:bg-black/10"
               }`}
             >

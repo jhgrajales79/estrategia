@@ -70,7 +70,7 @@ export default function MetasPage() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">
-      <h1 className="text-xl font-bold text-foreground">Metas por aspiración</h1>
+      <h1 className="text-xl font-bold text-dark">Metas por aspiración</h1>
       <p className="mb-6 text-sm text-muted">Metas vigentes y nuevas metas adoptadas en la S3 (Direccionamiento).</p>
 
       <div className="mb-8 grid gap-4 sm:grid-cols-3">

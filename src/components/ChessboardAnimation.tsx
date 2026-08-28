@@ -48,7 +48,7 @@ const TEAM_PIECES: TeamPiece[] = [
   },
   {
     glyph: "♝",
-    color: "#2f6fb0",
+    color: "#00a0df",
     size: 18,
     duration: PIECE_DURATION,
     delay: 2.2,
@@ -74,7 +74,7 @@ const TEAM_PIECES: TeamPiece[] = [
   },
   {
     glyph: "♟",
-    color: "#4c8c3f",
+    color: "#087062",
     size: 16,
     duration: PIECE_DURATION,
     delay: 6.6,

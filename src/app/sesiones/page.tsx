@@ -57,7 +57,7 @@ export default function SesionesPage() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">
-      <h1 className="text-xl font-bold text-foreground">Las 8 sesiones</h1>
+      <h1 className="text-xl font-bold text-dark">Las 8 sesiones</h1>
       <p className="mb-6 text-sm text-muted">
         12 semanas · S0 a S7.{" "}
         {presenter ? "Como facilitador, puedes habilitar cada sesión." : "Las sesiones habilitadas por el facilitador están disponibles para trabajar."}
