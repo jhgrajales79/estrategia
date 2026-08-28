@@ -33,6 +33,9 @@ export interface SessionRow {
   order_index: number;
   status: SessionStatus;
   is_enabled: boolean;
+  timer_status: "idle" | "running" | "paused" | "finished";
+  timer_end_at: string | null;
+  timer_remaining_seconds: number | null;
 }
 
 export type ActivityType =

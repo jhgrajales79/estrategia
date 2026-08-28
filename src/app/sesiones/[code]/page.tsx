@@ -8,6 +8,7 @@ import { logActivity } from "@/lib/feed";
 import { isPresenter } from "@/lib/presenter";
 import type { ActivityRow, Aspiration, OutputRow, SessionRow } from "@/lib/types";
 import ActivityCard from "@/components/ActivityCard";
+import SessionTimer from "@/components/SessionTimer";
 import { aspClasses, findAspiration } from "@/lib/aspirationStyle";
 import { ToggleSwitch, LockBadge } from "@/components/activities/shared";
 
@@ -121,6 +122,7 @@ export default function SessionDetailPage({ params }: { params: Promise<{ code: 
   }
 
   const locked = !session.is_enabled && !presenter;
+  const totalSeconds = activities.reduce((acc, a) => acc + (a.time_minutes ?? 0) * 60, 0);
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">
@@ -157,6 +159,10 @@ export default function SessionDetailPage({ params }: { params: Promise<{ code: 
         </p>
         {session.objective && <p className="mt-3 text-sm text-foreground">{session.objective}</p>}
         {session.aspiration_link && <p className="mt-2 text-xs italic text-muted">{session.aspiration_link}</p>}
+
+        <div className="mt-4">
+          <SessionTimer session={session} totalSeconds={totalSeconds} presenter={presenter} />
+        </div>
 
         {presenter && (
           <div className="mt-4 border-t border-border pt-3">
