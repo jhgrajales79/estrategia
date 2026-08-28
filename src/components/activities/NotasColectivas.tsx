@@ -40,8 +40,10 @@ export default function NotasColectivas({ activity, session, aspirations, partic
   const categories = (activity.config.categories as { key: string; label: string }[]) ?? [];
   const impactLevels = Boolean(activity.config.impactLevels);
   const allowMedia = Boolean(activity.config.allowMedia);
+  const linkOnly = Boolean(activity.config.linkOnly);
   const selectableAspiration = Boolean(activity.config.selectableAspiration);
   const externalLinkLabel = (activity.config.externalLinkLabel as string) ?? "Enlace externo";
+  const defaultLink = (activity.config.defaultLink as string) ?? "";
   const presenter = isPresenter(participant);
   const submissionAspId = effectiveAspirationId(activity, participant);
   const { content, save, saving, updatedAt, loaded } = useSubmission<Content>(
@@ -49,7 +51,7 @@ export default function NotasColectivas({ activity, session, aspirations, partic
     session,
     submissionAspId,
     participant,
-    { notes: [], media: [], external_link: "", showOnlyHighlighted: false }
+    { notes: [], media: [], external_link: defaultLink, showOnlyHighlighted: false }
   );
   const [draft, setDraft] = useState<Record<string, string>>({});
   const [impact, setImpact] = useState<Record<string, Note["impact"]>>({});
@@ -169,6 +171,27 @@ export default function NotasColectivas({ activity, session, aspirations, partic
               defaultValue={content.external_link}
               onBlur={(e) => save({ ...content, external_link: e.target.value })}
             />
+          </div>
+        </div>
+      )}
+      {linkOnly && presenter && (
+        <div className="rounded-lg border border-border bg-card p-3">
+          <h4 className="mb-2 text-sm font-semibold text-foreground">{externalLinkLabel}</h4>
+          <p className="mb-2 text-xs text-muted">Guarda aquí el enlace y ábrelo cuando lo necesites durante la sesión.</p>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <input
+              className={inputCls}
+              placeholder="https://..."
+              defaultValue={content.external_link}
+              onBlur={(e) => save({ ...content, external_link: e.target.value })}
+            />
+            <button
+              className={btnGhost + " shrink-0"}
+              disabled={!content.external_link}
+              onClick={() => window.open(content.external_link, "_blank", "noopener,noreferrer")}
+            >
+              🔗 Abrir
+            </button>
           </div>
         </div>
       )}
