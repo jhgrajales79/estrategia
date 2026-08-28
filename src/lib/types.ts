@@ -33,9 +33,6 @@ export interface SessionRow {
   order_index: number;
   status: SessionStatus;
   is_enabled: boolean;
-  timer_status: "idle" | "running" | "paused" | "finished";
-  timer_end_at: string | null;
-  timer_remaining_seconds: number | null;
 }
 
 export type ActivityType =
@@ -62,6 +59,9 @@ export interface ActivityRow {
   config: Record<string, unknown>;
   order_index: number;
   is_enabled: boolean;
+  timer_status: "idle" | "running" | "paused" | "finished";
+  timer_end_at: string | null;
+  timer_remaining_seconds: number | null;
 }
 
 export type SubmissionStatus = "borrador" | "enviado";

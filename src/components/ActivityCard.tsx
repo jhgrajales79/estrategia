@@ -9,6 +9,7 @@ import { resetActivityData } from "@/lib/data";
 import { logActivity } from "@/lib/feed";
 import { ToggleSwitch, LockBadge } from "@/components/activities/shared";
 import InsumosPanel from "@/components/results/InsumosPanel";
+import ActivityTimer from "@/components/ActivityTimer";
 
 export default function ActivityCard({
   activity,
@@ -89,6 +90,7 @@ export default function ActivityCard({
               {activity.materials}
             </p>
           )}
+          <ActivityTimer activity={activity} totalSeconds={(activity.time_minutes ?? 0) * 60} presenter={presenter} />
           {inputsFrom.length > 0 && <InsumosPanel sourceIds={inputsFrom} aspirations={aspirations} />}
           {presenter && (
             <div className="mb-4">

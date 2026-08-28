@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import type { SessionRow } from "@/lib/types";
+import type { ActivityRow } from "@/lib/types";
 import { btnGhost, btnPrimary } from "./activities/shared";
 
 function formatTime(totalSeconds: number) {
@@ -39,31 +39,20 @@ function playBeep() {
   }
 }
 
-export default function SessionTimer({
-  session,
-  totalSeconds,
-  presenter,
-}: {
-  session: SessionRow;
-  totalSeconds: number;
-  presenter: boolean;
-}) {
+function useActivityRemaining(activity: ActivityRow, totalSeconds: number) {
   const [nowMs, setNowMs] = useState(() => Date.now());
-  const finishedFired = useRef(false);
-  const prevFinished = useRef(false);
 
   useEffect(() => {
     const id = setInterval(() => setNowMs(Date.now()), 250);
     return () => clearInterval(id);
   }, []);
 
-  const status = session.timer_status ?? "idle";
-
+  const status = activity.timer_status ?? "idle";
   let remaining: number;
-  if (status === "running" && session.timer_end_at) {
-    remaining = (new Date(session.timer_end_at).getTime() - nowMs) / 1000;
+  if (status === "running" && activity.timer_end_at) {
+    remaining = (new Date(activity.timer_end_at).getTime() - nowMs) / 1000;
   } else if (status === "paused") {
-    remaining = session.timer_remaining_seconds ?? totalSeconds;
+    remaining = activity.timer_remaining_seconds ?? totalSeconds;
   } else if (status === "finished") {
     remaining = 0;
   } else {
@@ -75,13 +64,29 @@ export default function SessionTimer({
   const isWarning = isRunning && remaining <= 120;
   const isFinished = status === "finished" || (status === "running" && remaining <= 0);
 
+  return { status, remaining, isRunning, isWarning, isFinished };
+}
+
+export default function ActivityTimer({
+  activity,
+  totalSeconds,
+  presenter,
+}: {
+  activity: ActivityRow;
+  totalSeconds: number;
+  presenter: boolean;
+}) {
+  const { status, remaining, isRunning, isWarning, isFinished } = useActivityRemaining(activity, totalSeconds);
+  const finishedFired = useRef(false);
+  const prevFinished = useRef(false);
+
   useEffect(() => {
     if (status === "running" && remaining <= 0 && presenter && !finishedFired.current) {
       finishedFired.current = true;
-      supabase.from("sessions").update({ timer_status: "finished", timer_end_at: null, timer_remaining_seconds: 0 }).eq("id", session.id);
+      supabase.from("activities").update({ timer_status: "finished", timer_end_at: null, timer_remaining_seconds: 0 }).eq("id", activity.id);
     }
     if (status !== "running") finishedFired.current = false;
-  }, [status, remaining, presenter, session.id]);
+  }, [status, remaining, presenter, activity.id]);
 
   useEffect(() => {
     if (isFinished && !prevFinished.current) playBeep();
@@ -89,39 +94,39 @@ export default function SessionTimer({
   }, [isFinished]);
 
   async function start() {
-    const secs = status === "paused" ? session.timer_remaining_seconds ?? totalSeconds : totalSeconds;
+    const secs = status === "paused" ? activity.timer_remaining_seconds ?? totalSeconds : totalSeconds;
     const endAt = new Date(Date.now() + secs * 1000).toISOString();
     await supabase
-      .from("sessions")
+      .from("activities")
       .update({ timer_status: "running", timer_end_at: endAt, timer_remaining_seconds: null })
-      .eq("id", session.id);
+      .eq("id", activity.id);
   }
   async function pause() {
     const remainingNow = Math.max(0, Math.round(remaining));
     await supabase
-      .from("sessions")
+      .from("activities")
       .update({ timer_status: "paused", timer_end_at: null, timer_remaining_seconds: remainingNow })
-      .eq("id", session.id);
+      .eq("id", activity.id);
   }
   async function reset() {
     await supabase
-      .from("sessions")
+      .from("activities")
       .update({ timer_status: "idle", timer_end_at: null, timer_remaining_seconds: null })
-      .eq("id", session.id);
+      .eq("id", activity.id);
   }
 
   if (totalSeconds <= 0) return null;
 
   return (
     <div
-      className={`relative rounded-lg border p-3 transition-colors ${
+      className={`relative mb-4 rounded-lg border p-3 transition-colors ${
         isFinished ? "border-red-400 bg-red-50" : isWarning ? "border-orange-400 bg-orange-50" : "border-border bg-card"
       }`}
     >
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <span
-            className={`timer-digits font-mono text-2xl font-bold tabular-nums ${
+            className={`font-mono text-2xl font-bold tabular-nums ${
               isFinished ? "text-red-600" : isWarning ? "text-orange-600" : "text-dark"
             } ${isWarning ? "timer-pulse-fast" : isRunning ? "timer-pulse" : ""}`}
           >
@@ -136,7 +141,7 @@ export default function SessionTimer({
                   : "Tiempo corriendo…"
                 : status === "paused"
                   ? "En pausa"
-                  : "Tiempo propuesto de la sesión"}
+                  : "Tiempo propuesto de la actividad"}
           </span>
         </div>
         {presenter && (
