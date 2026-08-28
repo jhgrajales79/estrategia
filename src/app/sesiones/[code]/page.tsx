@@ -2,7 +2,7 @@
 
 import { use, useEffect, useState } from "react";
 import { useRequireParticipant } from "@/lib/useRequireParticipant";
-import { fetchActivities, fetchAspirations, fetchOutputs, fetchSessionByCode } from "@/lib/data";
+import { fetchActivities, fetchAspirations, fetchOutputs, fetchSessionByCode, resetSessionActivitiesData } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
 import { logActivity } from "@/lib/feed";
 import { isPresenter } from "@/lib/presenter";
@@ -21,6 +21,9 @@ export default function SessionDetailPage({ params }: { params: Promise<{ code: 
   const [activities, setActivities] = useState<ActivityRow[]>([]);
   const [outputs, setOutputs] = useState<OutputRow[]>([]);
   const [aspirations, setAspirations] = useState<Aspiration[]>([]);
+  const [confirmReset, setConfirmReset] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const [resetNonce, setResetNonce] = useState(0);
 
   useEffect(() => {
     fetchAspirations().then(setAspirations).catch(console.error);
@@ -98,6 +101,25 @@ export default function SessionDetailPage({ params }: { params: Promise<{ code: 
     });
   }
 
+  async function handleResetSession() {
+    setResetting(true);
+    try {
+      await resetSessionActivitiesData(session!.id);
+      setResetNonce((n) => n + 1);
+      await logActivity({
+        session_id: session!.id,
+        participant_id: participant!.id,
+        event_type: "sesion_reiniciada",
+        summary: `${participant!.name} reinició la información de la sesión ${session!.code}`,
+      });
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setResetting(false);
+      setConfirmReset(false);
+    }
+  }
+
   const locked = !session.is_enabled && !presenter;
 
   return (
@@ -135,6 +157,42 @@ export default function SessionDetailPage({ params }: { params: Promise<{ code: 
         </p>
         {session.objective && <p className="mt-3 text-sm text-foreground">{session.objective}</p>}
         {session.aspiration_link && <p className="mt-2 text-xs italic text-muted">{session.aspiration_link}</p>}
+
+        {presenter && (
+          <div className="mt-4 border-t border-border pt-3">
+            {!confirmReset ? (
+              <button
+                className="inline-flex items-center gap-1.5 rounded-md border border-red-300 px-3 py-1.5 text-xs font-medium text-red-600 transition-colors hover:bg-red-50"
+                onClick={() => setConfirmReset(true)}
+              >
+                🗑 Reiniciar información de esta sesión
+              </button>
+            ) : (
+              <div className="flex flex-wrap items-center gap-3 rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-800">
+                <span>
+                  ¿Seguro? Se borrará permanentemente todo lo registrado por los equipos en las actividades de{" "}
+                  <strong>{session.code}</strong> (notas, votos, radar, ideas, matrices…). Esta acción no se puede deshacer.
+                </span>
+                <div className="ml-auto flex shrink-0 items-center gap-2">
+                  <button
+                    className="rounded-md border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:bg-black/5"
+                    onClick={() => setConfirmReset(false)}
+                    disabled={resetting}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    className="rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                    onClick={handleResetSession}
+                    disabled={resetting}
+                  >
+                    {resetting ? "Reiniciando…" : "Sí, reiniciar todo"}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {locked ? (
@@ -147,7 +205,7 @@ export default function SessionDetailPage({ params }: { params: Promise<{ code: 
           <div className="space-y-3">
             {activities.map((a) => (
               <ActivityCard
-                key={a.id}
+                key={`${a.id}-${resetNonce}`}
                 activity={a}
                 session={session}
                 aspirations={aspirations}
