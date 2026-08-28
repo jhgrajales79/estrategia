@@ -8,6 +8,7 @@ import { effectiveAspirationId } from "@/lib/useSubmission";
 import { resetActivityData } from "@/lib/data";
 import { logActivity } from "@/lib/feed";
 import { ToggleSwitch, LockBadge } from "@/components/activities/shared";
+import InsumosPanel from "@/components/results/InsumosPanel";
 
 export default function ActivityCard({
   activity,
@@ -33,6 +34,7 @@ export default function ActivityCard({
   const Component = ACTIVITY_COMPONENTS[activity.activity_type];
   const aspirationId = effectiveAspirationId(activity, participant);
   const locked = !activity.is_enabled && !presenter;
+  const inputsFrom = (activity.config.inputsFrom as number[]) ?? [];
 
   async function handleReset() {
     setResetting(true);
@@ -87,6 +89,7 @@ export default function ActivityCard({
               {activity.materials}
             </p>
           )}
+          {inputsFrom.length > 0 && <InsumosPanel sourceIds={inputsFrom} aspirations={aspirations} />}
           {presenter && (
             <div className="mb-4">
               {!confirmReset ? (

@@ -394,7 +394,7 @@ function renderContent(activity: ActivityRow, content: Record<string, unknown>, 
   }
 }
 
-function ResultsBody({
+export function ResultsBody({
   activity,
   submissions,
   aspirations,
