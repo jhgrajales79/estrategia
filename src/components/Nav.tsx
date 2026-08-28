@@ -28,17 +28,17 @@ export default function Nav() {
 
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-card/90 backdrop-blur">
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
-        <Link href="/panel" className="flex items-center gap-2">
+      <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3">
+        <Link href="/panel" className="flex shrink-0 items-center gap-2">
           <Image src="/socya-logo.png" alt="Socya" width={90} height={38} className="h-8 w-auto" priority />
           <span className="hidden text-sm font-semibold text-muted sm:inline">Ruta de Planeación Estratégica</span>
         </Link>
-        <nav className="flex items-center gap-1 text-sm">
+        <nav className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto text-sm [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {LINKS.map((l) => (
             <Link
               key={l.href}
               href={l.href}
-              className={`rounded-md px-3 py-1.5 font-medium transition-colors ${
+              className={`shrink-0 whitespace-nowrap rounded-md px-3 py-1.5 font-medium transition-colors ${
                 pathname.startsWith(l.href) ? "bg-brand text-white" : "text-foreground hover:bg-black/5"
               }`}
             >
@@ -46,7 +46,7 @@ export default function Nav() {
             </Link>
           ))}
         </nav>
-        <div className="flex items-center gap-3 text-sm">
+        <div className="flex shrink-0 items-center gap-3 text-sm">
           {participant ? (
             <>
               <span className="hidden text-muted sm:inline">{participant.name}</span>

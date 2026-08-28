@@ -71,6 +71,9 @@ export default function RuedaEvaluacion({ activity, session, participant }: Acti
   return (
     <div className="space-y-3">
       {presenter && <PresenterHint />}
+      {presenter && content.items.length === 0 && (
+        <p className="text-sm text-muted">Aún no hay capacidades registradas. Cada equipo las agrega desde su propia sesión.</p>
+      )}
       <div className="space-y-2">
         {content.items.map((item) => (
           <div key={item.id} className="flex flex-col gap-2 rounded-lg border border-border bg-card p-3 sm:flex-row sm:items-center">

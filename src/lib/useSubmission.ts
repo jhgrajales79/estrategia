@@ -37,11 +37,21 @@ export function useSubmission<T extends Record<string, unknown>>(
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Guarda los parámetros vigentes para descartar respuestas de una carga anterior que resuelva tarde
+  // (p. ej. cuando `activity` pasa de un valor provisional a uno real y las peticiones llegan desordenadas).
+  const latestParams = useRef({ activityId: activity.id, aspirationId });
+  useEffect(() => {
+    latestParams.current = { activityId: activity.id, aspirationId };
+  });
 
   const load = useCallback(async () => {
+    const requested = { activityId: activity.id, aspirationId };
     let query = supabase.from("submissions").select("*").eq("activity_id", activity.id);
     query = aspirationId === null ? query.is("aspiration_id", null) : query.eq("aspiration_id", aspirationId);
     const { data } = await query.maybeSingle();
+    if (latestParams.current.activityId !== requested.activityId || latestParams.current.aspirationId !== requested.aspirationId) {
+      return;
+    }
     if (data) {
       setRowId(data.id);
       setContentState({ ...emptyContent, ...(data.content as T) });

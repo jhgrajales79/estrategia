@@ -188,7 +188,7 @@ export default function ChessboardAnimation() {
 
   return (
     <div className="mb-6 w-full max-w-md rounded-xl border border-border bg-card p-4 shadow-sm">
-      <div className="relative mx-auto w-full max-w-[260px]">
+      <div className="relative mx-auto w-full max-w-[340px]">
         <div
           className="grid overflow-hidden rounded-md border border-border"
           style={{ gridTemplateColumns: `repeat(${SIZE}, 1fr)`, gridTemplateRows: `repeat(${SIZE}, 1fr)`, aspectRatio: "1 / 1" }}

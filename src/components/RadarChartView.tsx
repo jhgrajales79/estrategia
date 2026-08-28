@@ -89,21 +89,37 @@ export default function RadarChartView({
           </div>
         );
       })}
-      {vertices.map(
-        (v) =>
-          v.winner && (
-            <div
-              key={v.axis.key}
-              className={`absolute -translate-x-1/2 -translate-y-[calc(100%+8px)] rounded-sm text-center leading-tight shadow ${
-                size > BASE_SIZE ? "w-32 text-[11px] p-1.5" : "w-24 text-[9px] p-1"
-              } ${autoBg(v.winner.round - 1, ROUND_PALETTE_SOFT)} backdrop-blur-sm`}
-              style={{ left: v.x, top: v.y }}
-            >
-              {v.winner.text}
-              <div className="mt-0.5 font-semibold text-brand-dark">{voteTotal[v.winner.id] ?? 0} pts</div>
-            </div>
-          )
-      )}
+      {vertices.map((v, i) => {
+        if (!v.winner) return null;
+        // La tarjeta se desplaza hacia afuera sobre el mismo eje del ganador (no siempre "hacia arriba"),
+        // para que dos ejes con votos bajos (cerca del centro) no terminen con sus tarjetas superpuestas.
+        const winner = v.winner;
+        const radiusFrac = RING_FRACTIONS[winner.ring];
+        // Se limita a 0.85 para dejar margen frente a la etiqueta del eje (a 1.15),
+        // sin importar el tamaño del radar, y así casi nunca chocan entre sí.
+        const calloutFrac = Math.min(radiusFrac + 0.28, 0.85);
+        const basePoint = point(axisAngle(i), calloutFrac);
+        // Un desplazamiento tangencial (perpendicular al eje), alternado por índice,
+        // separa aún más las tarjetas de ejes adyacentes cuyo ganador cayó en el mismo anillo.
+        const angleRad = (axisAngle(i) * Math.PI) / 180;
+        const tangentShift = (i % 2 === 0 ? 1 : -1) * (size > BASE_SIZE ? 20 : 12);
+        const calloutPoint = {
+          x: basePoint.x + -Math.sin(angleRad) * tangentShift,
+          y: basePoint.y + Math.cos(angleRad) * tangentShift,
+        };
+        return (
+          <div
+            key={v.axis.key}
+            className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-sm text-center leading-tight shadow ${
+              size > BASE_SIZE ? "w-32 text-[11px] p-1.5" : "w-24 text-[9px] p-1"
+            } ${autoBg(winner.round - 1, ROUND_PALETTE_SOFT)} backdrop-blur-sm`}
+            style={{ left: calloutPoint.x, top: calloutPoint.y }}
+          >
+            {winner.text}
+            <div className="mt-0.5 font-semibold text-brand-dark">{voteTotal[winner.id] ?? 0} pts</div>
+          </div>
+        );
+      })}
     </div>
   );
 }

@@ -97,6 +97,9 @@ export default function TarjetaEstructurada({ activity, session, aspirations, pa
   return (
     <div className="space-y-3">
       {presenter && <PresenterHint />}
+      {presenter && content.entries.length === 0 && (
+        <p className="text-sm text-muted">Aún no hay registros. Cada equipo los agrega desde su propia sesión.</p>
+      )}
       {content.entries.map((entry) => {
         const asp = findAspiration(aspirations, (entry.aspiration_id as number) ?? null);
         const cls = aspClasses(asp?.number);
