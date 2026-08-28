@@ -69,6 +69,11 @@ export async function fetchSubmissionsByActivityIds(
   return data as { activity_id: number; aspiration_id: number | null; content: Record<string, unknown>; updated_at: string }[];
 }
 
+export async function resetActivityData(activityId: number): Promise<void> {
+  const { error } = await supabase.from("submissions").delete().eq("activity_id", activityId);
+  if (error) throw error;
+}
+
 export async function resetSessionActivitiesData(sessionId: number): Promise<void> {
   const { data: acts, error: actsError } = await supabase.from("activities").select("id").eq("session_id", sessionId);
   if (actsError) throw actsError;
