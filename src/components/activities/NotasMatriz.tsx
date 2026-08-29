@@ -33,6 +33,8 @@ export default function NotasMatriz({ activity, session, aspirations, participan
     { notes: [], external_link: defaultLink }
   );
   const [draft, setDraft] = useState<Record<string, string>>({});
+  const [editing, setEditing] = useState<Record<string, string>>({});
+  const [copied, setCopied] = useState(false);
 
   if (!loaded) return <p className="text-sm text-muted">Cargando…</p>;
 
@@ -54,6 +56,46 @@ export default function NotasMatriz({ activity, session, aspirations, participan
 
   function removeNote(id: string) {
     save({ ...content, notes: content.notes.filter((n) => n.id !== id) });
+  }
+
+  function startEdit(note: Note) {
+    setEditing((e) => ({ ...e, [note.id]: note.text }));
+  }
+
+  function cancelEdit(id: string) {
+    setEditing((e) => {
+      const next = { ...e };
+      delete next[id];
+      return next;
+    });
+  }
+
+  function commitEdit(id: string) {
+    const text = (editing[id] ?? "").trim();
+    if (!text) {
+      removeNote(id);
+    } else {
+      save({ ...content, notes: content.notes.map((n) => (n.id === id ? { ...n, text } : n)) });
+    }
+    cancelEdit(id);
+  }
+
+  function copyMatrix() {
+    const lines: string[] = [];
+    for (const a of aspirations) {
+      lines.push(`Aspiración ${a.number} — ${a.name}`);
+      for (const c of categories) {
+        const notes = content.notes.filter((n) => n.aspiration_id === a.id && n.category === c.key);
+        lines.push(`  ${c.label}:`);
+        if (notes.length === 0) lines.push("    (sin aportes)");
+        for (const n of notes) lines.push(`    - ${n.text} (${n.author})`);
+      }
+      lines.push("");
+    }
+    navigator.clipboard.writeText(lines.join("\n")).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
   }
 
   return (
@@ -87,17 +129,27 @@ export default function NotasMatriz({ activity, session, aspirations, participan
         </div>
       )}
 
+      <div className="flex items-center justify-end">
+        <button className={btnGhost} onClick={copyMatrix}>
+          {copied ? "✓ Copiado" : "📋 Copiar matriz"}
+        </button>
+      </div>
+
       <div className="overflow-x-auto">
         <div
           className="grid min-w-[640px] gap-2"
           style={{ gridTemplateColumns: `160px repeat(${categories.length}, minmax(200px, 1fr))` }}
         >
           <div />
-          {categories.map((c) => (
-            <div key={c.key} className="px-1 text-xs font-semibold uppercase tracking-wide text-muted">
-              {c.label}
-            </div>
-          ))}
+          {categories.map((c) => {
+            const total = content.notes.filter((n) => n.category === c.key).length;
+            return (
+              <div key={c.key} className="flex items-baseline gap-1.5 px-1 text-xs font-semibold uppercase tracking-wide text-muted">
+                {c.label}
+                {total > 0 && <span className="font-normal normal-case text-muted/80">({total})</span>}
+              </div>
+            );
+          })}
           {aspirations.map((a) => (
             <Fragment key={a.id}>
               <div className="flex items-start pt-1">
@@ -108,19 +160,48 @@ export default function NotasMatriz({ activity, session, aspirations, participan
                 const notes = content.notes.filter((n) => n.aspiration_id === a.id && n.category === c.key);
                 return (
                   <div key={key} className="flex min-h-[110px] flex-col gap-1.5 rounded-lg border border-border bg-black/[0.015] p-2">
-                    {notes.map((n) => (
-                      <div key={n.id} className="group flex items-start justify-between gap-1.5 rounded-md bg-card px-2 py-1.5 text-xs shadow-sm">
-                        <span className="text-foreground">{n.text}</span>
-                        {(presenter || n.author === participant.name) && (
-                          <button
-                            className="shrink-0 text-muted opacity-0 transition-opacity hover:text-red-600 group-hover:opacity-100"
-                            onClick={() => removeNote(n.id)}
+                    <div className="flex max-h-40 flex-col gap-1.5 overflow-y-auto">
+                      {notes.map((n) => {
+                        const canEdit = presenter || n.author === participant.name;
+                        if (editing[n.id] !== undefined) {
+                          return (
+                            <input
+                              key={n.id}
+                              autoFocus
+                              className="w-full rounded-md border border-brand/50 bg-card px-2 py-1.5 text-xs focus:outline-none"
+                              value={editing[n.id]}
+                              onChange={(e) => setEditing((ed) => ({ ...ed, [n.id]: e.target.value }))}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") commitEdit(n.id);
+                                if (e.key === "Escape") cancelEdit(n.id);
+                              }}
+                              onBlur={() => commitEdit(n.id)}
+                            />
+                          );
+                        }
+                        return (
+                          <div
+                            key={n.id}
+                            className={`group flex items-start justify-between gap-1.5 rounded-md bg-card px-2 py-1.5 text-xs shadow-sm ${canEdit ? "cursor-pointer" : ""}`}
+                            onClick={() => canEdit && startEdit(n)}
+                            title={canEdit ? "Clic para editar" : undefined}
                           >
-                            ✕
-                          </button>
-                        )}
-                      </div>
-                    ))}
+                            <span className="text-foreground">{n.text}</span>
+                            {canEdit && (
+                              <button
+                                className="shrink-0 text-muted opacity-0 transition-opacity hover:text-red-600 group-hover:opacity-100"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  removeNote(n.id);
+                                }}
+                              >
+                                ✕
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
                     <input
                       className="w-full rounded-md border border-dashed border-border bg-transparent px-2 py-1 text-xs placeholder:text-muted focus:border-solid focus:border-brand/50 focus:outline-none"
                       placeholder="+ Agregar…"
