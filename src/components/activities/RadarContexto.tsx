@@ -214,13 +214,6 @@ export default function RadarContexto({ activity, session, participant }: Activi
         </div>
       ) : (
         <div className="space-y-3">
-          <div className="flex flex-wrap gap-1.5">
-            {rings.map((r, i) => (
-              <span key={i} className="rounded-full bg-black/5 px-2 py-1 text-[11px] text-muted">
-                Anillo {i + 1}: {r}
-              </span>
-            ))}
-          </div>
           {activeAxis ? (
             <div className="rounded-lg border border-border bg-card p-3">
               <p className="mb-2 text-sm font-semibold text-foreground">Ronda activa: {activeAxis.label}</p>

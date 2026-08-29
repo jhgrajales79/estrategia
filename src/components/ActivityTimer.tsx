@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type MouseEvent } from "react";
 import { supabase } from "@/lib/supabase";
 import type { ActivityRow } from "@/lib/types";
-import { btnGhost, btnPrimary } from "./activities/shared";
 
 function formatTime(totalSeconds: number) {
   const s = Math.max(0, Math.round(totalSeconds));
@@ -67,6 +66,11 @@ function useActivityRemaining(activity: ActivityRow, totalSeconds: number) {
   return { status, remaining, isRunning, isWarning, isFinished };
 }
 
+const iconBtnCls =
+  "flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-border bg-card text-[11px] text-foreground hover:bg-black/5";
+
+// Se usa dentro del título de la actividad (encabezado): fichas de icono compactas, sin
+// depender de estilos de botón grandes, y siempre evitando que el clic abra/cierre la tarjeta.
 export default function ActivityTimer({
   activity,
   totalSeconds,
@@ -93,7 +97,8 @@ export default function ActivityTimer({
     prevFinished.current = isFinished;
   }, [isFinished]);
 
-  async function start() {
+  async function start(e: MouseEvent) {
+    e.stopPropagation();
     const secs = status === "paused" ? activity.timer_remaining_seconds ?? totalSeconds : totalSeconds;
     const endAt = new Date(Date.now() + secs * 1000).toISOString();
     await supabase
@@ -101,14 +106,16 @@ export default function ActivityTimer({
       .update({ timer_status: "running", timer_end_at: endAt, timer_remaining_seconds: null })
       .eq("id", activity.id);
   }
-  async function pause() {
+  async function pause(e: MouseEvent) {
+    e.stopPropagation();
     const remainingNow = Math.max(0, Math.round(remaining));
     await supabase
       .from("activities")
       .update({ timer_status: "paused", timer_end_at: null, timer_remaining_seconds: remainingNow })
       .eq("id", activity.id);
   }
-  async function reset() {
+  async function reset(e: MouseEvent) {
+    e.stopPropagation();
     await supabase
       .from("activities")
       .update({ timer_status: "idle", timer_end_at: null, timer_remaining_seconds: null })
@@ -117,68 +124,54 @@ export default function ActivityTimer({
 
   if (totalSeconds <= 0) return null;
 
-  return (
-    <div
-      className={`relative mb-4 rounded-lg border p-3 transition-colors ${
-        isFinished ? "border-red-400 bg-red-50" : isWarning ? "border-orange-400 bg-orange-50" : "border-border bg-card"
-      }`}
-    >
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <span
-            className={`font-mono text-2xl font-bold tabular-nums ${
-              isFinished ? "text-red-600" : isWarning ? "text-orange-600" : "text-dark"
-            } ${isWarning ? "timer-pulse-fast" : isRunning ? "timer-pulse" : ""}`}
-          >
-            {isFinished ? "00:00" : formatTime(remaining)}
-          </span>
-          <span className="text-xs text-muted">
-            {isFinished
-              ? "⏰ ¡Tiempo terminado!"
-              : isRunning
-                ? isWarning
-                  ? "¡Últimos 2 minutos!"
-                  : "Tiempo corriendo…"
-                : status === "paused"
-                  ? "En pausa"
-                  : "Tiempo propuesto de la actividad"}
-          </span>
-        </div>
+  if (status === "idle") {
+    return (
+      <div className="flex shrink-0 items-center gap-1" onClick={(e) => e.stopPropagation()}>
+        <span className="rounded-full bg-black/5 px-2 py-0.5 text-xs text-muted">{Math.round(totalSeconds / 60)} min</span>
         {presenter && (
-          <div className="flex items-center gap-2">
-            {status === "idle" && (
-              <button className={btnPrimary} onClick={start}>
-                ▶ Iniciar
-              </button>
-            )}
-            {status === "running" && (
-              <>
-                <button className={btnGhost} onClick={pause}>
-                  ⏸ Pausar
-                </button>
-                <button className={btnGhost} onClick={reset}>
-                  ↺ Reiniciar
-                </button>
-              </>
-            )}
-            {status === "paused" && (
-              <>
-                <button className={btnPrimary} onClick={start}>
-                  ▶ Reanudar
-                </button>
-                <button className={btnGhost} onClick={reset}>
-                  ↺ Reiniciar
-                </button>
-              </>
-            )}
-            {status === "finished" && (
-              <button className={btnGhost} onClick={reset}>
-                ↺ Reiniciar
-              </button>
-            )}
-          </div>
+          <button className={iconBtnCls} onClick={start} title="Iniciar temporizador">
+            ▶
+          </button>
         )}
       </div>
+    );
+  }
+
+  return (
+    <div className="flex shrink-0 items-center gap-1" onClick={(e) => e.stopPropagation()}>
+      <span
+        title={
+          isFinished ? "¡Tiempo terminado!" : isWarning ? "¡Últimos 2 minutos!" : status === "paused" ? "En pausa" : "Tiempo corriendo…"
+        }
+        className={`activity-timer-digits rounded-full px-2 py-0.5 font-mono text-xs font-bold tabular-nums ${
+          isFinished
+            ? "bg-red-100 text-red-600"
+            : isWarning
+              ? "bg-orange-100 text-orange-600"
+              : status === "paused"
+                ? "bg-black/5 text-muted"
+                : "bg-brand/10 text-brand-dark"
+        } ${isWarning ? "timer-pulse-fast" : isRunning ? "timer-pulse" : ""}`}
+      >
+        {isFinished ? "00:00" : formatTime(remaining)}
+      </span>
+      {presenter && (
+        <>
+          {status === "running" && (
+            <button className={iconBtnCls} onClick={pause} title="Pausar">
+              ⏸
+            </button>
+          )}
+          {status === "paused" && (
+            <button className={iconBtnCls} onClick={start} title="Reanudar">
+              ▶
+            </button>
+          )}
+          <button className={iconBtnCls} onClick={reset} title="Reiniciar temporizador">
+            ↺
+          </button>
+        </>
+      )}
       {isFinished && <div className="timer-flash pointer-events-none fixed inset-0 z-40" />}
       <style>{`
         @keyframes timer-pulse-anim { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }

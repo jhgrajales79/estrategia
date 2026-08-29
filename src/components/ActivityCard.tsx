@@ -60,23 +60,28 @@ export default function ActivityCard({
   return (
     <div className={`rounded-xl border border-border bg-card shadow-sm ${locked ? "opacity-60" : ""}`}>
       <div className="flex items-center justify-between gap-3 px-4 py-3">
-        <button
-          className="flex flex-1 items-center justify-between gap-3 text-left disabled:cursor-default"
-          onClick={() => setOpen((o) => !o)}
-          disabled={locked}
+        <div
+          role="button"
+          tabIndex={locked ? -1 : 0}
+          aria-disabled={locked}
+          className={`flex flex-1 items-center justify-between gap-3 text-left ${locked ? "cursor-not-allowed" : "cursor-pointer"}`}
+          onClick={() => !locked && setOpen((o) => !o)}
+          onKeyDown={(e) => {
+            if (!locked && (e.key === "Enter" || e.key === " ")) setOpen((o) => !o);
+          }}
         >
           <div>
             <p className="text-sm font-semibold text-foreground">{activity.title}</p>
             {activity.description && !locked && <p className="mt-0.5 line-clamp-1 text-xs text-muted">{activity.description}</p>}
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            {activity.time_minutes && (
-              <span className="rounded-full bg-black/5 px-2 py-0.5 text-xs text-muted">{activity.time_minutes} min</span>
-            )}
+            {activity.time_minutes ? (
+              <ActivityTimer activity={activity} totalSeconds={activity.time_minutes * 60} presenter={presenter} />
+            ) : null}
             {locked && <LockBadge text="Aún no habilitada" />}
             {!locked && <span className="text-muted">{open ? "▲" : "▼"}</span>}
           </div>
-        </button>
+        </div>
         {presenter && onToggleEnabled && (
           <ToggleSwitch checked={activity.is_enabled} onChange={(next) => onToggleEnabled(activity, next)} />
         )}
@@ -90,7 +95,6 @@ export default function ActivityCard({
               {activity.materials}
             </p>
           )}
-          <ActivityTimer activity={activity} totalSeconds={(activity.time_minutes ?? 0) * 60} presenter={presenter} />
           {inputsFrom.length > 0 && <InsumosPanel sourceIds={inputsFrom} aspirations={aspirations} />}
           {presenter && (
             <div className="mb-4">
