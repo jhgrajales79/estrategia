@@ -24,6 +24,7 @@ export default function SessionDetailPage({ params }: { params: Promise<{ code: 
   const [confirmReset, setConfirmReset] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [resetNonce, setResetNonce] = useState(0);
+  const [activeActivityId, setActiveActivityId] = useState<number | null>(null);
 
   useEffect(() => {
     fetchAspirations().then(setAspirations).catch(console.error);
@@ -33,7 +34,10 @@ export default function SessionDetailPage({ params }: { params: Promise<{ code: 
     fetchSessionByCode(code.toUpperCase()).then((s) => {
       setSession(s);
       if (s) {
-        fetchActivities(s.id).then(setActivities).catch(console.error);
+        fetchActivities(s.id).then((rows) => {
+          setActivities(rows);
+          setActiveActivityId((prev) => (prev && rows.some((r) => r.id === prev) ? prev : (rows[0]?.id ?? null)));
+        }).catch(console.error);
         fetchOutputs(s.id).then(setOutputs).catch(console.error);
       }
     });
@@ -121,10 +125,11 @@ export default function SessionDetailPage({ params }: { params: Promise<{ code: 
   }
 
   const locked = !session.is_enabled && !presenter;
+  const activeActivity = activities.find((a) => a.id === activeActivityId) ?? null;
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8">
-      <div className="mb-6 rounded-xl border border-border bg-card p-5 shadow-sm">
+    <div className="mx-auto max-w-[1600px] px-4 py-6 sm:px-6">
+      <div className="mb-5 rounded-xl border border-border bg-card p-5 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h1 className="text-xl font-bold text-dark">
             {session.code} · {session.name}
@@ -201,22 +206,49 @@ export default function SessionDetailPage({ params }: { params: Promise<{ code: 
           <p className="text-sm text-muted">Vuelve al panel para ver qué sesiones están activas.</p>
         </div>
       ) : (
-        <>
-          <div className="space-y-3">
-            {activities.map((a) => (
-              <ActivityCard
-                key={`${a.id}-${resetNonce}`}
-                activity={a}
-                session={session}
-                aspirations={aspirations}
-                participant={participant}
-                presenter={presenter}
-                onToggleEnabled={toggleActivityEnabled}
-              />
-            ))}
+        <div className="grid gap-6 xl:grid-cols-[1fr_300px] xl:items-start">
+          <div>
+            <div role="tablist" aria-label="Actividades de la sesión" className="flex gap-1 overflow-x-auto border-b border-border">
+              {activities.map((a) => {
+                const activityLocked = !a.is_enabled && !presenter;
+                const active = a.id === activeActivityId;
+                return (
+                  <button
+                    key={a.id}
+                    role="tab"
+                    aria-selected={active}
+                    onClick={() => setActiveActivityId(a.id)}
+                    className={`shrink-0 whitespace-nowrap border-b-2 px-3 py-2.5 text-sm font-medium transition-colors ${
+                      active ? "border-brand text-brand-dark" : "border-transparent text-muted hover:text-foreground"
+                    }`}
+                    title={a.title}
+                  >
+                    <span className="inline-flex items-center gap-1.5">
+                      {a.timer_status === "running" && <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-brand" />}
+                      {activityLocked && <span aria-hidden>🔒</span>}
+                      {a.title}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {activeActivity && (
+              <div role="tabpanel" className="mt-4">
+                <ActivityCard
+                  key={`${activeActivity.id}-${resetNonce}`}
+                  activity={activeActivity}
+                  session={session}
+                  aspirations={aspirations}
+                  participant={participant}
+                  presenter={presenter}
+                  onToggleEnabled={toggleActivityEnabled}
+                />
+              </div>
+            )}
           </div>
 
-          <div className="mt-8">
+          <aside className="xl:sticky xl:top-4">
             <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted">Salidas / resultados esperados</h2>
             {!presenter && (
               <p className="mb-2 text-xs text-muted">Solo el facilitador puede marcar las salidas como logradas.</p>
@@ -240,8 +272,8 @@ export default function SessionDetailPage({ params }: { params: Promise<{ code: 
                 );
               })}
             </div>
-          </div>
-        </>
+          </aside>
+        </div>
       )}
     </div>
   );

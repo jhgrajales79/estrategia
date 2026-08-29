@@ -18,7 +18,6 @@ export default function ActivityCard({
   participant,
   presenter = false,
   onToggleEnabled,
-  defaultOpen,
 }: {
   activity: ActivityRow;
   session: SessionRow;
@@ -26,9 +25,7 @@ export default function ActivityCard({
   participant: StoredParticipant;
   presenter?: boolean;
   onToggleEnabled?: (activity: ActivityRow, next: boolean) => void;
-  defaultOpen?: boolean;
 }) {
-  const [open, setOpen] = useState(Boolean(defaultOpen));
   const [confirmReset, setConfirmReset] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [resetNonce, setResetNonce] = useState(0);
@@ -58,37 +55,28 @@ export default function ActivityCard({
   }
 
   return (
-    <div className={`rounded-xl border border-border bg-card shadow-sm ${locked ? "opacity-60" : ""}`}>
-      <div className="flex items-center justify-between gap-3 px-4 py-3">
-        <div
-          role="button"
-          tabIndex={locked ? -1 : 0}
-          aria-disabled={locked}
-          className={`flex flex-1 items-center justify-between gap-3 text-left ${locked ? "cursor-not-allowed" : "cursor-pointer"}`}
-          onClick={() => !locked && setOpen((o) => !o)}
-          onKeyDown={(e) => {
-            if (!locked && (e.key === "Enter" || e.key === " ")) setOpen((o) => !o);
-          }}
-        >
-          <div>
-            <p className="text-sm font-semibold text-foreground">{activity.title}</p>
-            {activity.description && !locked && <p className="mt-0.5 line-clamp-1 text-xs text-muted">{activity.description}</p>}
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            {activity.time_minutes ? (
-              <ActivityTimer activity={activity} totalSeconds={activity.time_minutes * 60} presenter={presenter} />
-            ) : null}
-            {locked && <LockBadge text="Aún no habilitada" />}
-            {!locked && <span className="text-muted">{open ? "▲" : "▼"}</span>}
-          </div>
+    <div className="rounded-xl border border-border bg-card shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
+        <div>
+          <p className="text-sm font-semibold text-foreground">{activity.title}</p>
+          {activity.description && <p className="mt-0.5 text-xs text-muted">{activity.description}</p>}
         </div>
-        {presenter && onToggleEnabled && (
-          <ToggleSwitch checked={activity.is_enabled} onChange={(next) => onToggleEnabled(activity, next)} />
-        )}
+        <div className="flex shrink-0 items-center gap-3">
+          {activity.time_minutes ? (
+            <ActivityTimer activity={activity} totalSeconds={activity.time_minutes * 60} presenter={presenter} />
+          ) : null}
+          {presenter && onToggleEnabled && (
+            <ToggleSwitch checked={activity.is_enabled} onChange={(next) => onToggleEnabled(activity, next)} />
+          )}
+        </div>
       </div>
-      {open && !locked && (
-        <div className="border-t border-border px-4 py-4">
-          {activity.description && <p className="mb-2 text-sm text-muted">{activity.description}</p>}
+      {locked ? (
+        <div className="flex flex-col items-center gap-2 px-4 py-10 text-center">
+          <LockBadge text="Aún no habilitada" />
+          <p className="text-sm text-muted">El facilitador debe habilitar esta actividad para que puedas participar.</p>
+        </div>
+      ) : (
+        <div className="px-4 py-4">
           {activity.materials && (
             <p className="mb-4 text-xs text-muted">
               <span className="font-medium">Materiales: </span>
