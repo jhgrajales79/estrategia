@@ -57,9 +57,6 @@ export default function HomePage() {
         <p className="mt-3 max-w-xl text-balance text-muted">
           &ldquo;Tejemos conexiones para incidir en el cuidado del ser humano y la naturaleza&rdquo;
         </p>
-        <p className="mt-1 text-sm text-muted">
-          Metodología combinada Serna Gómez · Balanced Scorecard · Fred David — 8 sesiones en 12 semanas.
-        </p>
         <Link
           href="/ingresar"
           className="mt-6 inline-flex items-center gap-2 rounded-md bg-brand px-5 py-2.5 text-sm font-semibold text-dark hover:bg-brand-hover"
