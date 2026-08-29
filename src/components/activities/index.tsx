@@ -12,6 +12,7 @@ import TableroProyectos from "./TableroProyectos";
 import FichaKPI from "./FichaKPI";
 import RadarContexto from "./RadarContexto";
 import TejidoConexiones from "./TejidoConexiones";
+import NotasMatriz from "./NotasMatriz";
 
 export const ACTIVITY_COMPONENTS: Record<ActivityType, ComponentType<ActivityComponentProps>> = {
   notas: NotasColectivas,
@@ -26,6 +27,7 @@ export const ACTIVITY_COMPONENTS: Record<ActivityType, ComponentType<ActivityCom
   checklist_salidas: TarjetaEstructurada,
   radar_contexto: RadarContexto,
   tejido_conexiones: TejidoConexiones,
+  notas_matriz: NotasMatriz,
 };
 
 export type { ActivityComponentProps } from "./shared";
