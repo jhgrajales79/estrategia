@@ -18,14 +18,16 @@ export default function Cronograma({
   progress,
   presenter = false,
   onToggleEnabled,
+  twoColumn = false,
 }: {
   sessions: SessionRow[];
   progress?: Record<number, number>;
   presenter?: boolean;
   onToggleEnabled?: (session: SessionRow, next: boolean) => void;
+  twoColumn?: boolean;
 }) {
   return (
-    <ol className="space-y-2">
+    <ol className={twoColumn ? "grid gap-2 xl:grid-cols-2" : "space-y-2"}>
       {sessions.map((s) => {
         const pct = progress?.[s.id];
         const locked = !s.is_enabled && !presenter;

@@ -3,10 +3,12 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./supabase";
 import type { StoredParticipant } from "./participant";
+import type { ParticipantRole } from "./types";
 
 interface OnlinePeer {
   name: string;
   aspiration_id: number | null;
+  role: ParticipantRole;
 }
 
 export default function usePresence(participant: StoredParticipant | null, room: string = "global") {
@@ -23,13 +25,13 @@ export default function usePresence(participant: StoredParticipant | null, room:
         const state = channel.presenceState<OnlinePeer>();
         const peers = Object.values(state)
           .flat()
-          .map((p) => ({ name: p.name, aspiration_id: p.aspiration_id }))
+          .map((p) => ({ name: p.name, aspiration_id: p.aspiration_id, role: p.role }))
           .filter((p) => p.name !== participant.name);
         setOnline(peers);
       })
       .subscribe(async (status) => {
         if (status === "SUBSCRIBED") {
-          await channel.track({ name: participant.name, aspiration_id: participant.aspiration_id });
+          await channel.track({ name: participant.name, aspiration_id: participant.aspiration_id, role: participant.role });
         }
       });
 

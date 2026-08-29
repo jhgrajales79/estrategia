@@ -51,6 +51,37 @@ export function SaveIndicator({
   return <span className="text-xs text-muted">Sin guardar</span>;
 }
 
+function initials(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+export function Avatar({
+  name,
+  bgClass,
+  isFacilitador,
+  size = "md",
+}: {
+  name: string;
+  bgClass: string;
+  isFacilitador?: boolean;
+  size?: "sm" | "md";
+}) {
+  const dims = size === "sm" ? "h-8 w-8 text-[11px]" : "h-10 w-10 text-xs";
+  return (
+    <span className={`relative inline-flex ${dims} shrink-0 items-center justify-center rounded-full font-bold text-white ${bgClass}`}>
+      {initials(name)}
+      {isFacilitador && (
+        <span className="absolute -bottom-0.5 -right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-brand text-[8px] leading-none" title="Facilitador">
+          🎤
+        </span>
+      )}
+    </span>
+  );
+}
+
 export function uid() {
   return Math.random().toString(36).slice(2, 10);
 }
