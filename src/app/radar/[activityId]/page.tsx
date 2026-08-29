@@ -26,11 +26,12 @@ interface Vote {
   signal_id: string;
   points: number;
 }
+type RoundStage = "pending" | "collect" | "vote" | "closed";
+
 interface Content extends Record<string, unknown> {
-  activeRound: number;
-  votingRound: number;
   signals: Signal[];
   votes: Vote[];
+  roundStatus: Record<string, RoundStage>;
 }
 
 export default function RadarFullscreenPage({ params }: { params: Promise<{ activityId: string }> }) {
@@ -63,7 +64,7 @@ export default function RadarFullscreenPage({ params }: { params: Promise<{ acti
     session,
     submissionAspId,
     participant,
-    { activeRound: 0, votingRound: 0, signals: [], votes: [] }
+    { signals: [], votes: [], roundStatus: {} }
   );
 
   const voteTotal = useMemo(() => {
@@ -104,12 +105,17 @@ export default function RadarFullscreenPage({ params }: { params: Promise<{ acti
     );
   }
 
-  const activeAxisKey = content.activeRound > 0 ? axes[content.activeRound - 1]?.key ?? null : null;
+  const liveAxisKeys = axes
+    .filter((a) => {
+      const stage = content.roundStatus?.[a.key];
+      return stage === "collect" || stage === "vote";
+    })
+    .map((a) => a.key);
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-background p-6">
       <h1 className="text-2xl font-bold text-dark">{activity.title}</h1>
-      <RadarChartView axes={axes} winnerByAxis={winnerByAxis} voteTotal={voteTotal} size={size} activeAxisKey={activeAxisKey} />
+      <RadarChartView axes={axes} winnerByAxis={winnerByAxis} voteTotal={voteTotal} size={size} activeAxisKey={liveAxisKeys} />
     </div>
   );
 }

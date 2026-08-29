@@ -28,8 +28,9 @@ export default function RadarChartView({
   winnerByAxis: Record<string, Signal | undefined>;
   voteTotal: Record<string, number>;
   size?: number;
-  activeAxisKey?: string | null;
+  activeAxisKey?: string | string[] | null;
 }) {
+  const activeAxisKeys = Array.isArray(activeAxisKey) ? activeAxisKey : activeAxisKey ? [activeAxisKey] : [];
   function axisAngle(i: number) {
     return -90 + (360 / axes.length) * i;
   }
@@ -82,7 +83,7 @@ export default function RadarChartView({
             key={a.key}
             className={`absolute -translate-x-1/2 -translate-y-1/2 text-center leading-tight ${
               size > BASE_SIZE ? "w-32 text-sm" : "w-24 text-[11px]"
-            } ${activeAxisKey === a.key ? "font-bold text-brand-dark" : "text-muted"}`}
+            } ${activeAxisKeys.includes(a.key) ? "font-bold text-brand-dark" : "text-muted"}`}
             style={{ left: p.x, top: p.y }}
           >
             {a.label}

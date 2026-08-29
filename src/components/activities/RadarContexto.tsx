@@ -24,11 +24,28 @@ interface Vote {
   signal_id: string;
   points: number;
 }
+type RoundStage = "pending" | "collect" | "vote" | "closed";
+
 interface Content extends Record<string, unknown> {
-  activeRound: number;
-  votingRound: number;
   signals: Signal[];
   votes: Vote[];
+  roundStatus: Record<string, RoundStage>;
+}
+
+const STAGE_META: Record<RoundStage, { label: string; icon: string; badgeClass: string; tabActiveClass: string }> = {
+  pending: { label: "Pendiente", icon: "⏳", badgeClass: "bg-black/5 text-muted", tabActiveClass: "border-border bg-card" },
+  collect: { label: "Recolectando", icon: "✏️", badgeClass: "bg-asp-2-soft text-asp-2", tabActiveClass: "border-asp-2 bg-asp-2-soft/40" },
+  vote: { label: "Votando", icon: "🗳️", badgeClass: "bg-asp-1-soft text-asp-1", tabActiveClass: "border-asp-1 bg-asp-1-soft/40" },
+  closed: { label: "Cerrada", icon: "✅", badgeClass: "bg-brand/10 text-brand-dark", tabActiveClass: "border-brand-dark bg-brand/5" },
+};
+
+function StagePill({ stage }: { stage: RoundStage }) {
+  const m = STAGE_META[stage];
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${m.badgeClass}`}>
+      {m.icon} {m.label}
+    </span>
+  );
 }
 
 export default function RadarContexto({ activity, session, participant }: ActivityComponentProps) {
@@ -42,10 +59,11 @@ export default function RadarContexto({ activity, session, participant }: Activi
     session,
     submissionAspId,
     participant,
-    { activeRound: 0, votingRound: 0, signals: [], votes: [] }
+    { signals: [], votes: [], roundStatus: {} }
   );
-  const [ring, setRing] = useState(0);
-  const [text, setText] = useState("");
+  const [activeKey, setActiveKey] = useState<string>(axes[0]?.key ?? "");
+  const [draftText, setDraftText] = useState<Record<string, string>>({});
+  const [draftRing, setDraftRing] = useState<Record<string, number>>({});
 
   const voteTotal = useMemo(() => {
     const totals: Record<string, number> = {};
@@ -75,63 +93,59 @@ export default function RadarContexto({ activity, session, participant }: Activi
 
   if (!loaded) return <p className="text-sm text-muted">Cargando…</p>;
 
-  const activeAxis = content.activeRound > 0 ? axes[content.activeRound - 1] : null;
-  const votingAxis = content.votingRound > 0 ? axes[content.votingRound - 1] : null;
+  function stageOf(key: string): RoundStage {
+    const explicit = content.roundStatus?.[key];
+    if (explicit) return explicit;
+    // Compatibilidad con radares creados antes de las pestañas por dimensión.
+    const signalsInAxis = content.signals.filter((s) => s.axis === key);
+    if (signalsInAxis.length === 0) return "pending";
+    const hasVotes = content.votes.some((v) => signalsInAxis.some((s) => s.id === v.signal_id));
+    return hasVotes ? "closed" : "collect";
+  }
+
+  function axisLabel(key: string) {
+    return axes.find((a) => a.key === key)?.label ?? key;
+  }
+
+  function setStage(key: string, stage: RoundStage) {
+    save(
+      { ...content, roundStatus: { ...content.roundStatus, [key]: stage } },
+      { eventType: "ronda", summary: `${participant.name} cambió "${axisLabel(key)}" a "${STAGE_META[stage].label}"` }
+    );
+  }
+
+  const liveAxisKeys = axes.filter((a) => stageOf(a.key) === "collect" || stageOf(a.key) === "vote").map((a) => a.key);
   const myUsed = content.votes.filter((v) => v.participant_id === participant.id).reduce((a, v) => a + v.points, 0);
   const myRemaining = pointsPerPerson - myUsed;
 
-  function setRound(n: number) {
-    save(
-      { ...content, activeRound: n },
-      {
-        eventType: "ronda",
-        summary:
-          n === 0
-            ? `${participant.name} cerró las rondas del radar`
-            : `${participant.name} abrió la ronda "${axes[n - 1]?.label}" del radar`,
-      }
-    );
-  }
-
-  function setVotingRound(n: number) {
-    save(
-      { ...content, votingRound: n },
-      {
-        eventType: "ronda_votacion",
-        summary:
-          n === 0
-            ? `${participant.name} cerró la votación del radar`
-            : `${participant.name} abrió la votación de "${axes[n - 1]?.label}" en el radar`,
-      }
-    );
-  }
-
-  function addSignal() {
-    if (!activeAxis || !text.trim() || presenter) return;
+  function addSignal(key: string) {
+    const text = (draftText[key] ?? "").trim();
+    if (!text || presenter) return;
+    const axisIndex = axes.findIndex((a) => a.key === key);
     const signal: Signal = {
       id: uid(),
-      axis: activeAxis.key,
-      ring,
-      round: content.activeRound,
-      text: text.trim(),
+      axis: key,
+      ring: draftRing[key] ?? 0,
+      round: axisIndex + 1,
+      text,
       author: participant.name,
       aspiration_id: participant.aspiration_id,
     };
     save(
       { ...content, signals: [...content.signals, signal] },
-      { eventType: "senal", summary: `${participant.name} ubicó una señal en el radar (${activeAxis.label})` }
+      { eventType: "senal", summary: `${participant.name} ubicó una señal en el radar (${axisLabel(key)})` }
     );
-    setText("");
+    setDraftText((d) => ({ ...d, [key]: "" }));
   }
 
   function removeSignal(id: string) {
     save({ ...content, signals: content.signals.filter((s) => s.id !== id), votes: content.votes.filter((v) => v.signal_id !== id) });
   }
 
-  function toggleVote(signalId: string) {
-    if (presenter || !votingAxis) return;
+  function toggleVote(key: string, signalId: string) {
+    if (presenter || stageOf(key) !== "vote") return;
     const signal = content.signals.find((s) => s.id === signalId);
-    if (!signal || signal.axis !== votingAxis.key) return;
+    if (!signal || signal.axis !== key) return;
     const already = content.votes.some((v) => v.participant_id === participant.id && v.signal_id === signalId);
     if (!already && myRemaining <= 0) return;
     const votes = already
@@ -140,161 +154,208 @@ export default function RadarContexto({ activity, session, participant }: Activi
     save({ ...content, votes }, { eventType: "voto_radar", summary: `${participant.name} votó una señal del radar` });
   }
 
+  const activeAxis = axes.find((a) => a.key === activeKey) ?? axes[0];
+  const stage = activeAxis ? stageOf(activeAxis.key) : "pending";
+  const signalsInAxis = activeAxis ? content.signals.filter((s) => s.axis === activeAxis.key) : [];
+  const winner = activeAxis ? winnerByAxis[activeAxis.key] : undefined;
+  const sortedSignals = [...signalsInAxis].sort((a, b) => (voteTotal[b.id] ?? 0) - (voteTotal[a.id] ?? 0));
+
   return (
     <div className="space-y-4">
-      {presenter && (
-        <div className="rounded-lg border border-border bg-card p-3">
-          <PresenterHint text="Ves el radar con la señal más votada de cada dimensión. Controla las rondas y amplía el radar." />
-          <div className="mt-3 flex flex-wrap gap-2">
-            {axes.map((a, i) => (
-              <button key={a.key} className={content.activeRound === i + 1 ? btnPrimary : btnGhost} onClick={() => setRound(i + 1)}>
-                Ronda {i + 1}: {a.label}
-              </button>
-            ))}
-            <button className={btnGhost} onClick={() => setRound(0)}>
-              Cerrar rondas
-            </button>
-          </div>
-          {content.activeRound === 0 ? (
-            <div className="mt-3 border-t border-border pt-3">
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Votación por ronda</p>
-              <div className="flex flex-wrap gap-2">
-                {axes.map((a, i) => (
-                  <button
-                    key={a.key}
-                    className={content.votingRound === i + 1 ? btnPrimary : btnGhost}
-                    onClick={() => setVotingRound(i + 1)}
-                  >
-                    Votar: {a.label}
-                  </button>
-                ))}
-                <button className={btnGhost} onClick={() => setVotingRound(0)}>
-                  Cerrar votación
-                </button>
-              </div>
-            </div>
-          ) : (
-            <p className="mt-3 border-t border-border pt-3 text-xs text-muted">
-              La votación por ronda se habilita cuando cierres todas las rondas de recolección.
-            </p>
-          )}
-        </div>
-      )}
+      {presenter && <PresenterHint text="Cada dimensión avanza sola: recolecta, vota y muestra el resultado en la misma pestaña." />}
 
-      {presenter ? (
-        <div className="flex flex-col items-center gap-6 lg:flex-row lg:items-start">
-          <div className="relative mx-10 my-6">
-            <RadarChartView axes={axes} winnerByAxis={winnerByAxis} voteTotal={voteTotal} activeAxisKey={activeAxis?.key ?? null} />
-            <button
-              className={btnGhost + " absolute -bottom-2 -right-2 bg-card"}
-              title="Ampliar radar en una pestaña nueva"
-              onClick={() => window.open(`/radar/${activity.id}`, "_blank", "noopener,noreferrer")}
-            >
-              ⛶
-            </button>
-          </div>
-          <div className="w-full flex-1 space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted">Más votada por dimensión</p>
-            {axes.map((a) => {
-              const w = winnerByAxis[a.key];
-              return (
-                <div key={a.key} className="rounded-md border border-border bg-card px-3 py-2 text-sm">
-                  <p className="text-xs font-medium text-muted">{a.label}</p>
-                  {w ? (
-                    <p className="text-foreground">
-                      {w.text} <span className="text-xs font-semibold text-brand">· {voteTotal[w.id] ?? 0} pts</span>
-                    </p>
-                  ) : (
-                    <p className="text-xs text-muted">Sin votos aún</p>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {activeAxis ? (
-            <div className="rounded-lg border border-border bg-card p-3">
-              <p className="mb-2 text-sm font-semibold text-foreground">Ronda activa: {activeAxis.label}</p>
-              <div className="mb-2 flex flex-wrap gap-2">
-                {rings.map((r, i) => (
-                  <button key={i} onClick={() => setRing(i)} className={i === ring ? btnPrimary : btnGhost}>
-                    {r}
-                  </button>
-                ))}
-              </div>
-              <div className="flex gap-2">
-                <input
-                  className={inputCls}
-                  placeholder="Señal de cambio del entorno…"
-                  value={text}
-                  onChange={(e) => setText(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && addSignal()}
-                />
-                <button className={btnPrimary} onClick={addSignal}>
-                  Agregar
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
+        <div className="w-full shrink-0 lg:w-64">
+          <div className="rounded-lg border border-border bg-card p-3">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted">Radar consolidado</p>
+              {presenter && (
+                <button
+                  className={btnGhost + " !px-2 !py-1"}
+                  title="Ampliar radar en una pestaña nueva"
+                  onClick={() => window.open(`/radar/${activity.id}`, "_blank", "noopener,noreferrer")}
+                >
+                  ⛶
                 </button>
-              </div>
-            </div>
-          ) : (
-            <p className="text-sm text-muted">Esperando a que el facilitador abra una ronda…</p>
-          )}
-
-          <div>
-            <div className="mb-1 flex items-center justify-between">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted">
-                {votingAxis ? `Vota: ${votingAxis.label}` : "Votación"}
-              </p>
-              {votingAxis && (
-                <span className="text-xs text-muted">
-                  Votos disponibles: <span className="font-semibold text-foreground">{myRemaining}</span>/{pointsPerPerson}
-                </span>
               )}
             </div>
-            {!votingAxis && (
-              <p className="mb-2 text-xs text-muted">
-                La votación se habilita, ronda por ronda, cuando el facilitador cierra la recolección de señales.
-              </p>
-            )}
-            <div className="max-h-64 space-y-1.5 overflow-y-auto">
-              {(votingAxis ? content.signals.filter((s) => s.axis === votingAxis.key) : content.signals).map((s) => {
-                const mine = content.votes.some((v) => v.participant_id === participant.id && v.signal_id === s.id);
-                const total = voteTotal[s.id] ?? 0;
+            <div className="flex justify-center">
+              <RadarChartView axes={axes} winnerByAxis={winnerByAxis} voteTotal={voteTotal} activeAxisKey={liveAxisKeys} size={220} />
+            </div>
+            <div className="mt-2 space-y-1 border-t border-border pt-2">
+              {axes.map((a) => {
+                const w = winnerByAxis[a.key];
                 return (
-                  <div key={s.id} className="flex items-start justify-between gap-2 rounded-md border border-border bg-card px-2 py-1.5 text-xs">
-                    <span className="min-w-0 flex-1">
-                      {axes.find((a) => a.key === s.axis)?.label} · {rings[s.ring]}: {s.text}
-                    </span>
-                    <span className="flex shrink-0 items-center gap-1.5">
-                      <span className="font-semibold text-brand">{total}</span>
-                      {votingAxis && (
-                        <button
-                          className={`rounded border px-2 py-0.5 ${
-                            mine ? "border-brand bg-brand/10 text-brand-dark" : "border-border"
-                          } disabled:opacity-40`}
-                          disabled={!mine && myRemaining <= 0}
-                          onClick={() => toggleVote(s.id)}
-                        >
-                          {mine ? "✓ Votado" : "Votar"}
-                        </button>
-                      )}
-                      {s.author === participant.name && total === 0 && (
-                        <button className={btnDanger} onClick={() => removeSignal(s.id)}>
-                          eliminar
-                        </button>
-                      )}
-                    </span>
+                  <div key={a.key} className="flex items-center justify-between gap-2 text-xs">
+                    <span className="min-w-0 flex-1 truncate text-muted">{a.label}</span>
+                    <span className="shrink-0 font-semibold text-brand-dark">{w ? `${voteTotal[w.id] ?? 0} pts` : "—"}</span>
                   </div>
                 );
               })}
-              {(votingAxis ? content.signals.filter((s) => s.axis === votingAxis.key) : content.signals).length === 0 && (
-                <p className="text-xs text-muted">Aún no hay señales registradas.</p>
-              )}
             </div>
           </div>
         </div>
-      )}
+
+        <div className="min-w-0 flex-1">
+          <div className="mb-3 flex gap-1.5 overflow-x-auto pb-1">
+            {axes.map((a) => {
+              const s = stageOf(a.key);
+              return (
+                <button
+                  key={a.key}
+                  onClick={() => setActiveKey(a.key)}
+                  className={`shrink-0 rounded-lg border px-3 py-2 text-left transition-colors ${
+                    a.key === activeKey ? STAGE_META[s].tabActiveClass : "border-border bg-card hover:bg-black/5"
+                  }`}
+                  style={{ minWidth: 150 }}
+                >
+                  <p className="text-xs font-semibold text-foreground">{a.label}</p>
+                  <div className="mt-1">
+                    <StagePill stage={s} />
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          {activeAxis && (
+            <div className="rounded-lg border border-border bg-card p-3">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p className="text-sm font-semibold text-foreground">{activeAxis.label}</p>
+                  <p className="mt-0.5 text-xs text-muted">
+                    {stage === "collect" && (presenter ? "Los equipos están escribiendo señales." : "Escribe una señal de cambio del entorno.")}
+                    {stage === "vote" && "Votación y resultado en vivo — sin esperar al cierre."}
+                    {stage === "pending" && "Aún no se ha abierto esta dimensión."}
+                    {stage === "closed" && "Dimensión cerrada."}
+                  </p>
+                </div>
+                {presenter && (
+                  <div className="flex flex-wrap gap-2">
+                    {stage === "pending" && (
+                      <button className={btnPrimary} onClick={() => setStage(activeAxis.key, "collect")}>
+                        ▶ Iniciar recolección
+                      </button>
+                    )}
+                    {stage === "collect" && (
+                      <>
+                        <button className={btnPrimary} onClick={() => setStage(activeAxis.key, "vote")}>
+                          🗳 Pasar a votación
+                        </button>
+                        <button className={btnGhost} onClick={() => setStage(activeAxis.key, "pending")}>
+                          ↺ Reiniciar
+                        </button>
+                      </>
+                    )}
+                    {stage === "vote" && (
+                      <>
+                        <button className={btnPrimary} onClick={() => setStage(activeAxis.key, "closed")}>
+                          ✓ Cerrar y fijar ganador
+                        </button>
+                        <button className={btnGhost} onClick={() => setStage(activeAxis.key, "collect")}>
+                          ← Volver a recolección
+                        </button>
+                      </>
+                    )}
+                    {stage === "closed" && (
+                      <button className={btnGhost} onClick={() => setStage(activeAxis.key, "vote")}>
+                        ↺ Reabrir votación
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {stage === "pending" && !presenter && <p className="text-sm text-muted">Esperando a que el facilitador abra esta dimensión…</p>}
+
+              {stage === "collect" && !presenter && (
+                <div className="mb-3 flex flex-col gap-2 sm:flex-row">
+                  <select
+                    className={inputCls + " sm:w-56"}
+                    value={draftRing[activeAxis.key] ?? 0}
+                    onChange={(e) => setDraftRing((d) => ({ ...d, [activeAxis.key]: Number(e.target.value) }))}
+                  >
+                    {rings.map((r, i) => (
+                      <option key={i} value={i}>
+                        {r}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    className={inputCls}
+                    placeholder="Señal de cambio del entorno…"
+                    value={draftText[activeAxis.key] ?? ""}
+                    onChange={(e) => setDraftText((d) => ({ ...d, [activeAxis.key]: e.target.value }))}
+                    onKeyDown={(e) => e.key === "Enter" && addSignal(activeAxis.key)}
+                  />
+                  <button className={btnPrimary} onClick={() => addSignal(activeAxis.key)}>
+                    Agregar
+                  </button>
+                </div>
+              )}
+
+              {(stage === "vote" || stage === "closed") && winner && (
+                <div className="mb-3 flex items-center gap-2 rounded-md border border-brand-dark/30 bg-brand/5 px-3 py-2">
+                  <span className="text-lg leading-none">{stage === "closed" ? "🏆" : "🔥"}</span>
+                  <p className="text-sm text-foreground">
+                    {stage === "closed" ? "Ganadora: " : "Va ganando: "}
+                    <span className="font-semibold">{winner.text}</span>{" "}
+                    <span className="text-xs text-muted">
+                      · {voteTotal[winner.id] ?? 0} pts · {rings[winner.ring]}
+                    </span>
+                  </p>
+                </div>
+              )}
+
+              {stage === "vote" && !presenter && (
+                <div className="mb-2 flex items-center justify-end text-xs text-muted">
+                  Votos disponibles: <span className="ml-1 font-semibold text-foreground">{myRemaining}</span>/{pointsPerPerson}
+                </div>
+              )}
+
+              <div className="max-h-72 space-y-1.5 overflow-y-auto">
+                {sortedSignals.length === 0 && <p className="text-xs text-muted">Aún no hay señales registradas.</p>}
+                {sortedSignals.map((s) => {
+                  const mine = content.votes.some((v) => v.participant_id === participant.id && v.signal_id === s.id);
+                  const total = voteTotal[s.id] ?? 0;
+                  const isWinner = winner?.id === s.id && (stage === "vote" || stage === "closed");
+                  return (
+                    <div
+                      key={s.id}
+                      className={`flex items-start justify-between gap-2 rounded-md border px-2 py-1.5 text-xs ${
+                        isWinner ? "border-brand-dark bg-brand/5" : "border-border bg-card"
+                      }`}
+                    >
+                      <span className="min-w-0 flex-1">
+                        {rings[s.ring]}: {s.text}
+                      </span>
+                      <span className="flex shrink-0 items-center gap-1.5">
+                        {stage !== "collect" && stage !== "pending" && <span className="font-semibold text-brand-dark">{total}</span>}
+                        {stage === "vote" && !presenter && (
+                          <button
+                            className={`rounded border px-2 py-0.5 ${
+                              mine ? "border-brand-dark bg-brand/10 text-brand-dark" : "border-border"
+                            } disabled:opacity-40`}
+                            disabled={!mine && myRemaining <= 0}
+                            onClick={() => toggleVote(activeAxis.key, s.id)}
+                          >
+                            {mine ? "✓ Votado" : "Votar"}
+                          </button>
+                        )}
+                        {!presenter && s.author === participant.name && total === 0 && (
+                          <button className={btnDanger} onClick={() => removeSignal(s.id)}>
+                            eliminar
+                          </button>
+                        )}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
       <SaveIndicator saving={saving} updatedAt={updatedAt} />
     </div>
   );
