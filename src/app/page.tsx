@@ -10,8 +10,8 @@ import ChessboardAnimation from "@/components/ChessboardAnimation";
 
 const ARCHETYPE_LABEL: Record<number, string> = {
   1: "Humana",
-  2: "Protectora",
-  3: "Especialista",
+  2: "Especialista",
+  3: "Protectora",
 };
 
 function ArchetypeIcon({ number, className }: { number: number; className?: string }) {
@@ -23,18 +23,20 @@ function ArchetypeIcon({ number, className }: { number: number; className?: stri
         </svg>
       );
     case 2:
-      return (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className={className}>
-          <path d="M12 3l7 3v5.5c0 4.6-3 8.3-7 9.5-4-1.2-7-4.9-7-9.5V6l7-3Z" />
-          <path d="M9 12l2 2 4-4" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      );
-    case 3:
+      // Especialista: precisión, foco (diana).
       return (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className={className}>
           <circle cx="12" cy="12" r="8.5" />
           <circle cx="12" cy="12" r="4.5" />
           <circle cx="12" cy="12" r="0.9" fill="currentColor" stroke="none" />
+        </svg>
+      );
+    case 3:
+      // Protectora: escudo.
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className={className}>
+          <path d="M12 3l7 3v5.5c0 4.6-3 8.3-7 9.5-4-1.2-7-4.9-7-9.5V6l7-3Z" />
+          <path d="M9 12l2 2 4-4" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       );
     default:
