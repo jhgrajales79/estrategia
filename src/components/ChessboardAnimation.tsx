@@ -230,77 +230,80 @@ export default function ChessboardAnimation() {
   }
 
   return (
-    <div className="mb-6 w-full max-w-md rounded-xl border border-border bg-gradient-to-b from-card to-black/[0.02] p-4 shadow-sm">
-      <div className="relative mx-auto w-full max-w-[340px] pr-4 pb-4">
-        <div
-          className="grid overflow-hidden rounded-md shadow-[inset_0_0_0_3px_var(--brand-dark),0_2px_8px_rgba(0,0,0,0.12)]"
-          style={{ gridTemplateColumns: `repeat(${SIZE}, 1fr)`, gridTemplateRows: `repeat(${SIZE}, 1fr)`, aspectRatio: "1 / 1" }}
-          role="img"
-          aria-label="Tablero de ajedrez animado: el equipo avanza en conjunto, captura los obstáculos de la competencia en el camino y protege los recursos hasta llegar a la meta"
-        >
-          {squares}
-        </div>
-
-        {/* Coordenadas del tablero, como en una partida real */}
-        {FILES.map((f, i) => (
-          <span
-            key={f}
-            className="pointer-events-none absolute top-full text-[8px] font-semibold text-muted"
-            style={{ left: pct(i), transform: "translateX(-50%)", marginTop: 2 }}
-          >
-            {f}
-          </span>
-        ))}
-        {FILES.map((_, i) => (
-          <span
-            key={i}
-            className="pointer-events-none absolute right-full text-[8px] font-semibold text-muted"
-            style={{ top: pct(i), transform: "translateY(-50%)", marginRight: 4 }}
-          >
-            {SIZE - i}
-          </span>
-        ))}
-
-        <div
-          className="chess-home-glow pointer-events-none absolute rounded-full"
-          style={{ ...squareStyle(ORIGIN), width: 26, height: 26, background: "radial-gradient(circle, rgba(8,112,98,0.35), rgba(8,112,98,0) 70%)" }}
-        />
-        <div className="pointer-events-none absolute text-[15px] leading-none drop-shadow-sm" style={{ ...squareStyle(ORIGIN), color: "var(--brand-dark)" }}>
-          ♚
-        </div>
-
-        <div
-          className="chess-goal-glow pointer-events-none absolute rounded-full"
-          style={{
-            ...squareStyle(GOAL),
-            width: 30,
-            height: 30,
-            background: "radial-gradient(circle, rgba(201,154,46,0.6), rgba(201,154,46,0) 72%)",
-          }}
-        />
-        <div className="chess-goal pointer-events-none absolute text-[16px] leading-none drop-shadow-sm" style={{ ...squareStyle(GOAL), color: "#c99a2e" }}>
-          ♛
-        </div>
-
-        {OBSTACLES.map((o, i) => (
-          <div
-            key={i}
-            className={`chess-obstacle chess-obstacle-${i} pointer-events-none absolute text-[14px] leading-none`}
-            style={{ ...squareStyle(o.square), color: RIVAL_COLOR }}
-          >
-            ♟
+    <div className="mb-4 w-full max-w-md rounded-xl border border-border bg-gradient-to-b from-card to-black/[0.02] p-3 shadow-sm">
+      <div className="mx-auto w-full max-w-[320px]">
+        <div className="flex">
+          {/* Columna de rangos (8..1): ancho fijo, fuera del espacio de coordenadas del tablero. */}
+          <div className="flex w-3.5 shrink-0 flex-col" aria-hidden>
+            {FILES.map((_, i) => (
+              <span key={i} className="flex flex-1 items-center justify-end pr-1 text-[8px] font-semibold leading-none text-muted">
+                {SIZE - i}
+              </span>
+            ))}
           </div>
-        ))}
 
-        {TEAM_PIECES.map((p, i) => (
-          <div
-            key={i}
-            className={`chess-team-piece chess-team-piece-${i} pointer-events-none absolute leading-none drop-shadow-sm`}
-            style={{ ...squareStyle(p.waypoints[0]), fontSize: p.size, color: p.color }}
-          >
-            {p.glyph}
+          {/* Esta capa (tablero + fichas) es el único marco de referencia para las coordenadas en % de las piezas. */}
+          <div className="relative flex-1">
+            <div
+              className="grid overflow-hidden rounded-md shadow-[inset_0_0_0_3px_var(--brand-dark),0_2px_8px_rgba(0,0,0,0.12)]"
+              style={{ gridTemplateColumns: `repeat(${SIZE}, 1fr)`, gridTemplateRows: `repeat(${SIZE}, 1fr)`, aspectRatio: "1 / 1" }}
+              role="img"
+              aria-label="Tablero de ajedrez animado: el equipo avanza en conjunto, captura los obstáculos de la competencia en el camino y protege los recursos hasta llegar a la meta"
+            >
+              {squares}
+            </div>
+
+            <div
+              className="chess-home-glow pointer-events-none absolute rounded-full"
+              style={{ ...squareStyle(ORIGIN), width: 26, height: 26, background: "radial-gradient(circle, rgba(8,112,98,0.35), rgba(8,112,98,0) 70%)" }}
+            />
+            <div className="pointer-events-none absolute text-[15px] leading-none drop-shadow-sm" style={{ ...squareStyle(ORIGIN), color: "var(--brand-dark)" }}>
+              ♚
+            </div>
+
+            <div
+              className="chess-goal-glow pointer-events-none absolute rounded-full"
+              style={{
+                ...squareStyle(GOAL),
+                width: 30,
+                height: 30,
+                background: "radial-gradient(circle, rgba(201,154,46,0.6), rgba(201,154,46,0) 72%)",
+              }}
+            />
+            <div className="chess-goal pointer-events-none absolute text-[16px] leading-none drop-shadow-sm" style={{ ...squareStyle(GOAL), color: "#c99a2e" }}>
+              ♛
+            </div>
+
+            {OBSTACLES.map((o, i) => (
+              <div
+                key={i}
+                className={`chess-obstacle chess-obstacle-${i} pointer-events-none absolute text-[14px] leading-none`}
+                style={{ ...squareStyle(o.square), color: RIVAL_COLOR }}
+              >
+                ♟
+              </div>
+            ))}
+
+            {TEAM_PIECES.map((p, i) => (
+              <div
+                key={i}
+                className={`chess-team-piece chess-team-piece-${i} pointer-events-none absolute leading-none drop-shadow-sm`}
+                style={{ ...squareStyle(p.waypoints[0]), fontSize: p.size, color: p.color }}
+              >
+                {p.glyph}
+              </div>
+            ))}
           </div>
-        ))}
+        </div>
+
+        {/* Fila de columnas (a..h), alineada bajo la capa del tablero (excluye la columna de rangos). */}
+        <div className="mt-0.5 flex pl-3.5">
+          {FILES.map((f) => (
+            <span key={f} className="flex-1 text-center text-[8px] font-semibold leading-none text-muted">
+              {f}
+            </span>
+          ))}
+        </div>
       </div>
 
       <div className="mt-2 flex items-center justify-center gap-1.5">
