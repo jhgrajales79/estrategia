@@ -25,6 +25,7 @@ export default function SessionDetailPage({ params }: { params: Promise<{ code: 
   const [resetting, setResetting] = useState(false);
   const [resetNonce, setResetNonce] = useState(0);
   const [activeActivityId, setActiveActivityId] = useState<number | null>(null);
+  const [showOutputs, setShowOutputs] = useState(false);
 
   useEffect(() => {
     fetchAspirations().then(setAspirations).catch(console.error);
@@ -157,11 +158,7 @@ export default function SessionDetailPage({ params }: { params: Promise<{ code: 
             )}
           </div>
         </div>
-        <p className="mt-1 text-xs text-muted">
-          {session.week_label} · {session.duration_label} · {session.methodology}
-        </p>
-        {session.objective && <p className="mt-3 text-sm text-foreground">{session.objective}</p>}
-        {session.aspiration_link && <p className="mt-2 text-xs italic text-muted">{session.aspiration_link}</p>}
+        {session.objective && <p className="mt-2 text-sm text-foreground">{session.objective}</p>}
 
         {presenter && (
           <div className="mt-4 border-t border-border pt-3">
@@ -206,9 +203,9 @@ export default function SessionDetailPage({ params }: { params: Promise<{ code: 
           <p className="text-sm text-muted">Vuelve al panel para ver qué sesiones están activas.</p>
         </div>
       ) : (
-        <div className="grid gap-6 xl:grid-cols-[1fr_300px] xl:items-start">
-          <div>
-            <div role="tablist" aria-label="Actividades de la sesión" className="flex gap-1 overflow-x-auto border-b border-border">
+        <div>
+          <div className="flex items-center gap-2 border-b border-border">
+            <div role="tablist" aria-label="Actividades de la sesión" className="flex min-w-0 flex-1 gap-1 overflow-x-auto">
               {activities.map((a) => {
                 const activityLocked = !a.is_enabled && !presenter;
                 const active = a.id === activeActivityId;
@@ -233,46 +230,65 @@ export default function SessionDetailPage({ params }: { params: Promise<{ code: 
               })}
             </div>
 
-            {activeActivity && (
-              <div role="tabpanel" className="mt-4">
-                <ActivityCard
-                  key={`${activeActivity.id}-${resetNonce}`}
-                  activity={activeActivity}
-                  session={session}
-                  aspirations={aspirations}
-                  participant={participant}
-                  presenter={presenter}
-                  onToggleEnabled={toggleActivityEnabled}
-                />
+            {outputs.length > 0 && (
+              <div className="relative shrink-0">
+                <button
+                  onClick={() => setShowOutputs((v) => !v)}
+                  className="mb-1.5 inline-flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-xs font-medium text-muted transition-colors hover:bg-black/5"
+                  aria-expanded={showOutputs}
+                >
+                  🎯 Salidas
+                  <span className="font-semibold text-foreground">
+                    {outputs.filter((o) => o.is_done).length}/{outputs.length}
+                  </span>
+                </button>
+                {showOutputs && (
+                  <>
+                    <div className="fixed inset-0 z-10" onClick={() => setShowOutputs(false)} />
+                    <div className="absolute right-0 z-20 mt-1 w-80 rounded-xl border border-border bg-card p-4 shadow-lg">
+                      <h2 className="mb-2 text-xs font-bold uppercase tracking-wide text-muted">Salidas / resultados esperados</h2>
+                      {!presenter && (
+                        <p className="mb-2 text-xs text-muted">Solo el facilitador puede marcar las salidas como logradas.</p>
+                      )}
+                      <div className="max-h-80 space-y-2 overflow-y-auto">
+                        {outputs.map((o) => {
+                          const asp = findAspiration(aspirations, o.aspiration_id);
+                          const cls = aspClasses(asp?.number);
+                          return (
+                            <label key={o.id} className={`flex items-start gap-2 text-sm ${presenter ? "" : "cursor-default"}`}>
+                              <input
+                                type="checkbox"
+                                className="mt-0.5 disabled:cursor-default"
+                                checked={o.is_done}
+                                disabled={!presenter}
+                                onChange={() => presenter && toggleOutput(o)}
+                              />
+                              <span className={o.is_done ? "text-muted line-through" : "text-foreground"}>{o.description}</span>
+                              {asp && <span className={`ml-auto shrink-0 text-xs font-medium ${cls.text}`}>Asp. {asp.number}</span>}
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </div>
 
-          <aside className="xl:sticky xl:top-4">
-            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted">Salidas / resultados esperados</h2>
-            {!presenter && (
-              <p className="mb-2 text-xs text-muted">Solo el facilitador puede marcar las salidas como logradas.</p>
-            )}
-            <div className="space-y-2 rounded-xl border border-border bg-card p-4">
-              {outputs.map((o) => {
-                const asp = findAspiration(aspirations, o.aspiration_id);
-                const cls = aspClasses(asp?.number);
-                return (
-                  <label key={o.id} className={`flex items-start gap-2 text-sm ${presenter ? "" : "cursor-default"}`}>
-                    <input
-                      type="checkbox"
-                      className="mt-0.5 disabled:cursor-default"
-                      checked={o.is_done}
-                      disabled={!presenter}
-                      onChange={() => presenter && toggleOutput(o)}
-                    />
-                    <span className={o.is_done ? "text-muted line-through" : "text-foreground"}>{o.description}</span>
-                    {asp && <span className={`ml-auto shrink-0 text-xs font-medium ${cls.text}`}>Asp. {asp.number}</span>}
-                  </label>
-                );
-              })}
+          {activeActivity && (
+            <div role="tabpanel" className="mt-4">
+              <ActivityCard
+                key={`${activeActivity.id}-${resetNonce}`}
+                activity={activeActivity}
+                session={session}
+                aspirations={aspirations}
+                participant={participant}
+                presenter={presenter}
+                onToggleEnabled={toggleActivityEnabled}
+              />
             </div>
-          </aside>
+          )}
         </div>
       )}
     </div>
