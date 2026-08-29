@@ -46,7 +46,8 @@ export type ActivityType =
   | "tablero_proyectos"
   | "ficha_kpi"
   | "checklist_salidas"
-  | "radar_contexto";
+  | "radar_contexto"
+  | "tejido_conexiones";
 
 export interface ActivityRow {
   id: number;
