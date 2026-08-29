@@ -50,7 +50,7 @@ export default function HomePage() {
   }, []);
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-14 sm:py-16">
+    <div className="mx-auto max-w-6xl px-4 py-14 sm:py-16">
       <div className="flex flex-col items-center text-center">
         <Image src="/socya-logo.png" alt="Socya" width={220} height={92} priority />
         <h1 className="mt-6 text-2xl font-bold text-dark sm:text-3xl">Ruta de Planeación Estratégica</h1>
@@ -68,37 +68,39 @@ export default function HomePage() {
         </Link>
       </div>
 
-      <div className="mt-14">
-        <h2 className="mb-5 text-center text-sm font-bold uppercase tracking-wide text-muted">
-          Nuestras tres aspiraciones
-        </h2>
-        <div className="grid gap-4 sm:grid-cols-3">
-          {aspirations.map((a) => {
-            const cls = aspClasses(a.number);
-            return (
-              <div
-                key={a.id}
-                className="relative overflow-hidden rounded-2xl border border-border bg-card p-5 shadow-sm transition-shadow hover:shadow-md"
-              >
-                <div className={`absolute inset-x-0 top-0 h-1.5 ${cls.bg}`} />
-                <div className={`flex h-11 w-11 items-center justify-center rounded-full ${cls.bgSoft}`}>
-                  <ArchetypeIcon number={a.number} className={`h-5 w-5 ${cls.text}`} />
+      <div className="mt-14 grid gap-8 lg:grid-cols-[1fr_1fr] lg:items-start">
+        <div>
+          <h2 className="mb-5 text-center text-sm font-bold uppercase tracking-wide text-muted lg:text-left">
+            Nuestras tres aspiraciones
+          </h2>
+          <div className="flex flex-col gap-4">
+            {aspirations.map((a) => {
+              const cls = aspClasses(a.number);
+              return (
+                <div
+                  key={a.id}
+                  className="relative flex items-start gap-4 overflow-hidden rounded-2xl border border-border bg-card p-5 shadow-sm transition-shadow hover:shadow-md"
+                >
+                  <div className={`absolute inset-y-0 left-0 w-1.5 ${cls.bg}`} />
+                  <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${cls.bgSoft}`}>
+                    <ArchetypeIcon number={a.number} className={`h-5 w-5 ${cls.text}`} />
+                  </div>
+                  <div>
+                    <p className={`text-xs font-bold uppercase tracking-wide ${cls.text}`}>
+                      Aspiración {a.number} · {ARCHETYPE_LABEL[a.number]}
+                    </p>
+                    <p className="mt-1.5 text-sm leading-relaxed text-foreground">{a.name}</p>
+                  </div>
                 </div>
-                <p className={`mt-3 text-xs font-bold uppercase tracking-wide ${cls.text}`}>
-                  Aspiración {a.number} · {ARCHETYPE_LABEL[a.number]}
-                </p>
-                <p className="mt-2 text-sm leading-relaxed text-foreground">{a.name}</p>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
-      </div>
 
-      <div className="mt-16">
-        <h2 className="mb-5 text-center text-sm font-bold uppercase tracking-wide text-muted">
-          Así avanza la estrategia: en equipo, paso a paso
-        </h2>
-        <div className="mx-auto max-w-md">
+        <div>
+          <h2 className="mb-5 text-center text-sm font-bold uppercase tracking-wide text-muted lg:text-left">
+            Así avanza la estrategia: en equipo, paso a paso
+          </h2>
           <ChessboardAnimation />
         </div>
       </div>
