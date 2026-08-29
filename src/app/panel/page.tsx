@@ -11,6 +11,7 @@ import Cronograma from "@/components/Cronograma";
 import { aspClasses, findAspiration } from "@/lib/aspirationStyle";
 import usePresence from "@/lib/usePresence";
 import { Avatar } from "@/components/activities/shared";
+import AspirationBadge from "@/components/AspirationBadge";
 
 export default function PanelPage() {
   const participant = useRequireParticipant();
@@ -89,8 +90,8 @@ export default function PanelPage() {
           const t = tracking.find((tb) => tb.aspiration_id === a.id);
           return (
             <div key={a.id} className={`rounded-xl border-t-4 ${cls.border} bg-card p-4 shadow-sm transition-shadow hover:shadow-md`}>
-              <p className={`text-xs font-bold uppercase ${cls.text}`}>Aspiración {a.number}</p>
-              <p className="mt-1 line-clamp-2 text-xs text-muted">{a.name}</p>
+              <AspirationBadge number={a.number} />
+              <p className="mt-1.5 line-clamp-2 text-xs text-muted">{a.name}</p>
               <div className="mt-3 space-y-1.5 text-xs">
                 <div>
                   <div className="flex justify-between"><span>Planeación</span><span className="font-medium text-foreground">{t?.planeacion_pct ?? 0}%</span></div>

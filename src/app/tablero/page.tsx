@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabase";
 import type { Aspiration, TrackingBoardRow } from "@/lib/types";
 import { aspClasses } from "@/lib/aspirationStyle";
 import { inputCls } from "@/components/activities/shared";
+import AspirationBadge from "@/components/AspirationBadge";
 
 interface Kpi {
   id: string;
@@ -78,8 +79,8 @@ export default function TableroPage() {
           const t = tracking.find((tb) => tb.aspiration_id === a.id);
           return (
             <div key={a.id} className={`rounded-xl border-t-4 ${cls.border} bg-card p-4 shadow-sm`}>
-              <p className={`text-xs font-bold uppercase ${cls.text}`}>Aspiración {a.number}</p>
-              <p className="mt-1 line-clamp-2 text-xs text-muted">{a.name}</p>
+              <AspirationBadge number={a.number} />
+              <p className="mt-1.5 line-clamp-2 text-xs text-muted">{a.name}</p>
               <div className="mt-3 space-y-2 text-sm">
                 <label className="block">
                   Planeación (%)

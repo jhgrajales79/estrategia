@@ -1,5 +1,13 @@
 import type { Aspiration } from "./types";
 
+// Nombre del arquetipo de marca por número de aspiración (ver .agents/skills/design/design.md.txt).
+// Aspiración 2 es el arquetipo Especialista y la 3 es Protectora — no coincide 1:1 con el número.
+export const ARCHETYPE_LABEL: Record<number, string> = {
+  1: "Humana",
+  2: "Especialista",
+  3: "Protectora",
+};
+
 export function aspClasses(number: number | null | undefined) {
   switch (number) {
     case 1:

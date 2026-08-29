@@ -8,6 +8,7 @@ import { logActivity } from "@/lib/feed";
 import type { Aspiration, GoalRow, Participant } from "@/lib/types";
 import { aspClasses } from "@/lib/aspirationStyle";
 import { inputCls, btnPrimary } from "@/components/activities/shared";
+import AspirationBadge from "@/components/AspirationBadge";
 
 export default function MetasPage() {
   const participant = useRequireParticipant();
@@ -79,8 +80,8 @@ export default function MetasPage() {
           const goalsFor = goals.filter((g) => g.aspiration_id === a.id);
           return (
             <div key={a.id} className={`rounded-xl border-t-4 ${cls.border} bg-card p-4 shadow-sm`}>
-              <p className={`text-xs font-bold uppercase ${cls.text}`}>Aspiración {a.number}</p>
-              <ul className="mt-2 space-y-2">
+              <AspirationBadge number={a.number} />
+              <ul className="mt-3 space-y-2">
                 {goalsFor.map((g) => (
                   <li key={g.id} className="text-sm">
                     <p className="text-foreground">

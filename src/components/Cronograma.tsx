@@ -49,19 +49,19 @@ export default function Cronograma({
           </div>
         );
         const tail = (
-          <div className="flex items-center gap-3 pl-12 sm:pl-0">
-            {pct !== undefined && s.is_enabled && (
-              <div className="h-1.5 w-24 overflow-hidden rounded-full bg-black/10">
-                <div className="h-full bg-brand" style={{ width: `${pct}%` }} />
-              </div>
-            )}
-            {locked ? (
-              <LockBadge text="No habilitada" />
-            ) : (
-              <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_CLASS[s.status]}`}>
-                {STATUS_LABEL[s.status]}
-              </span>
-            )}
+          <div className="flex shrink-0 items-center gap-3 pl-12 sm:pl-0">
+            <div className="h-1.5 w-16 shrink-0 overflow-hidden rounded-full bg-black/10">
+              {pct !== undefined && s.is_enabled && <div className="h-full bg-brand" style={{ width: `${pct}%` }} />}
+            </div>
+            <div className="w-28 shrink-0">
+              {locked ? (
+                <LockBadge text="No habilitada" />
+              ) : (
+                <span className={`inline-flex w-full justify-center rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_CLASS[s.status]}`}>
+                  {STATUS_LABEL[s.status]}
+                </span>
+              )}
+            </div>
           </div>
         );
         return (
@@ -71,20 +71,17 @@ export default function Cronograma({
               locked ? "opacity-60" : ""
             }`}
           >
-            {locked ? (
-              <>
-                {body}
-                {tail}
-              </>
-            ) : (
+            {locked ? body : (
               <Link href={`/sesiones/${s.code}`} className="contents hover:[&_p]:text-brand-dark">
                 {body}
-                {tail}
               </Link>
             )}
-            {presenter && onToggleEnabled && (
-              <ToggleSwitch checked={s.is_enabled} onChange={(next) => onToggleEnabled(s, next)} />
-            )}
+            <div className="flex shrink-0 items-center gap-3">
+              {tail}
+              {presenter && onToggleEnabled && (
+                <ToggleSwitch checked={s.is_enabled} onChange={(next) => onToggleEnabled(s, next)} />
+              )}
+            </div>
           </li>
         );
       })}
