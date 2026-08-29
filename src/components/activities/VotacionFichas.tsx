@@ -33,7 +33,7 @@ export default function VotacionFichas({ activity, session, participant }: Activ
   const maxTextLength = (activity.config.maxTextLength as number) ?? (cloudView ? 40 : 140);
   const presenter = isPresenter(participant);
   const submissionAspId = effectiveAspirationId(activity, participant);
-  const { content, save, saving, updatedAt, loaded } = useSubmission<Content>(
+  const { content, save, saving, updatedAt, saveError, loaded } = useSubmission<Content>(
     activity,
     session,
     submissionAspId,
@@ -172,7 +172,7 @@ export default function VotacionFichas({ activity, session, participant }: Activ
           );
         })}
       </div>
-      <SaveIndicator saving={saving} updatedAt={updatedAt} />
+      <SaveIndicator saving={saving} updatedAt={updatedAt} error={saveError} />
     </div>
   );
 }

@@ -20,6 +20,7 @@ interface UseSubmissionResult<T> {
   setContent: (next: T) => void;
   saving: boolean;
   updatedAt: string | null;
+  saveError: string | null;
   save: (next?: T, opts?: { eventType?: string; summary?: string }) => Promise<void>;
   loaded: boolean;
 }
@@ -35,6 +36,7 @@ export function useSubmission<T extends Record<string, unknown>>(
   const [rowId, setRowId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Guarda los parámetros vigentes para descartar respuestas de una carga anterior que resuelva tarde
@@ -108,14 +110,21 @@ export function useSubmission<T extends Record<string, unknown>>(
         updated_by: participant?.id ?? null,
         updated_at: new Date().toISOString(),
       };
+      let error = null;
       if (rowId) {
-        const { error } = await supabase.from("submissions").update(payload).eq("id", rowId);
-        if (error) console.error(error);
+        ({ error } = await supabase.from("submissions").update(payload).eq("id", rowId));
       } else {
-        const { data, error } = await supabase.from("submissions").insert(payload).select("id").single();
-        if (error) console.error(error);
-        if (data) setRowId(data.id);
+        const result = await supabase.from("submissions").insert(payload).select("id").single();
+        error = result.error;
+        if (result.data) setRowId(result.data.id);
       }
+      if (error) {
+        console.error(error);
+        setSaveError(error.message);
+        setSaving(false);
+        return;
+      }
+      setSaveError(null);
       setUpdatedAt(payload.updated_at);
       setSaving(false);
       if (opts?.summary) {
@@ -151,5 +160,5 @@ export function useSubmission<T extends Record<string, unknown>>(
     [content, persist]
   );
 
-  return { content, setContent, saving, updatedAt, save, loaded };
+  return { content, setContent, saving, updatedAt, saveError, save, loaded };
 }

@@ -35,7 +35,7 @@ export default function MatrizPonderada({ activity, session, aspirations, partic
   const interpretHint = activity.config.interpretHint as string | undefined;
   const presenter = isPresenter(participant);
   const submissionAspId = effectiveAspirationId(activity, participant);
-  const { content, save, saving, updatedAt, loaded } = useSubmission<Content>(
+  const { content, save, saving, updatedAt, saveError, loaded } = useSubmission<Content>(
     activity,
     session,
     submissionAspId,
@@ -178,7 +178,7 @@ export default function MatrizPonderada({ activity, session, aspirations, partic
             />
           </div>
         )}
-        <SaveIndicator saving={saving} updatedAt={updatedAt} />
+        <SaveIndicator saving={saving} updatedAt={updatedAt} error={saveError} />
       </div>
     );
   }
@@ -286,7 +286,7 @@ export default function MatrizPonderada({ activity, session, aspirations, partic
         </button>
       )}
       {interpretHint && <p className="text-xs text-muted">{interpretHint}</p>}
-      <SaveIndicator saving={saving} updatedAt={updatedAt} />
+      <SaveIndicator saving={saving} updatedAt={updatedAt} error={saveError} />
     </div>
   );
 }

@@ -46,7 +46,7 @@ export default function NotasColectivas({ activity, session, aspirations, partic
   const defaultLink = (activity.config.defaultLink as string) ?? "";
   const presenter = isPresenter(participant);
   const submissionAspId = effectiveAspirationId(activity, participant);
-  const { content, save, saving, updatedAt, loaded } = useSubmission<Content>(
+  const { content, save, saving, updatedAt, saveError, loaded } = useSubmission<Content>(
     activity,
     session,
     submissionAspId,
@@ -288,7 +288,7 @@ export default function NotasColectivas({ activity, session, aspirations, partic
           );
         })}
       </div>
-      <SaveIndicator saving={saving} updatedAt={updatedAt} />
+      <SaveIndicator saving={saving} updatedAt={updatedAt} error={saveError} />
       {lightboxUrl && (
         <div
           className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 p-6"

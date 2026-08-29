@@ -54,7 +54,7 @@ export default function RadarContexto({ activity, session, participant }: Activi
   const pointsPerPerson = (activity.config.pointsPerPerson as number) ?? 3;
   const presenter = isPresenter(participant);
   const submissionAspId = effectiveAspirationId(activity, participant);
-  const { content, save, saving, updatedAt, loaded } = useSubmission<Content>(
+  const { content, save, saving, updatedAt, saveError, loaded } = useSubmission<Content>(
     activity,
     session,
     submissionAspId,
@@ -356,7 +356,7 @@ export default function RadarContexto({ activity, session, participant }: Activi
           )}
         </div>
       </div>
-      <SaveIndicator saving={saving} updatedAt={updatedAt} />
+      <SaveIndicator saving={saving} updatedAt={updatedAt} error={saveError} />
     </div>
   );
 }

@@ -26,8 +26,22 @@ export const btnGhost =
 export const btnDanger =
   "text-xs text-red-600 hover:text-red-800 hover:underline";
 
-export function SaveIndicator({ saving, updatedAt }: { saving: boolean; updatedAt: string | null }) {
+export function SaveIndicator({
+  saving,
+  updatedAt,
+  error,
+}: {
+  saving: boolean;
+  updatedAt: string | null;
+  error?: string | null;
+}) {
   if (saving) return <span className="text-xs text-muted">Guardando…</span>;
+  if (error)
+    return (
+      <span className="text-xs font-medium text-red-600" title={error}>
+        ⚠ No se pudo guardar
+      </span>
+    );
   if (updatedAt)
     return (
       <span className="text-xs text-muted">

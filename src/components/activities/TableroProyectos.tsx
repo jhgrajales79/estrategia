@@ -22,7 +22,7 @@ export default function TableroProyectos({ activity, session, aspirationId, part
   const updatesTrackingBoard = Boolean(activity.config.updatesTrackingBoard);
   const presenter = isPresenter(participant);
   const submissionAspId = effectiveAspirationId(activity, participant);
-  const { content, save, saving, updatedAt, loaded } = useSubmission<Content>(
+  const { content, save, saving, updatedAt, saveError, loaded } = useSubmission<Content>(
     activity,
     session,
     submissionAspId,
@@ -93,7 +93,7 @@ export default function TableroProyectos({ activity, session, aspirationId, part
           )}
         </div>
       )}
-      <SaveIndicator saving={saving} updatedAt={updatedAt} />
+      <SaveIndicator saving={saving} updatedAt={updatedAt} error={saveError} />
     </div>
   );
 }

@@ -32,7 +32,7 @@ export default function RuedaEvaluacion({ activity, session, participant }: Acti
   const fixedItems = (activity.config.items as Item[]) ?? [];
   const presenter = isPresenter(participant);
   const submissionAspId = effectiveAspirationId(activity, participant);
-  const { content, save, saving, updatedAt, loaded } = useSubmission<Content>(
+  const { content, save, saving, updatedAt, saveError, loaded } = useSubmission<Content>(
     activity,
     session,
     submissionAspId,
@@ -139,7 +139,7 @@ export default function RuedaEvaluacion({ activity, session, participant }: Acti
           </p>
         </div>
       )}
-      <SaveIndicator saving={saving} updatedAt={updatedAt} />
+      <SaveIndicator saving={saving} updatedAt={updatedAt} error={saveError} />
     </div>
   );
 }
