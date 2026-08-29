@@ -160,11 +160,13 @@ export function ToggleSwitch({
         role="switch"
         aria-checked={checked}
         onClick={() => onChange(!checked)}
-        className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${checked ? "bg-brand" : "bg-black/20"}`}
+        className={`relative h-5 w-9 shrink-0 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50 focus-visible:ring-offset-1 ${
+          checked ? "bg-brand" : "bg-black/20"
+        }`}
       >
         <span
-          className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
-            checked ? "translate-x-[18px]" : "translate-x-0.5"
+          className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
+            checked ? "translate-x-4" : "translate-x-0"
           }`}
         />
       </button>

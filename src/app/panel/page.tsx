@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRequireParticipant } from "@/lib/useRequireParticipant";
-import { fetchAspirations, fetchOutputs, fetchSessionMedia, fetchSessions, fetchTrackingBoard, type SessionMedia } from "@/lib/data";
+import { fetchAspirations, fetchOutputs, fetchSessions, fetchTrackingBoard } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
 import { logActivity } from "@/lib/feed";
 import { isPresenter } from "@/lib/presenter";
@@ -19,7 +19,6 @@ export default function PanelPage() {
   const [outputs, setOutputs] = useState<OutputRow[]>([]);
   const [aspirations, setAspirations] = useState<Aspiration[]>([]);
   const [tracking, setTracking] = useState<TrackingBoardRow[]>([]);
-  const [media, setMedia] = useState<SessionMedia[]>([]);
   const online = usePresence(participant);
 
   useEffect(() => {
@@ -27,7 +26,6 @@ export default function PanelPage() {
     fetchOutputs().then(setOutputs).catch(console.error);
     fetchAspirations().then(setAspirations).catch(console.error);
     fetchTrackingBoard().then(setTracking).catch(console.error);
-    fetchSessionMedia().then(setMedia).catch(console.error);
   }, []);
 
   useEffect(() => {
@@ -41,9 +39,6 @@ export default function PanelPage() {
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "sessions" }, () => {
         fetchSessions().then(setSessions).catch(console.error);
-      })
-      .on("postgres_changes", { event: "*", schema: "public", table: "submissions" }, () => {
-        fetchSessionMedia().then(setMedia).catch(console.error);
       })
       .subscribe();
     return () => {
@@ -138,59 +133,6 @@ export default function PanelPage() {
         <Cronograma sessions={sessions} progress={sessionProgress} presenter={presenter} onToggleEnabled={toggleSession} twoColumn />
       </section>
 
-      <section className="mt-6">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted">Resultados por sesión</h2>
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {sessions.map((s) => {
-            const outs = outputs.filter((o) => o.session_id === s.id);
-            const done = outs.filter((o) => o.is_done);
-            const sessionMedia = media.filter((m) => m.session_id === s.id);
-            const photos = sessionMedia.flatMap((m) => m.media);
-            const links = sessionMedia.filter((m) => m.external_link);
-            return (
-              <div key={s.id} className="rounded-xl border border-border bg-card p-4 shadow-sm">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-sm font-semibold text-foreground">
-                    {s.code} · {s.name}
-                  </p>
-                  <span className="shrink-0 rounded-full bg-black/5 px-2 py-0.5 text-xs text-muted">
-                    {done.length}/{outs.length} logradas
-                  </span>
-                </div>
-                {done.length > 0 && (
-                  <ul className="mt-2 list-disc space-y-0.5 pl-4 text-xs text-muted">
-                    {done.map((o) => (
-                      <li key={o.id}>{o.description}</li>
-                    ))}
-                  </ul>
-                )}
-                {(photos.length > 0 || links.length > 0) && (
-                  <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3">
-                    {photos.map((url) => (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img key={url} src={url} alt="Foto de la sesión" className="h-16 w-16 rounded-md border border-border object-cover" />
-                    ))}
-                    {links.map(
-                      (m) =>
-                        m.external_link && (
-                          <a
-                            key={m.activity_title}
-                            href={m.external_link}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-xs text-brand hover:underline"
-                          >
-                            🔗 Panel visual
-                          </a>
-                        )
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </section>
     </div>
   );
 }
