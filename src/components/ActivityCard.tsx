@@ -65,11 +65,43 @@ export default function ActivityCard({
           {activity.time_minutes ? (
             <ActivityTimer activity={activity} totalSeconds={activity.time_minutes * 60} presenter={presenter} />
           ) : null}
+          {presenter && !confirmReset && (
+            <button
+              className="inline-flex items-center gap-1.5 rounded-md border border-red-300 px-2.5 py-1 text-xs font-medium text-red-600 transition-colors hover:bg-red-50"
+              onClick={() => setConfirmReset(true)}
+              title="Reiniciar datos de esta actividad"
+            >
+              🗑 Reiniciar
+            </button>
+          )}
           {presenter && onToggleEnabled && (
             <ToggleSwitch checked={activity.is_enabled} onChange={(next) => onToggleEnabled(activity, next)} />
           )}
         </div>
       </div>
+      {presenter && confirmReset && (
+        <div className="flex flex-wrap items-center gap-2 border-b border-red-300 bg-red-50 px-4 py-2.5 text-xs text-red-800">
+          <span>
+            ¿Seguro? Se borrará lo registrado por todos los equipos en &ldquo;{activity.title}&rdquo;. No se puede deshacer.
+          </span>
+          <div className="ml-auto flex shrink-0 items-center gap-2">
+            <button
+              className="rounded-md border border-border bg-card px-2.5 py-1 text-xs font-medium text-foreground hover:bg-black/5"
+              onClick={() => setConfirmReset(false)}
+              disabled={resetting}
+            >
+              Cancelar
+            </button>
+            <button
+              className="rounded-md bg-red-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
+              onClick={handleReset}
+              disabled={resetting}
+            >
+              {resetting ? "Reiniciando…" : "Sí, reiniciar"}
+            </button>
+          </div>
+        </div>
+      )}
       {locked ? (
         <div className="flex flex-col items-center gap-2 px-4 py-10 text-center">
           <LockBadge text="Aún no habilitada" />
@@ -84,40 +116,6 @@ export default function ActivityCard({
             </p>
           )}
           {inputsFrom.length > 0 && <InsumosPanel sourceIds={inputsFrom} aspirations={aspirations} />}
-          {presenter && (
-            <div className="mb-4">
-              {!confirmReset ? (
-                <button
-                  className="inline-flex items-center gap-1.5 rounded-md border border-red-300 px-2.5 py-1 text-xs font-medium text-red-600 transition-colors hover:bg-red-50"
-                  onClick={() => setConfirmReset(true)}
-                >
-                  🗑 Reiniciar datos de esta actividad
-                </button>
-              ) : (
-                <div className="flex flex-wrap items-center gap-2 rounded-md border border-red-300 bg-red-50 p-2.5 text-xs text-red-800">
-                  <span>
-                    ¿Seguro? Se borrará lo registrado por todos los equipos en &ldquo;{activity.title}&rdquo;. No se puede deshacer.
-                  </span>
-                  <div className="ml-auto flex shrink-0 items-center gap-2">
-                    <button
-                      className="rounded-md border border-border bg-card px-2.5 py-1 text-xs font-medium text-foreground hover:bg-black/5"
-                      onClick={() => setConfirmReset(false)}
-                      disabled={resetting}
-                    >
-                      Cancelar
-                    </button>
-                    <button
-                      className="rounded-md bg-red-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
-                      onClick={handleReset}
-                      disabled={resetting}
-                    >
-                      {resetting ? "Reiniciando…" : "Sí, reiniciar"}
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
           <Component
             key={resetNonce}
             activity={activity}

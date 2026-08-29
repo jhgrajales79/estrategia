@@ -136,6 +136,15 @@ export default function SessionDetailPage({ params }: { params: Promise<{ code: 
             {session.code} · {session.name}
           </h1>
           <div className="flex items-center gap-3">
+            {presenter && !confirmReset && (
+              <button
+                className="inline-flex items-center gap-1.5 rounded-md border border-red-300 px-2.5 py-1 text-xs font-medium text-red-600 transition-colors hover:bg-red-50"
+                onClick={() => setConfirmReset(true)}
+                title="Reiniciar información de esta sesión"
+              >
+                🗑 Reiniciar sesión
+              </button>
+            )}
             {presenter && (
               <ToggleSwitch checked={session.is_enabled} onChange={toggleSessionEnabled} label="Habilitada" />
             )}
@@ -160,39 +169,28 @@ export default function SessionDetailPage({ params }: { params: Promise<{ code: 
         </div>
         {session.objective && <p className="mt-2 text-sm text-foreground">{session.objective}</p>}
 
-        {presenter && (
-          <div className="mt-4 border-t border-border pt-3">
-            {!confirmReset ? (
+        {presenter && confirmReset && (
+          <div className="mt-4 flex flex-wrap items-center gap-3 rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-800">
+            <span>
+              ¿Seguro? Se borrará permanentemente todo lo registrado por los equipos en las actividades de{" "}
+              <strong>{session.code}</strong> (notas, votos, radar, ideas, matrices…). Esta acción no se puede deshacer.
+            </span>
+            <div className="ml-auto flex shrink-0 items-center gap-2">
               <button
-                className="inline-flex items-center gap-1.5 rounded-md border border-red-300 px-3 py-1.5 text-xs font-medium text-red-600 transition-colors hover:bg-red-50"
-                onClick={() => setConfirmReset(true)}
+                className="rounded-md border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:bg-black/5"
+                onClick={() => setConfirmReset(false)}
+                disabled={resetting}
               >
-                🗑 Reiniciar información de esta sesión
+                Cancelar
               </button>
-            ) : (
-              <div className="flex flex-wrap items-center gap-3 rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-800">
-                <span>
-                  ¿Seguro? Se borrará permanentemente todo lo registrado por los equipos en las actividades de{" "}
-                  <strong>{session.code}</strong> (notas, votos, radar, ideas, matrices…). Esta acción no se puede deshacer.
-                </span>
-                <div className="ml-auto flex shrink-0 items-center gap-2">
-                  <button
-                    className="rounded-md border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:bg-black/5"
-                    onClick={() => setConfirmReset(false)}
-                    disabled={resetting}
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    className="rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
-                    onClick={handleResetSession}
-                    disabled={resetting}
-                  >
-                    {resetting ? "Reiniciando…" : "Sí, reiniciar todo"}
-                  </button>
-                </div>
-              </div>
-            )}
+              <button
+                className="rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                onClick={handleResetSession}
+                disabled={resetting}
+              >
+                {resetting ? "Reiniciando…" : "Sí, reiniciar todo"}
+              </button>
+            </div>
           </div>
         )}
       </div>
