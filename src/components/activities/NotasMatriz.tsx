@@ -92,10 +92,52 @@ export default function NotasMatriz({ activity, session, aspirations, participan
       }
       lines.push("");
     }
-    navigator.clipboard.writeText(lines.join("\n")).then(() => {
+    const text = lines.join("\n");
+    const flash = () => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    });
+    };
+    const fallbackCopy = () => {
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.select();
+      try {
+        document.execCommand("copy");
+        flash();
+      } catch (err) {
+        console.error(err);
+      } finally {
+        document.body.removeChild(textarea);
+      }
+    };
+    if (navigator.clipboard?.writeText) {
+      let settled = false;
+      const timeout = setTimeout(() => {
+        if (!settled) {
+          settled = true;
+          fallbackCopy();
+        }
+      }, 800);
+      navigator.clipboard
+        .writeText(text)
+        .then(() => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timeout);
+          flash();
+        })
+        .catch(() => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timeout);
+          fallbackCopy();
+        });
+    } else {
+      fallbackCopy();
+    }
   }
 
   return (
