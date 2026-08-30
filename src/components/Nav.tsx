@@ -24,7 +24,8 @@ export default function Nav() {
     setParticipant(getStoredParticipant());
   }, [pathname]);
 
-  if (pathname === "/" || pathname === "/ingresar") return null;
+  const isFullscreenPresentation = pathname.startsWith("/radar/") || pathname.startsWith("/notas/") || pathname.startsWith("/ideas/");
+  if (pathname === "/" || pathname === "/ingresar" || isFullscreenPresentation) return null;
 
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-card/90 backdrop-blur">
