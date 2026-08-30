@@ -135,9 +135,7 @@ export default function Crazy8({ activity, session, participant }: ActivityCompo
         <div className="rounded-xl border border-border bg-gradient-to-b from-asp-2-soft/40 to-transparent p-5 text-center">
           <p className="text-3xl">✏️</p>
           <p className="mx-auto mt-2 max-w-md text-sm text-muted">
-            Dobla una hoja en 8 recuadros y, en 8 minutos, esboza 8 ideas rápidas sobre cómo Socya podría aprovechar el
-            contexto actual. Cuando termines, transcribe aquí <strong className="text-foreground">tu mejor idea</strong> —
-            el facilitador abrirá la galería para votar en grupo.
+            Escribe aquí <strong className="text-foreground">tu mejor idea</strong>.
           </p>
           <div className="mx-auto mt-4 max-w-md">
             {myIdea ? (
