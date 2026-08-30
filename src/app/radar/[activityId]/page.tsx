@@ -61,8 +61,8 @@ export default function RadarFullscreenPage({ params }: { params: Promise<{ acti
     function computeSize() {
       const w = window.innerWidth;
       const h = window.innerHeight;
-      const reserveForSidebar = w >= 900 ? 340 : 0;
-      setSize(Math.round(Math.min(w - reserveForSidebar, h - 200) * 0.92));
+      const reserveForSidebar = w >= 900 ? 300 : 0;
+      setSize(Math.round(Math.min(w - reserveForSidebar, h - 150) * 0.98));
     }
     computeSize();
     window.addEventListener("resize", computeSize);

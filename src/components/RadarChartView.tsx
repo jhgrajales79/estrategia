@@ -130,13 +130,13 @@ export default function RadarChartView({
         })}
       </svg>
       {axes.map((a, i) => {
-        const p = point(axisAngle(i), 1.15);
+        const p = point(axisAngle(i), 1.32);
         const live = activeAxisKeys.includes(a.key);
         return (
           <div
             key={a.key}
             className={`absolute -translate-x-1/2 -translate-y-1/2 text-center leading-tight ${
-              size > BASE_SIZE ? "w-32 text-sm" : "w-24 text-[11px]"
+              size > BASE_SIZE ? "w-40 text-sm" : "w-24 text-[11px]"
             } ${live ? "font-bold" : "font-normal"}`}
             style={{ left: p.x, top: p.y, color: live ? t.labelActive : t.label }}
           >
@@ -151,14 +151,14 @@ export default function RadarChartView({
         // para que dos ejes con votos bajos (cerca del centro) no terminen con sus tarjetas superpuestas.
         const winner = v.winner;
         const radiusFrac = RING_FRACTIONS[winner.ring];
-        // Se limita a 0.85 para dejar margen frente a la etiqueta del eje (a 1.15),
-        // sin importar el tamaño del radar, y así casi nunca chocan entre sí.
-        const calloutFrac = Math.min(radiusFrac + 0.28, 0.85);
+        // Se limita a 0.68 para dejar margen amplio frente a la etiqueta del eje (a 1.32),
+        // sin importar el tamaño del radar, y así el texto de la dimensión nunca queda tapado.
+        const calloutFrac = Math.min(radiusFrac + 0.2, 0.68);
         const basePoint = point(axisAngle(i), calloutFrac);
         // Un desplazamiento tangencial (perpendicular al eje), alternado por índice,
         // separa aún más las tarjetas de ejes adyacentes cuyo ganador cayó en el mismo anillo.
         const angleRad = (axisAngle(i) * Math.PI) / 180;
-        const tangentShift = (i % 2 === 0 ? 1 : -1) * (size > BASE_SIZE ? 20 : 12);
+        const tangentShift = (i % 2 === 0 ? 1 : -1) * (size > BASE_SIZE ? 32 : 14);
         const calloutPoint = {
           x: basePoint.x + -Math.sin(angleRad) * tangentShift,
           y: basePoint.y + Math.cos(angleRad) * tangentShift,
