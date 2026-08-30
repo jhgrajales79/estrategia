@@ -2,18 +2,30 @@ interface Idea {
   id: string;
   text: string;
   votes: number;
+  author?: string;
 }
 
 // Ángulos moderados (sin verticales completos) para un look "un poco loco" sin que las
 // tarjetas invadan la celda vecina. El espacio (gap) del grid es lo que evita el cruce.
 const ANGLES = [0, -8, 10, -14, 18, -6, 14, -18, 8, -10, 22, -22, 12, -16, 6, -12, 16];
 const JITTER = [0, 6, -5, 8, -7, 4, -8, 7, -4, 9, -6, 3, -9, 5, -3, 8, -5];
+const MEDALS = ["🥇", "🥈", "🥉"];
 
-export default function IdeaCloudView({ ideas, large = false }: { ideas: Idea[]; large?: boolean }) {
+export default function IdeaCloudView({
+  ideas,
+  large = false,
+  topIds = [],
+  dark = false,
+}: {
+  ideas: Idea[];
+  large?: boolean;
+  topIds?: string[];
+  dark?: boolean;
+}) {
   if (ideas.length === 0) {
     return (
       <div className="flex h-full items-center justify-center">
-        <p className="text-sm text-muted">Aún no hay ideas registradas.</p>
+        <p className={`text-sm ${dark ? "text-white/50" : "text-muted"}`}>Aún no hay ideas registradas.</p>
       </div>
     );
   }
@@ -57,6 +69,8 @@ export default function IdeaCloudView({ ideas, large = false }: { ideas: Idea[];
         const saturation = 45 + weight * 45; // 45% .. 90%
         const lightness = 88 - weight * 18; // 88% (pastel) .. 70% (vivo)
         const isHot = idea.votes > 4;
+        const medalIndex = topIds.indexOf(idea.id);
+        const isTop = medalIndex !== -1;
         return (
           <span
             key={idea.id}
@@ -65,14 +79,19 @@ export default function IdeaCloudView({ ideas, large = false }: { ideas: Idea[];
               fontSize,
               padding: `${padY}px ${padX}px`,
               borderRadius: fontSize * 1.4,
-              border: `1.5px solid hsl(${hue} 60% 55% / ${0.3 + weight * 0.5})`,
+              border: isTop ? "2.5px solid #f3c400" : `1.5px solid hsl(${hue} 60% 55% / ${0.3 + weight * 0.5})`,
               backgroundColor: `hsl(${hue} ${saturation}% ${lightness}% / ${alpha})`,
-              boxShadow: weight > 0 ? `0 4px ${10 + weight * 16}px hsl(${hue} 70% 55% / ${0.15 + weight * 0.4})` : "none",
+              boxShadow: isTop
+                ? "0 6px 24px rgba(243, 196, 0, 0.5)"
+                : weight > 0
+                  ? `0 4px ${10 + weight * 16}px hsl(${hue} 70% 55% / ${0.15 + weight * 0.4})`
+                  : "none",
               transform: `translate(${jitterX}px, ${jitterY}px) rotate(${rotate}deg)`,
             }}
           >
-            {isHot && "🔥 "}
+            {isTop ? `${MEDALS[medalIndex]} ` : isHot && "🔥 "}
             {idea.text}
+            {idea.author && <span className="ml-1 text-xs font-normal opacity-60">— {idea.author}</span>}
             <span className="ml-1.5 text-xs font-normal opacity-70">
               · {idea.votes} {idea.votes === 1 ? "voto" : "votos"}
             </span>
