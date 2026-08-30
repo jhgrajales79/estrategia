@@ -61,8 +61,8 @@ export default function RadarFullscreenPage({ params }: { params: Promise<{ acti
     function computeSize() {
       const w = window.innerWidth;
       const h = window.innerHeight;
-      const reserveForSidebar = w >= 900 ? 300 : 0;
-      setSize(Math.round(Math.min(w - reserveForSidebar, h - 150) * 0.98));
+      const reserveForSidebar = w >= 900 ? 480 : 0;
+      setSize(Math.round(Math.min(w - reserveForSidebar, h - 160) * 0.95));
     }
     computeSize();
     window.addEventListener("resize", computeSize);
@@ -137,10 +137,10 @@ export default function RadarFullscreenPage({ params }: { params: Promise<{ acti
         </div>
       </div>
 
-      <div className="mx-auto mt-6 flex max-w-[1400px] flex-col items-center gap-8 md:flex-row md:items-start md:justify-center">
+      <div className="mx-auto mt-6 flex max-w-[1400px] flex-col items-center gap-8 md:flex-row md:items-start md:justify-center md:gap-24">
         <RadarChartView axes={axes} winnerByAxis={winnerByAxis} voteTotal={voteTotal} size={size} activeAxisKey={liveAxisKeys} variant="dark" />
 
-        <div className="w-full max-w-sm shrink-0 space-y-2">
+        <div className="w-full max-w-sm shrink-0 space-y-2 md:mt-8">
           {axes.map((a) => {
             const stage = content.roundStatus?.[a.key] ?? "pending";
             const meta = STAGE_META[stage];

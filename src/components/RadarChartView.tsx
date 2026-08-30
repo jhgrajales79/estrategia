@@ -130,7 +130,7 @@ export default function RadarChartView({
         })}
       </svg>
       {axes.map((a, i) => {
-        const p = point(axisAngle(i), 1.32);
+        const p = point(axisAngle(i), 1.24);
         const live = activeAxisKeys.includes(a.key);
         return (
           <div
