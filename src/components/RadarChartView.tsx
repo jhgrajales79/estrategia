@@ -27,6 +27,7 @@ const THEME = {
     polygonStroke: "rgba(8, 112, 98, 0.6)",
     vertex: "rgba(8, 112, 98, 0.95)",
     vertexActiveGlow: "rgba(8, 112, 98, 0.35)",
+    caption: "var(--muted)",
   },
   dark: {
     grid: "rgba(255, 255, 255, 0.14)",
@@ -37,8 +38,11 @@ const THEME = {
     polygonStroke: "rgba(128, 198, 18, 0.65)",
     vertex: "#a8e05c",
     vertexActiveGlow: "rgba(168, 224, 92, 0.45)",
+    caption: "rgba(255, 255, 255, 0.5)",
   },
 };
+
+const TARGET_COLOR = "#f3c400";
 
 export default function RadarChartView({
   axes,
@@ -47,6 +51,7 @@ export default function RadarChartView({
   size = BASE_SIZE,
   activeAxisKey = null,
   variant = "light",
+  legend = false,
 }: {
   axes: Axis[];
   winnerByAxis: Record<string, Signal | undefined>;
@@ -54,6 +59,7 @@ export default function RadarChartView({
   size?: number;
   activeAxisKey?: string | string[] | null;
   variant?: "light" | "dark";
+  legend?: boolean;
 }) {
   const t = THEME[variant];
   const activeAxisKeys = Array.isArray(activeAxisKey) ? activeAxisKey : activeAxisKey ? [activeAxisKey] : [];
@@ -79,6 +85,7 @@ export default function RadarChartView({
   const polygonPoints = vertices.map((v) => `${v.x},${v.y}`).join(" ");
 
   return (
+    <div className="flex shrink-0 flex-col items-center">
     <div className="relative shrink-0" style={{ width: size, height: size }}>
       <svg width={size} height={size} className="absolute inset-0 overflow-visible">
         {RING_FRACTIONS.map((f, i) => {
@@ -128,6 +135,11 @@ export default function RadarChartView({
             </g>
           );
         })}
+        {/* Objetivo de la estrategia: mientras más cerca del centro, mayor el impacto;
+            lo más alejado del centro pasa a monitoreo durante la ejecución. */}
+        <circle cx={center} cy={center} r={size > BASE_SIZE ? 10 : 7} fill={TARGET_COLOR} fillOpacity={0.18} className="animate-pulse" />
+        <circle cx={center} cy={center} r={size > BASE_SIZE ? 6 : 4.5} fill="none" stroke={TARGET_COLOR} strokeWidth={1.5} />
+        <circle cx={center} cy={center} r={size > BASE_SIZE ? 2.2 : 1.8} fill={TARGET_COLOR} />
       </svg>
       {axes.map((a, i) => {
         const p = point(axisAngle(i), 1.24);
@@ -176,6 +188,13 @@ export default function RadarChartView({
           </div>
         );
       })}
+    </div>
+    {legend && (
+      <p className="mt-3 max-w-xs text-center text-[11px] leading-snug" style={{ color: t.caption }}>
+        <span style={{ color: TARGET_COLOR }}>🎯</span> Objetivo estratégico: mientras más cerca del centro, mayor el
+        impacto. Lo más alejado pasa a monitoreo durante la ejecución.
+      </p>
+    )}
     </div>
   );
 }

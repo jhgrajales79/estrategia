@@ -138,7 +138,7 @@ export default function RadarFullscreenPage({ params }: { params: Promise<{ acti
       </div>
 
       <div className="mx-auto mt-6 flex max-w-[1400px] flex-col items-center gap-8 md:flex-row md:items-start md:justify-center md:gap-24">
-        <RadarChartView axes={axes} winnerByAxis={winnerByAxis} voteTotal={voteTotal} size={size} activeAxisKey={liveAxisKeys} variant="dark" />
+        <RadarChartView axes={axes} winnerByAxis={winnerByAxis} voteTotal={voteTotal} size={size} activeAxisKey={liveAxisKeys} variant="dark" legend />
 
         <div className="w-full max-w-sm shrink-0 space-y-2 md:mt-8">
           {axes.map((a) => {
