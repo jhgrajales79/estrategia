@@ -71,14 +71,22 @@ export default function IdeaCloudView({
         const isHot = idea.votes > 4;
         const medalIndex = topIds.indexOf(idea.id);
         const isTop = medalIndex !== -1;
+        // El texto debe leerse tanto sobre la tarjeta pastel (cuando tiene votos) como sobre
+        // el fondo de la página (cuando la tarjeta está casi transparente, sin votos aún):
+        // se mezcla la luminosidad de la tarjeta con la del fondo según su opacidad real, y
+        // se elige texto claro u oscuro según cuál domine.
+        const pageLightness = dark ? 20 : 97;
+        const effectiveLightness = alpha * lightness + (1 - alpha) * pageLightness;
+        const textColor = effectiveLightness > 58 ? "#1f2937" : "#f5f5f5";
         return (
           <span
             key={idea.id}
-            className="inline-block max-w-[85%] whitespace-normal break-words text-center font-extrabold leading-snug text-neutral-800"
+            className="inline-block max-w-[85%] whitespace-normal break-words text-center font-extrabold leading-snug"
             style={{
               fontSize,
               padding: `${padY}px ${padX}px`,
               borderRadius: fontSize * 1.4,
+              color: textColor,
               border: isTop ? "2.5px solid #f3c400" : `1.5px solid hsl(${hue} 60% 55% / ${0.3 + weight * 0.5})`,
               backgroundColor: `hsl(${hue} ${saturation}% ${lightness}% / ${alpha})`,
               boxShadow: isTop
@@ -91,8 +99,8 @@ export default function IdeaCloudView({
           >
             {isTop ? `${MEDALS[medalIndex]} ` : isHot && "🔥 "}
             {idea.text}
-            {idea.author && <span className="ml-1 text-xs font-normal opacity-60">— {idea.author}</span>}
-            <span className="ml-1.5 text-xs font-normal opacity-70">
+            {idea.author && <span className="ml-1 text-xs font-normal opacity-70">— {idea.author}</span>}
+            <span className="ml-1.5 text-xs font-normal opacity-80">
               · {idea.votes} {idea.votes === 1 ? "voto" : "votos"}
             </span>
           </span>
