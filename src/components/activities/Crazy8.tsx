@@ -4,12 +4,14 @@ import { useState } from "react";
 import { useSubmission, effectiveAspirationId } from "@/lib/useSubmission";
 import { isPresenter } from "@/lib/presenter";
 import BarChart from "@/components/charts/BarChart";
-import { ActivityComponentProps, inputCls, btnPrimary, btnGhost, SaveIndicator, PresenterHint, uid } from "./shared";
+import { ActivityComponentProps, btnPrimary, btnGhost, SaveIndicator, PresenterHint, uid } from "./shared";
 
 interface Candidate {
   id: string;
   text: string;
   author: string;
+  slot: number;
+  starred?: boolean;
 }
 interface Vote {
   participant_id: string;
@@ -31,6 +33,7 @@ const PHASE_META: Record<Phase, { label: string; icon: string; badge: string }> 
 };
 
 const MEDALS = ["🥇", "🥈", "🥉"];
+const SLOTS = [1, 2, 3, 4, 5, 6, 7, 8];
 
 export default function Crazy8({ activity, session, participant }: ActivityComponentProps) {
   const pointsPerPerson = (activity.config.pointsPerPerson as number) ?? 3;
@@ -44,40 +47,59 @@ export default function Crazy8({ activity, session, participant }: ActivityCompo
     participant,
     { candidates: [], votes: [], phase: "sketch" }
   );
-  const [draft, setDraft] = useState("");
+  const [drafts, setDrafts] = useState<Record<number, string>>({});
 
   if (!loaded) return <p className="text-sm text-muted">Cargando…</p>;
 
   const phase = content.phase ?? "sketch";
-  const myIdea = content.candidates.find((c) => c.author === participant.name);
+  const myIdeas = content.candidates.filter((c) => c.author === participant.name);
+  const myFilled = myIdeas.filter((c) => c.text.trim()).length;
+  const myStarred = myIdeas.find((c) => c.starred);
   const myVotes = content.votes.filter((v) => v.participant_id === participant.id);
   const myRemaining = pointsPerPerson - myVotes.length;
 
-  const totals = content.candidates
+  const shortlisted = content.candidates.filter((c) => c.starred && c.text.trim());
+  const totals = shortlisted
     .map((c) => ({ c, total: content.votes.filter((v) => v.candidate_id === c.id).reduce((a, v) => a + v.points, 0) }))
     .sort((a, b) => a.c.id.localeCompare(b.c.id));
   const ranked = [...totals].sort((a, b) => b.total - a.total);
+
+  const authorsStarted = new Set(content.candidates.filter((c) => c.text.trim()).map((c) => c.author)).size;
+  const authorsStarred = new Set(content.candidates.filter((c) => c.starred).map((c) => c.author)).size;
 
   function setPhase(next: Phase) {
     save({ ...content, phase: next });
   }
 
-  function submitIdea() {
-    const text = draft.trim();
-    if (!text) return;
-    const others = content.candidates.filter((c) => c.author !== participant.name);
-    const idea: Candidate = { id: uid(), text, author: participant.name };
-    save(
-      { ...content, candidates: [...others, idea] },
-      { eventType: "candidata", summary: `${participant.name} propuso una idea Crazy 8 en "${activity.title}"` }
-    );
-    setDraft("");
+  function commitSlot(slot: number, rawText: string) {
+    const text = rawText.trim();
+    const existing = content.candidates.find((c) => c.author === participant.name && c.slot === slot);
+    let candidates: Candidate[];
+    if (!text) {
+      candidates = existing ? content.candidates.filter((c) => c !== existing) : content.candidates;
+      if (!existing) return;
+    } else if (existing) {
+      if (existing.text === text) return;
+      candidates = content.candidates.map((c) => (c === existing ? { ...c, text } : c));
+    } else {
+      candidates = [...content.candidates, { id: uid(), text, author: participant.name, slot, starred: false }];
+    }
+    save({ ...content, candidates });
+    setDrafts((d) => {
+      const next = { ...d };
+      delete next[slot];
+      return next;
+    });
   }
 
-  function editMyIdea() {
-    if (!myIdea) return;
-    setDraft(myIdea.text);
-    save({ ...content, candidates: content.candidates.filter((c) => c.id !== myIdea.id), votes: content.votes.filter((v) => v.candidate_id !== myIdea.id) });
+  function toggleStar(slot: number) {
+    const target = myIdeas.find((c) => c.slot === slot);
+    if (!target || !target.text.trim()) return;
+    const nextStarred = !target.starred;
+    const candidates = content.candidates.map((c) =>
+      c.author === participant.name ? { ...c, starred: c.slot === slot ? nextStarred : false } : c
+    );
+    save({ ...content, candidates });
   }
 
   function toggleVote(candidateId: string) {
@@ -132,39 +154,55 @@ export default function Crazy8({ activity, session, participant }: ActivityCompo
       </div>
 
       {phase === "sketch" && (
-        <div className="rounded-xl border border-border bg-gradient-to-b from-asp-2-soft/40 to-transparent p-5 text-center">
-          <p className="text-3xl">✏️</p>
-          <p className="mx-auto mt-2 max-w-md text-sm text-muted">
-            Escribe aquí <strong className="text-foreground">tu mejor idea</strong>.
-          </p>
-          <div className="mx-auto mt-4 max-w-md">
-            {myIdea ? (
-              <div className="flex items-center justify-between gap-2 rounded-lg border border-border bg-card p-3 text-left">
-                <p className="text-sm text-foreground">&ldquo;{myIdea.text}&rdquo;</p>
-                <button className={btnGhost + " shrink-0"} onClick={editMyIdea}>
-                  ✏️ Editar
-                </button>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-2 sm:flex-row">
-                <input
-                  className={inputCls}
-                  placeholder="Tu mejor idea Crazy 8…"
-                  maxLength={maxTextLength}
-                  value={draft}
-                  onChange={(e) => setDraft(e.target.value.slice(0, maxTextLength))}
-                  onKeyDown={(e) => e.key === "Enter" && submitIdea()}
-                />
-                <button className={btnPrimary + " shrink-0"} onClick={submitIdea}>
-                  Guardar idea
-                </button>
-              </div>
-            )}
+        <div className="rounded-xl border border-border bg-gradient-to-b from-asp-2-soft/40 to-transparent p-5">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm text-muted">
+              <strong className="text-foreground">{myFilled}/8</strong> ideas ·{" "}
+              {myStarred ? (
+                <span className="text-brand-dark">⭐ favorita marcada</span>
+              ) : (
+                <span>marca tu favorita ⭐ antes de la galería</span>
+              )}
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {SLOTS.map((slot) => {
+              const mine = myIdeas.find((c) => c.slot === slot);
+              const text = drafts[slot] ?? mine?.text ?? "";
+              return (
+                <div
+                  key={slot}
+                  className={`flex flex-col rounded-lg border bg-card p-2 ${mine?.starred ? "border-brand shadow-sm" : "border-border"}`}
+                >
+                  <div className="mb-1 flex items-center justify-between">
+                    <span className="text-[10px] font-bold uppercase tracking-wide text-muted">Idea {slot}</span>
+                    {text.trim() && (
+                      <button
+                        className={`text-sm leading-none ${mine?.starred ? "" : "opacity-40 hover:opacity-100"}`}
+                        title="Marcar como mi favorita"
+                        onClick={() => toggleStar(slot)}
+                      >
+                        {mine?.starred ? "⭐" : "☆"}
+                      </button>
+                    )}
+                  </div>
+                  <input
+                    className="w-full bg-transparent text-xs text-foreground placeholder:text-muted focus:outline-none"
+                    placeholder="Escribe…"
+                    maxLength={maxTextLength}
+                    value={text}
+                    onChange={(e) => setDrafts((d) => ({ ...d, [slot]: e.target.value }))}
+                    onBlur={(e) => commitSlot(slot, e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
+                  />
+                </div>
+              );
+            })}
           </div>
           {presenter && (
             <p className="mt-4 text-xs text-muted">
-              {content.candidates.length} de las ideas del grupo ya están guardadas. Cuando todos hayan transcrito la
-              suya, abre la galería.
+              {authorsStarted} personas ya escribieron ideas · {authorsStarred} ya marcaron su favorita. Cuando el
+              grupo esté listo, abre la galería (solo se vota lo marcado con ⭐).
             </p>
           )}
         </div>
@@ -206,7 +244,9 @@ export default function Crazy8({ activity, session, participant }: ActivityCompo
                 </div>
               );
             })}
-            {totals.length === 0 && <p className="text-sm text-muted">Aún no hay ideas guardadas para votar.</p>}
+            {totals.length === 0 && (
+              <p className="text-sm text-muted">Nadie ha marcado una idea favorita todavía. Vuelve al boceto para que el grupo elija.</p>
+            )}
           </div>
         </>
       )}
