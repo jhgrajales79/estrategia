@@ -48,7 +48,8 @@ export type ActivityType =
   | "checklist_salidas"
   | "radar_contexto"
   | "tejido_conexiones"
-  | "notas_matriz";
+  | "notas_matriz"
+  | "crazy8";
 
 export interface ActivityRow {
   id: number;

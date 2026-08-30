@@ -13,6 +13,7 @@ import FichaKPI from "./FichaKPI";
 import RadarContexto from "./RadarContexto";
 import TejidoConexiones from "./TejidoConexiones";
 import NotasMatriz from "./NotasMatriz";
+import Crazy8 from "./Crazy8";
 
 export const ACTIVITY_COMPONENTS: Record<ActivityType, ComponentType<ActivityComponentProps>> = {
   notas: NotasColectivas,
@@ -28,6 +29,7 @@ export const ACTIVITY_COMPONENTS: Record<ActivityType, ComponentType<ActivityCom
   radar_contexto: RadarContexto,
   tejido_conexiones: TejidoConexiones,
   notas_matriz: NotasMatriz,
+  crazy8: Crazy8,
 };
 
 export type { ActivityComponentProps } from "./shared";
