@@ -213,7 +213,7 @@ export default function Crazy8({ activity, session, participant }: ActivityCompo
           {!presenter && (
             <p className="text-sm text-muted">
               Fichas disponibles: <span className="font-semibold text-foreground">{myRemaining}</span> de {pointsPerPerson}{" "}
-              (1 ficha por idea, como los adhesivos de la galería en papel)
+              (1 ficha por idea)
             </p>
           )}
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
