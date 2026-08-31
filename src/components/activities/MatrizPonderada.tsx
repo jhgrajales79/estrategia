@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useSubmission, effectiveAspirationId } from "@/lib/useSubmission";
 import { aspClasses, findAspiration } from "@/lib/aspirationStyle";
 import { isPresenter } from "@/lib/presenter";
@@ -12,6 +13,18 @@ interface SimpleRow {
   peso: number;
   calificacion: number;
   aspiration_id: number | null;
+}
+interface RatingLabel {
+  value: number;
+  label: string;
+}
+const WEIGHT_TARGET = 1;
+const WEIGHT_TOLERANCE = 0.02;
+
+function parseThreshold(hint?: string): number | null {
+  if (!hint) return null;
+  const m = hint.match(/([\d.]+)/);
+  return m ? Number(m[1]) : null;
 }
 interface QspmStrategy {
   id: string;
@@ -184,7 +197,52 @@ export default function MatrizPonderada({ activity, session, aspirations, partic
   }
 
   // modo simple (EFI / EFE)
+  return (
+    <SimpleMatrix
+      activity={activity}
+      aspirations={aspirations}
+      participant={participant}
+      presenter={presenter}
+      scaleMax={scaleMax}
+      interpretHint={interpretHint}
+      content={content}
+      save={save}
+      saving={saving}
+      updatedAt={updatedAt}
+      saveError={saveError}
+    />
+  );
+}
+
+function SimpleMatrix({
+  activity,
+  aspirations,
+  participant,
+  presenter,
+  scaleMax,
+  interpretHint,
+  content,
+  save,
+  saving,
+  updatedAt,
+  saveError,
+}: {
+  activity: ActivityComponentProps["activity"];
+  aspirations: ActivityComponentProps["aspirations"];
+  participant: ActivityComponentProps["participant"];
+  presenter: boolean;
+  scaleMax: number;
+  interpretHint?: string;
+  content: Content;
+  save: (next: Content, opts?: { eventType?: string; summary?: string }) => void;
+  saving: boolean;
+  updatedAt: string | null;
+  saveError: string | null;
+}) {
+  const ratingLabels = activity.config.ratingLabels as RatingLabel[] | undefined;
+  const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
   const rows = content.rows;
+
   function addRow() {
     save({ ...content, rows: [...rows, { id: uid(), factor: "", peso: 0, calificacion: 1, aspiration_id: participant.aspiration_id }] });
   }
@@ -193,13 +251,90 @@ export default function MatrizPonderada({ activity, session, aspirations, partic
   }
   function removeRow(id: string) {
     save({ ...content, rows: rows.filter((r) => r.id !== id) });
+    setConfirmRemove(null);
   }
+  function requestRemove(r: SimpleRow) {
+    if (!r.factor.trim()) {
+      removeRow(r.id);
+    } else {
+      setConfirmRemove(r.id);
+    }
+  }
+
   const pesoTotal = rows.reduce((a, r) => a + (Number(r.peso) || 0), 0);
   const total = rows.reduce((a, r) => a + (Number(r.peso) || 0) * (Number(r.calificacion) || 0), 0);
+  const pesoDiff = pesoTotal - WEIGHT_TARGET;
+  const pesoOk = Math.abs(pesoDiff) <= WEIGHT_TOLERANCE;
+  const threshold = parseThreshold(interpretHint);
+  const isStrong = threshold !== null ? total > threshold : null;
+
+  const sortedRows = [...rows].sort((a, b) => {
+    const na = findAspiration(aspirations, a.aspiration_id)?.number ?? 99;
+    const nb = findAspiration(aspirations, b.aspiration_id)?.number ?? 99;
+    return na - nb;
+  });
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {presenter && <PresenterHint />}
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="rounded-lg border border-border bg-card p-3">
+          <div className="flex items-center justify-between text-xs">
+            <span className="font-semibold uppercase tracking-wide text-muted">Peso total</span>
+            <span className={`font-bold ${pesoOk ? "text-brand-dark" : "text-red-600"}`}>
+              {pesoTotal.toFixed(2)} / {WEIGHT_TARGET.toFixed(2)}
+            </span>
+          </div>
+          <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-black/10">
+            <div
+              className={`h-full rounded-full transition-all ${pesoOk ? "bg-brand" : pesoDiff > 0 ? "bg-red-500" : "bg-amber-500"}`}
+              style={{ width: `${Math.min((pesoTotal / WEIGHT_TARGET) * 100, 100)}%` }}
+            />
+          </div>
+          <p className="mt-1 text-[11px] text-muted">
+            {pesoOk
+              ? "✓ Los pesos suman 1.00, como exige la metodología."
+              : pesoDiff > 0
+                ? `⚠ Excede por ${pesoDiff.toFixed(2)} — reduce algún peso.`
+                : `⚠ Falta ${Math.abs(pesoDiff).toFixed(2)} para llegar a 1.00.`}
+          </p>
+        </div>
+
+        <div className="rounded-lg border border-border bg-card p-3">
+          <div className="flex items-center justify-between text-xs">
+            <span className="font-semibold uppercase tracking-wide text-muted">Puntaje ponderado total</span>
+            <span className="font-bold text-foreground">{total.toFixed(2)}</span>
+          </div>
+          {isStrong !== null ? (
+            <p className={`mt-1.5 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${isStrong ? "bg-brand/10 text-brand-dark" : "bg-amber-50 text-amber-700"}`}>
+              {isStrong ? "🟢 Posición relativamente fuerte" : "🟠 Posición relativamente débil"}
+            </p>
+          ) : (
+            <p className="mt-1.5 text-[11px] text-muted">Agrega factores para calcular la interpretación.</p>
+          )}
+          {interpretHint && <p className="mt-1 text-[11px] text-muted">{interpretHint}</p>}
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        {aspirations.map((a) => {
+          const count = rows.filter((r) => r.aspiration_id === a.id).length;
+          const cls = aspClasses(a.number);
+          return (
+            <span
+              key={a.id}
+              className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${
+                count > 0 ? `${cls.bgSoft} ${cls.text}` : "border border-dashed border-border text-muted"
+              }`}
+            >
+              {count === 0 && "⚠ "}
+              Aspiración {a.number}: {count} {count === 1 ? "factor" : "factores"}
+            </span>
+          );
+        })}
+      </div>
+
       <div className="overflow-x-auto rounded-lg border border-border">
         <table className="min-w-full text-sm">
           <thead className="bg-black/[0.03]">
@@ -207,13 +342,13 @@ export default function MatrizPonderada({ activity, session, aspirations, partic
               <th className="p-2 text-left font-medium">Factor</th>
               <th className="p-2 text-left font-medium">Aspiración</th>
               <th className="p-2 text-left font-medium w-24">Peso</th>
-              <th className="p-2 text-left font-medium w-28">Calificación</th>
+              <th className="p-2 text-left font-medium w-44">Calificación</th>
               <th className="p-2 text-left font-medium w-24">Ponderado</th>
               <th />
             </tr>
           </thead>
           <tbody>
-            {rows.map((r) => {
+            {sortedRows.map((r) => {
               const asp = findAspiration(aspirations, r.aspiration_id);
               const cls = aspClasses(asp?.number);
               return (
@@ -240,6 +375,8 @@ export default function MatrizPonderada({ activity, session, aspirations, partic
                     <input
                       type="number"
                       step="0.01"
+                      min={0}
+                      max={1}
                       className={inputCls}
                       value={r.peso}
                       disabled={presenter}
@@ -247,23 +384,48 @@ export default function MatrizPonderada({ activity, session, aspirations, partic
                     />
                   </td>
                   <td className="p-2">
-                    <input
-                      type="number"
-                      min={1}
-                      max={scaleMax}
-                      className={inputCls}
-                      value={r.calificacion}
-                      disabled={presenter}
-                      onChange={(e) => setRow(r.id, { calificacion: parseFloat(e.target.value) || 0 })}
-                    />
+                    {ratingLabels ? (
+                      <select
+                        className={inputCls}
+                        value={r.calificacion}
+                        disabled={presenter}
+                        onChange={(e) => setRow(r.id, { calificacion: Number(e.target.value) })}
+                      >
+                        {ratingLabels.map((rl) => (
+                          <option key={rl.value} value={rl.value}>
+                            {rl.value} — {rl.label}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type="number"
+                        min={1}
+                        max={scaleMax}
+                        className={inputCls}
+                        value={r.calificacion}
+                        disabled={presenter}
+                        onChange={(e) => setRow(r.id, { calificacion: parseFloat(e.target.value) || 0 })}
+                      />
+                    )}
                   </td>
                   <td className={`p-2 font-medium ${cls.text}`}>{(r.peso * r.calificacion).toFixed(2)}</td>
                   <td className="p-2">
-                    {!presenter && (
-                      <button className={btnDanger} onClick={() => removeRow(r.id)}>
-                        quitar
-                      </button>
-                    )}
+                    {!presenter &&
+                      (confirmRemove === r.id ? (
+                        <div className="flex items-center gap-2 text-xs">
+                          <button className="font-medium text-red-600 hover:underline" onClick={() => removeRow(r.id)}>
+                            Confirmar
+                          </button>
+                          <button className="text-muted hover:underline" onClick={() => setConfirmRemove(null)}>
+                            Cancelar
+                          </button>
+                        </div>
+                      ) : (
+                        <button className={btnDanger} onClick={() => requestRemove(r)}>
+                          quitar
+                        </button>
+                      ))}
                   </td>
                 </tr>
               );
@@ -272,7 +434,7 @@ export default function MatrizPonderada({ activity, session, aspirations, partic
               <td className="p-2" colSpan={2}>
                 Totales
               </td>
-              <td className="p-2">{pesoTotal.toFixed(2)}</td>
+              <td className={`p-2 ${pesoOk ? "" : "text-red-600"}`}>{pesoTotal.toFixed(2)}</td>
               <td className="p-2" />
               <td className="p-2">{total.toFixed(2)}</td>
               <td className="p-2" />
@@ -285,7 +447,6 @@ export default function MatrizPonderada({ activity, session, aspirations, partic
           + Factor
         </button>
       )}
-      {interpretHint && <p className="text-xs text-muted">{interpretHint}</p>}
       <SaveIndicator saving={saving} updatedAt={updatedAt} error={saveError} />
     </div>
   );
