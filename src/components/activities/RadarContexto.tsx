@@ -51,7 +51,7 @@ function StagePill({ stage }: { stage: RoundStage }) {
 export default function RadarContexto({ activity, session, participant }: ActivityComponentProps) {
   const axes = (activity.config.axes as Axis[]) ?? [];
   const rings = (activity.config.rings as string[]) ?? ["Ya nos afecta", "Nos afectará este año", "En el horizonte"];
-  const pointsPerPerson = (activity.config.pointsPerPerson as number) ?? 3;
+  const pointsPerPerson = (activity.config.pointsPerPerson as number) ?? 2;
   const presenter = isPresenter(participant);
   const submissionAspId = effectiveAspirationId(activity, participant);
   const { content, save, saving, updatedAt, saveError, loaded } = useSubmission<Content>(
@@ -115,8 +115,14 @@ export default function RadarContexto({ activity, session, participant }: Activi
   }
 
   const liveAxisKeys = axes.filter((a) => stageOf(a.key) === "collect" || stageOf(a.key) === "vote").map((a) => a.key);
-  const myUsed = content.votes.filter((v) => v.participant_id === participant.id).reduce((a, v) => a + v.points, 0);
-  const myRemaining = pointsPerPerson - myUsed;
+
+  function remainingFor(axisKey: string) {
+    const signalsInAxis = content.signals.filter((s) => s.axis === axisKey);
+    const used = content.votes
+      .filter((v) => v.participant_id === participant.id && signalsInAxis.some((s) => s.id === v.signal_id))
+      .reduce((a, v) => a + v.points, 0);
+    return pointsPerPerson - used;
+  }
 
   function addSignal(key: string) {
     const text = (draftText[key] ?? "").trim();
@@ -147,7 +153,7 @@ export default function RadarContexto({ activity, session, participant }: Activi
     const signal = content.signals.find((s) => s.id === signalId);
     if (!signal || signal.axis !== key) return;
     const already = content.votes.some((v) => v.participant_id === participant.id && v.signal_id === signalId);
-    if (!already && myRemaining <= 0) return;
+    if (!already && remainingFor(key) <= 0) return;
     const votes = already
       ? content.votes.filter((v) => !(v.participant_id === participant.id && v.signal_id === signalId))
       : [...content.votes, { participant_id: participant.id, signal_id: signalId, points: 1 }];
@@ -156,6 +162,7 @@ export default function RadarContexto({ activity, session, participant }: Activi
 
   const activeAxis = axes.find((a) => a.key === activeKey) ?? axes[0];
   const stage = activeAxis ? stageOf(activeAxis.key) : "pending";
+  const myRemaining = activeAxis ? remainingFor(activeAxis.key) : 0;
   const signalsInAxis = activeAxis ? content.signals.filter((s) => s.axis === activeAxis.key) : [];
   const winner = activeAxis ? winnerByAxis[activeAxis.key] : undefined;
   const sortedSignals = [...signalsInAxis].sort((a, b) => (voteTotal[b.id] ?? 0) - (voteTotal[a.id] ?? 0));
