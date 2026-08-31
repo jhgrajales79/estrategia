@@ -445,14 +445,16 @@ function renderContent(activity: ActivityRow, content: Record<string, unknown>, 
         }
         winnerByAxis[a.key] = bestVotes > 0 ? best : undefined;
       }
+      const hasVotedSignals = signals.some((s) => (voteTotal[s.id] ?? 0) > 0);
       return (
         <div className="flex flex-col items-center gap-4">
           {/* Mismo radar (poligono de la mas votada por dimension) que ve el facilitador. */}
           <RadarChartView axes={axes} winnerByAxis={winnerByAxis} voteTotal={voteTotal} size={large ? 560 : 340} />
+          {hasVotedSignals && (
           <div className="w-full space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted">Todas las señales</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted">Señales votadas</p>
             {axes.map((a) => {
-              const inAxis = signals.filter((s) => s.axis === a.key);
+              const inAxis = signals.filter((s) => s.axis === a.key && (voteTotal[s.id] ?? 0) > 0);
               if (inAxis.length === 0) return null;
               return (
                 <div key={a.key}>
@@ -470,6 +472,7 @@ function renderContent(activity: ActivityRow, content: Record<string, unknown>, 
               );
             })}
           </div>
+          )}
         </div>
       );
     }
