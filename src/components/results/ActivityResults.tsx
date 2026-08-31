@@ -122,6 +122,30 @@ function renderContent(activity: ActivityRow, content: Record<string, unknown>, 
       );
     }
 
+    case "notas_matriz": {
+      const categories = asArray<{ key: string; label: string }>(config.categories);
+      const rawNotes = asArray<Record<string, unknown>>(content.notes);
+      const externalLink = str(content.external_link);
+      const externalLinkLabel = str(config.externalLinkLabel);
+      if (rawNotes.length === 0 && !externalLink) return <Empty />;
+      // Mismo tablero de post-its que "notas", pero la aspiración viene en cada nota
+      // (fila de la matriz) en vez de en la submission.
+      const notes = rawNotes.map((n) => ({
+        id: str(n.id),
+        category: str(n.category),
+        aspiration_id: (n.aspiration_id as number) ?? null,
+        author: str(n.author),
+        text: str(n.text),
+        impact: n.impact as "alto" | "medio" | "bajo" | undefined,
+      }));
+      return (
+        <div>
+          {rawNotes.length > 0 && <NotesBoardView categories={categories} notes={notes} aspirations={aspirations} large={large} />}
+          <MediaGrid media={[]} externalLink={externalLink} externalLinkLabel={externalLinkLabel} large={large} />
+        </div>
+      );
+    }
+
     case "matriz_ponderada": {
       if (config.mode === "qspm") {
         const strategies = asArray<Record<string, unknown>>(content.strategies);
