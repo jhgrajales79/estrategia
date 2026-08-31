@@ -49,7 +49,8 @@ export type ActivityType =
   | "radar_contexto"
   | "tejido_conexiones"
   | "notas_matriz"
-  | "crazy8";
+  | "crazy8"
+  | "compromiso_personal";
 
 export interface ActivityRow {
   id: number;

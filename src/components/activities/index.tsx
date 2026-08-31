@@ -14,6 +14,7 @@ import RadarContexto from "./RadarContexto";
 import TejidoConexiones from "./TejidoConexiones";
 import NotasMatriz from "./NotasMatriz";
 import Crazy8 from "./Crazy8";
+import CompromisoPersonal from "./CompromisoPersonal";
 
 export const ACTIVITY_COMPONENTS: Record<ActivityType, ComponentType<ActivityComponentProps>> = {
   notas: NotasColectivas,
@@ -30,6 +31,7 @@ export const ACTIVITY_COMPONENTS: Record<ActivityType, ComponentType<ActivityCom
   tejido_conexiones: TejidoConexiones,
   notas_matriz: NotasMatriz,
   crazy8: Crazy8,
+  compromiso_personal: CompromisoPersonal,
 };
 
 export type { ActivityComponentProps } from "./shared";
