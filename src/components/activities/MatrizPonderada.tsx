@@ -241,6 +241,9 @@ function SimpleMatrix({
 }) {
   const ratingLabels = activity.config.ratingLabels as RatingLabel[] | undefined;
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
+  // Factor y Peso se escriben en cada tecleo pero solo se guardan al salir del campo
+  // (blur/Enter): guardar en cada tecla saturaba la red y afectaba el rendimiento.
+  const [drafts, setDrafts] = useState<Record<string, { factor?: string; peso?: string }>>({});
   const rows = content.rows;
 
   function addRow() {
@@ -252,6 +255,11 @@ function SimpleMatrix({
   function removeRow(id: string) {
     save({ ...content, rows: rows.filter((r) => r.id !== id) });
     setConfirmRemove(null);
+    setDrafts((d) => {
+      const next = { ...d };
+      delete next[id];
+      return next;
+    });
   }
   function requestRemove(r: SimpleRow) {
     if (!r.factor.trim()) {
@@ -261,8 +269,29 @@ function SimpleMatrix({
     }
   }
 
-  const pesoTotal = rows.reduce((a, r) => a + (Number(r.peso) || 0), 0);
-  const total = rows.reduce((a, r) => a + (Number(r.peso) || 0) * (Number(r.calificacion) || 0), 0);
+  function draftFactor(r: SimpleRow) {
+    return drafts[r.id]?.factor ?? r.factor;
+  }
+  function draftPesoStr(r: SimpleRow) {
+    return drafts[r.id]?.peso ?? String(r.peso);
+  }
+  function draftPesoNum(r: SimpleRow) {
+    const d = drafts[r.id]?.peso;
+    return d !== undefined ? Number(d) || 0 : r.peso;
+  }
+  function commitFactor(r: SimpleRow) {
+    const value = draftFactor(r);
+    if (value !== r.factor) setRow(r.id, { factor: value });
+    setDrafts((d) => ({ ...d, [r.id]: { ...d[r.id], factor: undefined } }));
+  }
+  function commitPeso(r: SimpleRow) {
+    const value = draftPesoNum(r);
+    if (value !== r.peso) setRow(r.id, { peso: value });
+    setDrafts((d) => ({ ...d, [r.id]: { ...d[r.id], peso: undefined } }));
+  }
+
+  const pesoTotal = rows.reduce((a, r) => a + draftPesoNum(r), 0);
+  const total = rows.reduce((a, r) => a + draftPesoNum(r) * (Number(r.calificacion) || 0), 0);
   const pesoDiff = pesoTotal - WEIGHT_TARGET;
   const pesoOk = Math.abs(pesoDiff) <= WEIGHT_TOLERANCE;
   const threshold = parseThreshold(interpretHint);
@@ -354,7 +383,14 @@ function SimpleMatrix({
               return (
                 <tr key={r.id} className="border-t border-border">
                   <td className="p-2">
-                    <input className={inputCls} value={r.factor} disabled={presenter} onChange={(e) => setRow(r.id, { factor: e.target.value })} />
+                    <input
+                      className={inputCls}
+                      value={draftFactor(r)}
+                      disabled={presenter}
+                      onChange={(e) => setDrafts((d) => ({ ...d, [r.id]: { ...d[r.id], factor: e.target.value } }))}
+                      onBlur={() => commitFactor(r)}
+                      onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
+                    />
                   </td>
                   <td className="p-2">
                     <select
@@ -378,9 +414,11 @@ function SimpleMatrix({
                       min={0}
                       max={1}
                       className={inputCls}
-                      value={r.peso}
+                      value={draftPesoStr(r)}
                       disabled={presenter}
-                      onChange={(e) => setRow(r.id, { peso: parseFloat(e.target.value) || 0 })}
+                      onChange={(e) => setDrafts((d) => ({ ...d, [r.id]: { ...d[r.id], peso: e.target.value } }))}
+                      onBlur={() => commitPeso(r)}
+                      onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
                     />
                   </td>
                   <td className="p-2">
@@ -409,7 +447,7 @@ function SimpleMatrix({
                       />
                     )}
                   </td>
-                  <td className={`p-2 font-medium ${cls.text}`}>{(r.peso * r.calificacion).toFixed(2)}</td>
+                  <td className={`p-2 font-medium ${cls.text}`}>{(draftPesoNum(r) * r.calificacion).toFixed(2)}</td>
                   <td className="p-2">
                     {!presenter &&
                       (confirmRemove === r.id ? (
