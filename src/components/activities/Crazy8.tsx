@@ -56,7 +56,7 @@ export default function Crazy8({ activity, session, participant }: ActivityCompo
   const myFilled = myIdeas.filter((c) => c.text.trim()).length;
   const myStarred = myIdeas.find((c) => c.starred);
   const myVotes = content.votes.filter((v) => v.participant_id === participant.id);
-  const myRemaining = pointsPerPerson - myVotes.length;
+  const myRemaining = pointsPerPerson - myVotes.reduce((a, v) => a + v.points, 0);
 
   const shortlisted = content.candidates.filter((c) => c.starred && c.text.trim());
   const totals = shortlisted
@@ -102,13 +102,27 @@ export default function Crazy8({ activity, session, participant }: ActivityCompo
     save({ ...content, candidates });
   }
 
-  function toggleVote(candidateId: string) {
-    const already = content.votes.some((v) => v.participant_id === participant.id && v.candidate_id === candidateId);
-    if (!already && myRemaining <= 0) return;
-    const votes = already
-      ? content.votes.filter((v) => !(v.participant_id === participant.id && v.candidate_id === candidateId))
+  function myPointsOn(candidateId: string) {
+    return content.votes.find((v) => v.participant_id === participant.id && v.candidate_id === candidateId)?.points ?? 0;
+  }
+
+  function addPoint(candidateId: string) {
+    if (myRemaining <= 0) return;
+    const existing = content.votes.find((v) => v.participant_id === participant.id && v.candidate_id === candidateId);
+    const votes = existing
+      ? content.votes.map((v) => (v === existing ? { ...v, points: v.points + 1 } : v))
       : [...content.votes, { participant_id: participant.id, participant_name: participant.name, candidate_id: candidateId, points: 1 }];
     save({ ...content, votes }, { eventType: "voto", summary: `${participant.name} votó en "${activity.title}"` });
+  }
+
+  function removePoint(candidateId: string) {
+    const existing = content.votes.find((v) => v.participant_id === participant.id && v.candidate_id === candidateId);
+    if (!existing) return;
+    const votes =
+      existing.points <= 1
+        ? content.votes.filter((v) => v !== existing)
+        : content.votes.map((v) => (v === existing ? { ...v, points: v.points - 1 } : v));
+    save({ ...content, votes });
   }
 
   const meta = PHASE_META[phase];
@@ -213,12 +227,12 @@ export default function Crazy8({ activity, session, participant }: ActivityCompo
           {!presenter && (
             <p className="text-sm text-muted">
               Fichas disponibles: <span className="font-semibold text-foreground">{myRemaining}</span> de {pointsPerPerson}{" "}
-              (1 ficha por idea)
+              — repártelas como quieras, incluso todas en una sola idea.
             </p>
           )}
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {totals.map(({ c, total }) => {
-              const mine = myVotes.some((v) => v.candidate_id === c.id);
+              const mine = myPointsOn(c.id);
               return (
                 <div key={c.id} className="flex flex-col gap-2 rounded-xl border border-border bg-card p-3 shadow-sm">
                   <p className="text-sm text-foreground">&ldquo;{c.text}&rdquo;</p>
@@ -227,18 +241,30 @@ export default function Crazy8({ activity, session, participant }: ActivityCompo
                     {presenter ? (
                       <span className="text-xs font-semibold text-brand-dark">{total} pts</span>
                     ) : (
-                      <span />
+                      <span className="text-xs text-muted">{total} pts</span>
                     )}
                     {!presenter && (
-                      <button
-                        className={`w-full rounded-md border px-3 py-1.5 text-sm transition-colors ${
-                          mine ? "border-brand bg-brand/10 text-brand-dark" : "border-border hover:bg-black/5"
-                        } disabled:opacity-40`}
-                        disabled={!mine && myRemaining <= 0}
-                        onClick={() => toggleVote(c.id)}
-                      >
-                        {mine ? "✓ Con mi ficha" : "🗳️ Poner ficha"}
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          className="flex h-7 w-7 items-center justify-center rounded-md border border-border text-sm hover:bg-black/5 disabled:opacity-40"
+                          disabled={mine <= 0}
+                          onClick={() => removePoint(c.id)}
+                          aria-label="Quitar una ficha"
+                        >
+                          −
+                        </button>
+                        <span className={`w-5 text-center text-sm font-semibold ${mine > 0 ? "text-brand-dark" : "text-muted"}`}>
+                          {mine}
+                        </span>
+                        <button
+                          className="flex h-7 w-7 items-center justify-center rounded-md border border-border text-sm hover:bg-black/5 disabled:opacity-40"
+                          disabled={myRemaining <= 0}
+                          onClick={() => addPoint(c.id)}
+                          aria-label="Poner una ficha"
+                        >
+                          +
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>
