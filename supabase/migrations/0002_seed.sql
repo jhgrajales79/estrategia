@@ -71,7 +71,7 @@ insert into activities (session_id, title, time_minutes, description, materials,
  'Definir roles: patrocinador (dirección ejecutiva), facilitador, relator y un líder por aspiración (Gente y cultura; Territorios y soluciones; Autosostenibilidad). Acordar reglas: asistencia, decisiones por consenso, manejo de disensos y compromisos de información entre sesiones.',
  null, 'tarjeta_estructurada',
  '{"fields":[{"key":"rol","label":"Rol","type":"text"},{"key":"nombre","label":"Nombre asignado","type":"text"},{"key":"reglas","label":"Reglas acordadas","type":"textarea"}],"repeatable":true,"repeatLabel":"Rol del comité"}', 4),
-((select id from sessions where code='S0'), 'Cierre y compromisos de información', 20,
+((select id from sessions where code='S0'), 'Cierre y compromisos de información', 5,
  'Cada líder de aspiración se compromete a traer a la S1 los datos base de su frente: indicadores de cultura y talento (Asp. 1), avance de negocios propios y proyectos territoriales (Asp. 2), estados financieros, ingresos internacionales y avance de Socya Invest (Asp. 3).',
  null, 'tarjeta_estructurada',
  '{"fields":[{"key":"aspiracion","label":"Aspiración","type":"text"},{"key":"dato_comprometido","label":"Dato / insumo que trae a la S1","type":"textarea"},{"key":"responsable","label":"Responsable","type":"text"}],"repeatable":true,"repeatLabel":"Compromiso"}', 5);
