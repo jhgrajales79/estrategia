@@ -5,6 +5,8 @@ import BarChart from "@/components/charts/BarChart";
 import RadarChartView from "@/components/RadarChartView";
 import IdeaCloudView from "@/components/IdeaCloudView";
 import NotesBoardView from "@/components/NotesBoardView";
+import ConnectionsWebView from "@/components/ConnectionsWebView";
+import { Avatar } from "@/components/activities/shared";
 import { aspAbbrev, aspClasses, findAspiration } from "@/lib/aspirationStyle";
 import type { ActivityRow, Aspiration } from "@/lib/types";
 
@@ -97,6 +99,65 @@ function renderContent(activity: ActivityRow, content: Record<string, unknown>, 
   const config = activity.config as Record<string, unknown>;
 
   switch (activity.activity_type) {
+    case "tejido_conexiones": {
+      const rawThreads = asArray<Record<string, unknown>>(content.threads);
+      const media = asArray<string>(content.media);
+      const externalLink = str(content.external_link);
+      const externalLinkLabel = str(config.externalLinkLabel);
+      if (rawThreads.length === 0 && media.length === 0 && !externalLink) return <Empty />;
+      const threads = rawThreads.map((t) => ({ id: str(t.id), author: str(t.author), text: str(t.text) }));
+      return (
+        <div>
+          {rawThreads.length > 0 && <ConnectionsWebView threads={threads} large={large} />}
+          <MediaGrid media={media} externalLink={externalLink} externalLinkLabel={externalLinkLabel} large={large} />
+        </div>
+      );
+    }
+
+    case "crazy8": {
+      const candidates = asArray<Record<string, unknown>>(content.candidates);
+      const votes = asArray<Record<string, unknown>>(content.votes);
+      const shortlisted = candidates.filter((c) => c.starred && str(c.text));
+      if (shortlisted.length === 0) return <Empty />;
+      const ideas = shortlisted.map((c) => ({
+        id: str(c.id),
+        text: str(c.text),
+        author: str(c.author),
+        votes: votes.filter((v) => v.candidate_id === c.id).reduce((a, v) => a + Number(v.points ?? 0), 0),
+      }));
+      const topIds = [...ideas]
+        .sort((a, b) => b.votes - a.votes)
+        .slice(0, 3)
+        .filter((i) => i.votes > 0)
+        .map((i) => i.id);
+      return (
+        <div style={{ height: large ? 480 : 300 }}>
+          <IdeaCloudView ideas={ideas} large={large} topIds={topIds} />
+        </div>
+      );
+    }
+
+    case "compromiso_personal": {
+      const commitments = asArray<Record<string, unknown>>(content.commitments);
+      if (commitments.length === 0) return <Empty />;
+      return (
+        <div className="grid gap-2.5 sm:grid-cols-2">
+          {commitments.map((c, i) => {
+            const asp = findAspiration(aspirations, (c.aspiration_id as number) ?? null);
+            return (
+              <div key={i} className="flex items-start gap-3 rounded-lg border border-border bg-card p-3">
+                <Avatar name={str(c.author)} bgClass={aspClasses(asp?.number).bg} isFacilitador={c.role === "facilitador"} size="sm" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-foreground">{str(c.author)}</p>
+                  <p className="mt-0.5 text-sm italic text-muted">&ldquo;{str(c.text)}&rdquo;</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+
     case "notas": {
       const categories = asArray<{ key: string; label: string }>(config.categories);
       const rawNotes = asArray<Record<string, unknown>>(content.notes);

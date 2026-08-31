@@ -4,16 +4,8 @@ import { useState } from "react";
 import { useSubmission, effectiveAspirationId } from "@/lib/useSubmission";
 import { uploadMedia } from "@/lib/storage";
 import { isPresenter } from "@/lib/presenter";
-import {
-  ActivityComponentProps,
-  inputCls,
-  btnPrimary,
-  btnGhost,
-  SaveIndicator,
-  PresenterHint,
-  initials,
-  uid,
-} from "./shared";
+import ConnectionsWebView from "@/components/ConnectionsWebView";
+import { ActivityComponentProps, inputCls, btnPrimary, btnGhost, SaveIndicator, PresenterHint, uid } from "./shared";
 
 interface Thread {
   id: string;
@@ -24,62 +16,6 @@ interface Content extends Record<string, unknown> {
   threads: Thread[];
   media: string[];
   external_link: string;
-}
-
-const SIZE = 280;
-
-function Web({ threads }: { threads: Thread[] }) {
-  const n = threads.length;
-  const center = SIZE / 2;
-  const radius = SIZE / 2 - 44;
-
-  function point(i: number) {
-    const angle = -90 + (360 / Math.max(n, 1)) * i;
-    const rad = (angle * Math.PI) / 180;
-    return { x: center + radius * Math.cos(rad), y: center + radius * Math.sin(rad) };
-  }
-
-  if (n === 0) {
-    return (
-      <div className="flex h-56 flex-col items-center justify-center gap-1 text-center text-sm text-muted">
-        <span className="text-2xl">🧶</span>
-        Aún nadie ha lanzado su hilo. ¡Sé el primero en tejer la red!
-      </div>
-    );
-  }
-
-  return (
-    <div className="relative mx-auto" style={{ width: SIZE, height: SIZE }}>
-      <svg width={SIZE} height={SIZE} className="absolute inset-0 overflow-visible">
-        {threads.map((t, i) => {
-          if (i === 0) return null;
-          const a = point(i - 1);
-          const b = point(i);
-          return <line key={t.id} x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="var(--brand-dark)" strokeWidth={1.5} opacity={0.55} />;
-        })}
-        {n > 2 &&
-          (() => {
-            const a = point(n - 1);
-            const b = point(0);
-            return <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="var(--brand-dark)" strokeWidth={1.5} opacity={0.3} strokeDasharray="4 3" />;
-          })()}
-      </svg>
-      {threads.map((t, i) => {
-        const p = point(i);
-        return (
-          <div key={t.id} className="group absolute -translate-x-1/2 -translate-y-1/2" style={{ left: p.x, top: p.y }}>
-            <div className="flex h-10 w-10 cursor-default items-center justify-center rounded-full bg-brand-dark text-[11px] font-bold text-white shadow ring-2 ring-card">
-              {initials(t.author)}
-            </div>
-            <div className="pointer-events-none absolute left-1/2 top-full z-10 mt-1.5 w-44 -translate-x-1/2 rounded-md bg-dark px-2.5 py-1.5 text-[11px] leading-snug text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
-              <span className="font-semibold">{t.author}: </span>
-              &ldquo;{t.text}&rdquo;
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
 }
 
 export default function TejidoConexiones({ activity, session, participant }: ActivityComponentProps) {
@@ -150,7 +86,7 @@ export default function TejidoConexiones({ activity, session, participant }: Act
           En círculo, un ovillo de lana pasa de persona a persona: quien lo recibe dice en una frase cómo su rol{" "}
           <strong className="text-foreground">teje conexiones</strong> con el ser humano o la naturaleza.
         </p>
-        <Web threads={content.threads} />
+        <ConnectionsWebView threads={content.threads} />
       </div>
 
       {!presenter && (
