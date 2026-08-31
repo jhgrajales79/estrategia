@@ -209,6 +209,9 @@ export default function Crazy8({ activity, session, participant }: ActivityCompo
                     onBlur={(e) => commitSlot(slot, e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
                   />
+                  <p className="mt-0.5 text-right text-[9px] text-muted">
+                    {text.length}/{maxTextLength}
+                  </p>
                 </div>
               );
             })}
