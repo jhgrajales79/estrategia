@@ -33,6 +33,8 @@ export default function NotasMatriz({ activity, session, aspirations, participan
   const impactLevels = Boolean(activity.config.impactLevels);
   const externalLinkLabel = (activity.config.externalLinkLabel as string) ?? "Enlace externo";
   const defaultLink = (activity.config.defaultLink as string) ?? "";
+  const maxTextLength = (activity.config.maxTextLength as number) ?? undefined;
+  const maxNotesPerCell = (activity.config.maxNotesPerCell as number) ?? Infinity;
   const presenter = isPresenter(participant);
   const submissionAspId = effectiveAspirationId(activity, participant);
   const { content, save, saving, updatedAt, saveError, loaded } = useSubmission<Content>(
@@ -55,8 +57,10 @@ export default function NotasMatriz({ activity, session, aspirations, participan
 
   function addNote(aspirationId: number, categoryKey: string) {
     const key = cellKey(aspirationId, categoryKey);
-    const text = (draft[key] ?? "").trim();
+    const text = (draft[key] ?? "").trim().slice(0, maxTextLength);
     if (!text) return;
+    const existingInCell = content.notes.filter((n) => n.aspiration_id === aspirationId && n.category === categoryKey).length;
+    if (existingInCell >= maxNotesPerCell) return;
     const note: Note = {
       id: uid(),
       category: categoryKey,
@@ -90,7 +94,7 @@ export default function NotasMatriz({ activity, session, aspirations, participan
   }
 
   function commitEdit(id: string) {
-    const text = (editing[id] ?? "").trim();
+    const text = (editing[id] ?? "").trim().slice(0, maxTextLength);
     if (!text) {
       removeNote(id);
     } else {
@@ -229,18 +233,25 @@ export default function NotasMatriz({ activity, session, aspirations, participan
                         const canEdit = presenter || n.author === participant.name;
                         if (editing[n.id] !== undefined) {
                           return (
-                            <input
-                              key={n.id}
-                              autoFocus
-                              className="w-full rounded-md border border-brand/50 bg-card px-2 py-1.5 text-xs focus:outline-none"
-                              value={editing[n.id]}
-                              onChange={(e) => setEditing((ed) => ({ ...ed, [n.id]: e.target.value }))}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") commitEdit(n.id);
-                                if (e.key === "Escape") cancelEdit(n.id);
-                              }}
-                              onBlur={() => commitEdit(n.id)}
-                            />
+                            <div key={n.id}>
+                              <input
+                                autoFocus
+                                className="w-full rounded-md border border-brand/50 bg-card px-2 py-1.5 text-xs focus:outline-none"
+                                value={editing[n.id]}
+                                maxLength={maxTextLength}
+                                onChange={(e) => setEditing((ed) => ({ ...ed, [n.id]: e.target.value }))}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") commitEdit(n.id);
+                                  if (e.key === "Escape") cancelEdit(n.id);
+                                }}
+                                onBlur={() => commitEdit(n.id)}
+                              />
+                              {maxTextLength && (
+                                <p className="mt-0.5 text-right text-[10px] text-muted">
+                                  {(editing[n.id] ?? "").length}/{maxTextLength}
+                                </p>
+                              )}
+                            </div>
                           );
                         }
                         const impactMeta = n.impact ? IMPACT_META[n.impact] : null;
@@ -296,14 +307,28 @@ export default function NotasMatriz({ activity, session, aspirations, participan
                         })}
                       </div>
                     )}
-                    <input
-                      className="w-full rounded-md border border-dashed border-border bg-transparent px-2 py-1 text-xs placeholder:text-muted focus:border-solid focus:border-brand/50 focus:outline-none"
-                      placeholder="+ Agregar…"
-                      value={draft[key] ?? ""}
-                      onChange={(e) => setDraft((d) => ({ ...d, [key]: e.target.value }))}
-                      onKeyDown={(e) => e.key === "Enter" && addNote(a.id, c.key)}
-                      onBlur={() => addNote(a.id, c.key)}
-                    />
+                    {notes.length < maxNotesPerCell ? (
+                      <div>
+                        <input
+                          className="w-full rounded-md border border-dashed border-border bg-transparent px-2 py-1 text-xs placeholder:text-muted focus:border-solid focus:border-brand/50 focus:outline-none"
+                          placeholder={maxTextLength ? `+ Agregar… (máx. ${maxTextLength} caracteres)` : "+ Agregar…"}
+                          value={draft[key] ?? ""}
+                          maxLength={maxTextLength}
+                          onChange={(e) => setDraft((d) => ({ ...d, [key]: e.target.value }))}
+                          onKeyDown={(e) => e.key === "Enter" && addNote(a.id, c.key)}
+                          onBlur={() => addNote(a.id, c.key)}
+                        />
+                        {maxTextLength && (
+                          <p className="mt-0.5 text-right text-[10px] text-muted">
+                            {(draft[key] ?? "").length}/{maxTextLength}
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      maxNotesPerCell === 1 && (
+                        <p className="px-1 text-[10px] text-muted">Ya se registró este tema para esta aspiración.</p>
+                      )
+                    )}
                   </div>
                 );
               })}
