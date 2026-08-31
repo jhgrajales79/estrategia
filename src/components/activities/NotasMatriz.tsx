@@ -6,21 +6,31 @@ import { isPresenter } from "@/lib/presenter";
 import AspirationBadge from "@/components/AspirationBadge";
 import { ActivityComponentProps, inputCls, btnGhost, SaveIndicator, uid } from "./shared";
 
+type Impact = "alto" | "medio" | "bajo";
 interface Note {
   id: string;
   category: string;
   aspiration_id: number | null;
   author: string;
   text: string;
+  impact?: Impact;
 }
 interface Content extends Record<string, unknown> {
   notes: Note[];
   external_link: string;
 }
 
+const IMPACT_META: Record<Impact, { label: string; dot: string; text: string }> = {
+  alto: { label: "Alto", dot: "bg-red-500", text: "text-red-700" },
+  medio: { label: "Medio", dot: "bg-amber-500", text: "text-amber-700" },
+  bajo: { label: "Bajo", dot: "bg-brand-dark", text: "text-brand-dark" },
+};
+const IMPACT_ORDER: Impact[] = ["alto", "medio", "bajo"];
+
 export default function NotasMatriz({ activity, session, aspirations, participant }: ActivityComponentProps) {
   const categories = (activity.config.categories as { key: string; label: string }[]) ?? [];
   const linkOnly = Boolean(activity.config.linkOnly);
+  const impactLevels = Boolean(activity.config.impactLevels);
   const externalLinkLabel = (activity.config.externalLinkLabel as string) ?? "Enlace externo";
   const defaultLink = (activity.config.defaultLink as string) ?? "";
   const presenter = isPresenter(participant);
@@ -33,6 +43,7 @@ export default function NotasMatriz({ activity, session, aspirations, participan
     { notes: [], external_link: defaultLink }
   );
   const [draft, setDraft] = useState<Record<string, string>>({});
+  const [impactDraft, setImpactDraft] = useState<Record<string, Impact>>({});
   const [editing, setEditing] = useState<Record<string, string>>({});
   const [copied, setCopied] = useState(false);
 
@@ -46,12 +57,20 @@ export default function NotasMatriz({ activity, session, aspirations, participan
     const key = cellKey(aspirationId, categoryKey);
     const text = (draft[key] ?? "").trim();
     if (!text) return;
-    const note: Note = { id: uid(), category: categoryKey, aspiration_id: aspirationId, author: participant.name, text };
+    const note: Note = {
+      id: uid(),
+      category: categoryKey,
+      aspiration_id: aspirationId,
+      author: participant.name,
+      text,
+      impact: impactLevels ? impactDraft[key] ?? "medio" : undefined,
+    };
     save(
       { ...content, notes: [...content.notes, note] },
       { eventType: "nota", summary: `${participant.name} agregó una nota en "${activity.title}"` }
     );
     setDraft((d) => ({ ...d, [key]: "" }));
+    setImpactDraft((d) => ({ ...d, [key]: "medio" }));
   }
 
   function removeNote(id: string) {
@@ -88,7 +107,10 @@ export default function NotasMatriz({ activity, session, aspirations, participan
         const notes = content.notes.filter((n) => n.aspiration_id === a.id && n.category === c.key);
         lines.push(`  ${c.label}:`);
         if (notes.length === 0) lines.push("    (sin aportes)");
-        for (const n of notes) lines.push(`    - ${n.text} (${n.author})`);
+        for (const n of notes) {
+          const impactSuffix = n.impact ? ` [Impacto: ${IMPACT_META[n.impact].label}]` : "";
+          lines.push(`    - ${n.text} (${n.author})${impactSuffix}`);
+        }
       }
       lines.push("");
     }
@@ -221,6 +243,7 @@ export default function NotasMatriz({ activity, session, aspirations, participan
                             />
                           );
                         }
+                        const impactMeta = n.impact ? IMPACT_META[n.impact] : null;
                         return (
                           <div
                             key={n.id}
@@ -228,7 +251,15 @@ export default function NotasMatriz({ activity, session, aspirations, participan
                             onClick={() => canEdit && startEdit(n)}
                             title={canEdit ? "Clic para editar" : undefined}
                           >
-                            <span className="text-foreground">{n.text}</span>
+                            <div className="min-w-0">
+                              {impactMeta && (
+                                <span className={`mb-0.5 inline-flex items-center gap-1 text-[10px] font-semibold ${impactMeta.text}`}>
+                                  <span className={`h-1.5 w-1.5 rounded-full ${impactMeta.dot}`} />
+                                  {impactMeta.label}
+                                </span>
+                              )}
+                              <p className="text-foreground">{n.text}</p>
+                            </div>
                             {canEdit && (
                               <button
                                 className="shrink-0 text-muted opacity-0 transition-opacity hover:text-red-600 group-hover:opacity-100"
@@ -244,6 +275,27 @@ export default function NotasMatriz({ activity, session, aspirations, participan
                         );
                       })}
                     </div>
+                    {impactLevels && (
+                      <div className="flex gap-1">
+                        {IMPACT_ORDER.map((lvl) => {
+                          const active = (impactDraft[key] ?? "medio") === lvl;
+                          const meta = IMPACT_META[lvl];
+                          return (
+                            <button
+                              key={lvl}
+                              type="button"
+                              className={`flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-medium transition-colors ${
+                                active ? `border-current ${meta.text} bg-card` : "border-border text-muted"
+                              }`}
+                              onClick={() => setImpactDraft((d) => ({ ...d, [key]: lvl }))}
+                            >
+                              <span className={`h-1.5 w-1.5 rounded-full ${active ? meta.dot : "bg-black/20"}`} />
+                              {meta.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
                     <input
                       className="w-full rounded-md border border-dashed border-border bg-transparent px-2 py-1 text-xs placeholder:text-muted focus:border-solid focus:border-brand/50 focus:outline-none"
                       placeholder="+ Agregar…"
