@@ -165,11 +165,11 @@ export default function RadarContexto({ activity, session, participant }: Activi
       {presenter && <PresenterHint text="Cada dimensión avanza sola: recolecta, vota y muestra el resultado en la misma pestaña." />}
 
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
-        <div className="w-full shrink-0 lg:w-64">
-          <div className="rounded-lg border border-border bg-card p-3">
-            <div className="mb-2 flex items-center justify-between gap-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted">Radar consolidado</p>
-              {presenter && (
+        {presenter && (
+          <div className="w-full shrink-0 lg:w-64">
+            <div className="rounded-lg border border-border bg-card p-3">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted">Radar consolidado</p>
                 <button
                   className={btnGhost + " !px-2 !py-1"}
                   title="Ampliar radar en una pestaña nueva"
@@ -177,24 +177,24 @@ export default function RadarContexto({ activity, session, participant }: Activi
                 >
                   ⛶
                 </button>
-              )}
-            </div>
-            <div className="flex justify-center">
-              <RadarChartView axes={axes} winnerByAxis={winnerByAxis} voteTotal={voteTotal} activeAxisKey={liveAxisKeys} size={220} />
-            </div>
-            <div className="mt-2 space-y-1 border-t border-border pt-2">
-              {axes.map((a) => {
-                const w = winnerByAxis[a.key];
-                return (
-                  <div key={a.key} className="flex items-center justify-between gap-2 text-xs">
-                    <span className="min-w-0 flex-1 truncate text-muted">{a.label}</span>
-                    <span className="shrink-0 font-semibold text-brand-dark">{w ? `${voteTotal[w.id] ?? 0} pts` : "—"}</span>
-                  </div>
-                );
-              })}
+              </div>
+              <div className="flex justify-center">
+                <RadarChartView axes={axes} winnerByAxis={winnerByAxis} voteTotal={voteTotal} activeAxisKey={liveAxisKeys} size={220} />
+              </div>
+              <div className="mt-2 space-y-1 border-t border-border pt-2">
+                {axes.map((a) => {
+                  const w = winnerByAxis[a.key];
+                  return (
+                    <div key={a.key} className="flex items-center justify-between gap-2 text-xs">
+                      <span className="min-w-0 flex-1 truncate text-muted">{a.label}</span>
+                      <span className="shrink-0 font-semibold text-brand-dark">{w ? `${voteTotal[w.id] ?? 0} pts` : "—"}</span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         <div className="min-w-0 flex-1">
           <div className="mb-3 flex gap-1.5 overflow-x-auto pb-1">
