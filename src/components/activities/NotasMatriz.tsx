@@ -61,12 +61,17 @@ export default function NotasMatriz({ activity, session, aspirations, participan
     return `${aspirationId}:${categoryKey}`;
   }
 
+  function myNotesInCell(aspirationId: number, categoryKey: string) {
+    return content.notes.filter(
+      (n) => n.aspiration_id === aspirationId && n.category === categoryKey && n.author === participant.name
+    ).length;
+  }
+
   function addNote(aspirationId: number, categoryKey: string) {
     const key = cellKey(aspirationId, categoryKey);
     const text = (draft[key] ?? "").trim().slice(0, maxLengthFor(categoryKey));
     if (!text) return;
-    const existingInCell = content.notes.filter((n) => n.aspiration_id === aspirationId && n.category === categoryKey).length;
-    if (existingInCell >= maxNotesPerCell) return;
+    if (myNotesInCell(aspirationId, categoryKey) >= maxNotesPerCell) return;
     const note: Note = {
       id: uid(),
       category: categoryKey,
@@ -204,7 +209,16 @@ export default function NotasMatriz({ activity, session, aspirations, participan
         </div>
       )}
 
-      <div className="flex items-center justify-end">
+      <div className="flex items-center justify-end gap-2">
+        {presenter && (
+          <button
+            className={btnGhost}
+            title="Ver como tablero de post-its en una pestaña nueva"
+            onClick={() => window.open(`/notas/${activity.id}`, "_blank", "noopener,noreferrer")}
+          >
+            ⛶ Ver post-its
+          </button>
+        )}
         <button className={btnGhost} onClick={copyMatrix}>
           {copied ? "✓ Copiado" : "📋 Copiar matriz"}
         </button>
@@ -315,7 +329,7 @@ export default function NotasMatriz({ activity, session, aspirations, participan
                         })}
                       </div>
                     )}
-                    {notes.length < maxNotesPerCell ? (
+                    {myNotesInCell(a.id, c.key) < maxNotesPerCell ? (
                       <div>
                         <input
                           className="w-full rounded-md border border-dashed border-border bg-transparent px-2 py-1 text-xs placeholder:text-muted focus:border-solid focus:border-brand/50 focus:outline-none"
@@ -334,7 +348,7 @@ export default function NotasMatriz({ activity, session, aspirations, participan
                       </div>
                     ) : (
                       maxNotesPerCell === 1 && (
-                        <p className="px-1 text-[10px] text-muted">Ya se registró este tema para esta aspiración.</p>
+                        <p className="px-1 text-[10px] text-muted">Ya registraste tu aporte en este tema.</p>
                       )
                     )}
                   </div>
