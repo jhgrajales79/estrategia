@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useSubmission, effectiveAspirationId } from "@/lib/useSubmission";
 import { isPresenter } from "@/lib/presenter";
-import RadarChartView from "@/components/RadarChartView";
+import RadarChartView, { axisColor } from "@/components/RadarChartView";
 import { ActivityComponentProps, inputCls, btnPrimary, btnGhost, btnDanger, SaveIndicator, PresenterHint, uid } from "./shared";
 
 interface Axis {
@@ -189,11 +189,14 @@ export default function RadarContexto({ activity, session, participant }: Activi
                 <RadarChartView axes={axes} winnerByAxis={winnerByAxis} voteTotal={voteTotal} activeAxisKey={liveAxisKeys} size={220} />
               </div>
               <div className="mt-2 space-y-1 border-t border-border pt-2">
-                {axes.map((a) => {
+                {axes.map((a, i) => {
                   const w = winnerByAxis[a.key];
                   return (
                     <div key={a.key} className="flex items-center justify-between gap-2 text-xs">
-                      <span className="min-w-0 flex-1 truncate text-muted">{a.label}</span>
+                      <span className="flex min-w-0 flex-1 items-center gap-1.5 truncate text-muted">
+                        {w && <span className="inline-block h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: axisColor(i) }} />}
+                        {a.label}
+                      </span>
                       <span className="shrink-0 font-semibold text-brand-dark">{w ? `${voteTotal[w.id] ?? 0} pts` : "—"}</span>
                     </div>
                   );

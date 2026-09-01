@@ -6,7 +6,7 @@ import { useRequireParticipant } from "@/lib/useRequireParticipant";
 import { isPresenter } from "@/lib/presenter";
 import { fetchActivityById, fetchSessionById } from "@/lib/data";
 import { useSubmission, effectiveAspirationId } from "@/lib/useSubmission";
-import RadarChartView from "@/components/RadarChartView";
+import RadarChartView, { axisColor } from "@/components/RadarChartView";
 import type { ActivityRow, SessionRow } from "@/lib/types";
 
 interface Axis {
@@ -141,7 +141,7 @@ export default function RadarFullscreenPage({ params }: { params: Promise<{ acti
         <RadarChartView axes={axes} winnerByAxis={winnerByAxis} voteTotal={voteTotal} size={size} activeAxisKey={liveAxisKeys} variant="dark" legend />
 
         <div className="w-full max-w-sm shrink-0 space-y-2 md:mt-8">
-          {axes.map((a) => {
+          {axes.map((a, i) => {
             const stage = content.roundStatus?.[a.key] ?? "pending";
             const meta = STAGE_META[stage];
             const winner = winnerByAxis[a.key];
@@ -149,12 +149,16 @@ export default function RadarFullscreenPage({ params }: { params: Promise<{ acti
             return (
               <div
                 key={a.key}
-                className={`rounded-xl border p-3 transition-colors ${
-                  live ? "border-brand/60 bg-white/[0.06]" : "border-white/10 bg-white/[0.03]"
+                className={`rounded-xl border-l-4 border-y border-r p-3 transition-colors ${
+                  live ? "border-y-brand/60 border-r-brand/60 bg-white/[0.06]" : "border-y-white/10 border-r-white/10 bg-white/[0.03]"
                 }`}
+                style={{ borderLeftColor: winner ? axisColor(i) : "transparent" }}
               >
                 <div className="flex items-center justify-between gap-2">
-                  <p className="text-sm font-semibold text-white">{a.label}</p>
+                  <p className="flex items-center gap-1.5 text-sm font-semibold text-white">
+                    {winner && <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: axisColor(i) }} />}
+                    {a.label}
+                  </p>
                   <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${meta.badge}`}>
                     {meta.icon} {meta.label}
                   </span>

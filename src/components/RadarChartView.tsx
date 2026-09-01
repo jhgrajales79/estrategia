@@ -42,6 +42,13 @@ const THEME = {
 
 const TARGET_COLOR = "#f3c400";
 
+// Un color fijo y distinguible por eje (no depende del tema): se usa tanto en el punto
+// del radar como en la tarjeta lateral correspondiente, para que se identifiquen a simple vista.
+const AXIS_COLORS = ["#c2410c", "#0f766e", "#2563eb", "#a16207", "#7e22ce", "#be185d", "#4d7c0f"];
+export function axisColor(index: number) {
+  return AXIS_COLORS[index % AXIS_COLORS.length];
+}
+
 export default function RadarChartView({
   axes,
   winnerByAxis,
@@ -123,7 +130,7 @@ export default function RadarChartView({
         {hasAny && (
           <polygon points={polygonPoints} style={{ fill: t.polygonFill, stroke: t.polygonStroke }} strokeWidth={2} strokeLinejoin="round" />
         )}
-        {vertices.map((v) => {
+        {vertices.map((v, i) => {
           if (!v.winner) return null;
           const live = activeAxisKeys.includes(v.axis.key);
           return (
@@ -133,7 +140,7 @@ export default function RadarChartView({
                 cx={v.x}
                 cy={v.y}
                 r={size > BASE_SIZE ? 7 : 5}
-                style={{ fill: t.vertex }}
+                fill={axisColor(i)}
                 stroke={variant === "dark" ? "#0b1f18" : "#fff"}
                 strokeWidth={2}
               />
@@ -164,7 +171,7 @@ export default function RadarChartView({
       })}
       {/* Solo el punto y sus votos van sobre el radar; el texto de cada señal se lee
           en la lista que acompaña el radar, para que nada se solape sobre el gráfico. */}
-      {vertices.map((v) => {
+      {vertices.map((v, i) => {
         if (!v.winner) return null;
         const pts = voteTotal[v.winner.id] ?? 0;
         const badgeOffset = size > BASE_SIZE ? 22 : 16;
@@ -177,8 +184,8 @@ export default function RadarChartView({
             style={{
               left: v.x,
               top: v.y - badgeOffset,
-              backgroundColor: t.vertex,
-              color: variant === "dark" ? "#0b1f18" : "#fff",
+              backgroundColor: axisColor(i),
+              color: "#fff",
             }}
           >
             {pts}

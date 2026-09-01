@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import BarChart from "@/components/charts/BarChart";
-import RadarChartView from "@/components/RadarChartView";
+import RadarChartView, { axisColor } from "@/components/RadarChartView";
 import IdeaCloudView from "@/components/IdeaCloudView";
 import NotesBoardView from "@/components/NotesBoardView";
 import ConnectionsWebView from "@/components/ConnectionsWebView";
@@ -453,12 +453,15 @@ function renderContent(activity: ActivityRow, content: Record<string, unknown>, 
           {hasVotedSignals && (
           <div className="w-full space-y-2">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted">Señales votadas</p>
-            {axes.map((a) => {
+            {axes.map((a, i) => {
               const inAxis = signals.filter((s) => s.axis === a.key && (voteTotal[s.id] ?? 0) > 0);
               if (inAxis.length === 0) return null;
               return (
                 <div key={a.key}>
-                  <p className="mb-1 text-xs font-semibold text-muted">{a.label}</p>
+                  <p className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-muted">
+                    <span className="inline-block h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: axisColor(i) }} />
+                    {a.label}
+                  </p>
                   <ul className="space-y-1">
                     {inAxis
                       .sort((x, y) => (voteTotal[y.id] ?? 0) - (voteTotal[x.id] ?? 0))
