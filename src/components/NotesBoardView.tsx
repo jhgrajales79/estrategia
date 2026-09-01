@@ -22,25 +22,40 @@ export default function NotesBoardView({
   aspirations,
   showOnlyHighlighted = false,
   large = false,
+  dark = false,
 }: {
   categories: Category[];
   notes: Note[];
   aspirations: Aspiration[];
   showOnlyHighlighted?: boolean;
   large?: boolean;
+  dark?: boolean;
 }) {
   const cols = categories.length <= 3 ? categories.length : Math.min(categories.length, 3);
 
   return (
-    <div className="grid gap-6" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0,1fr))` }}>
+    <div className="grid gap-8" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0,1fr))` }}>
       {categories.map((cat) => {
         const all = notes.filter((n) => n.category === cat.key);
         const inCat = showOnlyHighlighted ? all.filter((n) => n.highlighted) : all;
         return (
           <div key={cat.key} className="min-w-0">
-            <h3 className={`mb-3 text-center font-semibold text-foreground ${large ? "text-xl" : "text-sm"}`}>{cat.label}</h3>
+            <div className={`mb-4 flex items-center justify-center gap-2 ${large ? "text-xl" : "text-sm"}`}>
+              <h3 className={`font-semibold ${dark ? "text-white" : "text-foreground"}`}>{cat.label}</h3>
+              {inCat.length > 0 && (
+                <span
+                  className={`rounded-full px-2 py-0.5 text-xs font-bold ${
+                    dark ? "bg-white/10 text-white/70" : "bg-black/5 text-muted"
+                  }`}
+                >
+                  {inCat.length}
+                </span>
+              )}
+            </div>
             <div className="flex flex-wrap justify-center gap-4">
-              {inCat.length === 0 && <p className="text-sm text-muted">Aún no hay aportes.</p>}
+              {inCat.length === 0 && (
+                <p className={`text-sm ${dark ? "text-white/35" : "text-muted"}`}>Aún no hay aportes.</p>
+              )}
               {inCat.map((n, i) => {
                 const asp = findAspiration(aspirations, n.aspiration_id);
                 const cls = aspClasses(asp?.number);
