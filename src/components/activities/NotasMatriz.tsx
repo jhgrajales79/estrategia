@@ -28,13 +28,19 @@ const IMPACT_META: Record<Impact, { label: string; dot: string; text: string }> 
 const IMPACT_ORDER: Impact[] = ["alto", "medio", "bajo"];
 
 export default function NotasMatriz({ activity, session, aspirations, participant }: ActivityComponentProps) {
-  const categories = (activity.config.categories as { key: string; label: string }[]) ?? [];
+  const categories = (activity.config.categories as { key: string; label: string; maxLength?: number }[]) ?? [];
   const linkOnly = Boolean(activity.config.linkOnly);
   const impactLevels = Boolean(activity.config.impactLevels);
   const externalLinkLabel = (activity.config.externalLinkLabel as string) ?? "Enlace externo";
   const defaultLink = (activity.config.defaultLink as string) ?? "";
   const maxTextLength = (activity.config.maxTextLength as number) ?? undefined;
   const maxNotesPerCell = (activity.config.maxNotesPerCell as number) ?? Infinity;
+
+  // Cada categoría puede sobreescribir el límite de caracteres general (ej. la
+  // hipótesis necesita más espacio que "qué se hizo bien/mal").
+  function maxLengthFor(categoryKey: string) {
+    return categories.find((c) => c.key === categoryKey)?.maxLength ?? maxTextLength;
+  }
   const presenter = isPresenter(participant);
   const submissionAspId = effectiveAspirationId(activity, participant);
   const { content, save, saving, updatedAt, saveError, loaded } = useSubmission<Content>(
@@ -57,7 +63,7 @@ export default function NotasMatriz({ activity, session, aspirations, participan
 
   function addNote(aspirationId: number, categoryKey: string) {
     const key = cellKey(aspirationId, categoryKey);
-    const text = (draft[key] ?? "").trim().slice(0, maxTextLength);
+    const text = (draft[key] ?? "").trim().slice(0, maxLengthFor(categoryKey));
     if (!text) return;
     const existingInCell = content.notes.filter((n) => n.aspiration_id === aspirationId && n.category === categoryKey).length;
     if (existingInCell >= maxNotesPerCell) return;
@@ -94,7 +100,8 @@ export default function NotasMatriz({ activity, session, aspirations, participan
   }
 
   function commitEdit(id: string) {
-    const text = (editing[id] ?? "").trim().slice(0, maxTextLength);
+    const note = content.notes.find((n) => n.id === id);
+    const text = (editing[id] ?? "").trim().slice(0, note ? maxLengthFor(note.category) : maxTextLength);
     if (!text) {
       removeNote(id);
     } else {
@@ -232,13 +239,14 @@ export default function NotasMatriz({ activity, session, aspirations, participan
                       {notes.map((n) => {
                         const canEdit = presenter || n.author === participant.name;
                         if (editing[n.id] !== undefined) {
+                          const editMaxLength = maxLengthFor(n.category);
                           return (
                             <div key={n.id}>
                               <input
                                 autoFocus
                                 className="w-full rounded-md border border-brand/50 bg-card px-2 py-1.5 text-xs focus:outline-none"
                                 value={editing[n.id]}
-                                maxLength={maxTextLength}
+                                maxLength={editMaxLength}
                                 onChange={(e) => setEditing((ed) => ({ ...ed, [n.id]: e.target.value }))}
                                 onKeyDown={(e) => {
                                   if (e.key === "Enter") commitEdit(n.id);
@@ -246,9 +254,9 @@ export default function NotasMatriz({ activity, session, aspirations, participan
                                 }}
                                 onBlur={() => commitEdit(n.id)}
                               />
-                              {maxTextLength && (
+                              {editMaxLength && (
                                 <p className="mt-0.5 text-right text-[10px] text-muted">
-                                  {(editing[n.id] ?? "").length}/{maxTextLength}
+                                  {(editing[n.id] ?? "").length}/{editMaxLength}
                                 </p>
                               )}
                             </div>
@@ -311,16 +319,16 @@ export default function NotasMatriz({ activity, session, aspirations, participan
                       <div>
                         <input
                           className="w-full rounded-md border border-dashed border-border bg-transparent px-2 py-1 text-xs placeholder:text-muted focus:border-solid focus:border-brand/50 focus:outline-none"
-                          placeholder={maxTextLength ? `+ Agregar… (máx. ${maxTextLength} caracteres)` : "+ Agregar…"}
+                          placeholder={c.maxLength ?? maxTextLength ? `+ Agregar… (máx. ${c.maxLength ?? maxTextLength} caracteres)` : "+ Agregar…"}
                           value={draft[key] ?? ""}
-                          maxLength={maxTextLength}
+                          maxLength={c.maxLength ?? maxTextLength}
                           onChange={(e) => setDraft((d) => ({ ...d, [key]: e.target.value }))}
                           onKeyDown={(e) => e.key === "Enter" && addNote(a.id, c.key)}
                           onBlur={() => addNote(a.id, c.key)}
                         />
-                        {maxTextLength && (
+                        {(c.maxLength ?? maxTextLength) && (
                           <p className="mt-0.5 text-right text-[10px] text-muted">
-                            {(draft[key] ?? "").length}/{maxTextLength}
+                            {(draft[key] ?? "").length}/{c.maxLength ?? maxTextLength}
                           </p>
                         )}
                       </div>
