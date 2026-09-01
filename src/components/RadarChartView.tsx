@@ -1,5 +1,3 @@
-import { ROUND_PALETTE_SOFT, autoBg } from "@/components/activities/shared";
-
 interface Axis {
   key: string;
   label: string;
@@ -130,8 +128,15 @@ export default function RadarChartView({
           const live = activeAxisKeys.includes(v.axis.key);
           return (
             <g key={v.axis.key}>
-              {live && <circle cx={v.x} cy={v.y} r={size > BASE_SIZE ? 11 : 8} fill={t.vertexActiveGlow} className="animate-pulse" />}
-              <circle cx={v.x} cy={v.y} r={size > BASE_SIZE ? 5 : 3.5} style={{ fill: t.vertex }} />
+              {live && <circle cx={v.x} cy={v.y} r={size > BASE_SIZE ? 12 : 9} fill={t.vertexActiveGlow} className="animate-pulse" />}
+              <circle
+                cx={v.x}
+                cy={v.y}
+                r={size > BASE_SIZE ? 7 : 5}
+                style={{ fill: t.vertex }}
+                stroke={variant === "dark" ? "#0b1f18" : "#fff"}
+                strokeWidth={2}
+              />
             </g>
           );
         })}
@@ -157,34 +162,26 @@ export default function RadarChartView({
           </div>
         );
       })}
-      {vertices.map((v, i) => {
+      {/* Solo el punto y sus votos van sobre el radar; el texto de cada señal se lee
+          en la lista que acompaña el radar, para que nada se solape sobre el gráfico. */}
+      {vertices.map((v) => {
         if (!v.winner) return null;
-        // La tarjeta se desplaza hacia afuera sobre el mismo eje del ganador (no siempre "hacia arriba"),
-        // para que dos ejes con votos bajos (cerca del centro) no terminen con sus tarjetas superpuestas.
-        const winner = v.winner;
-        const radiusFrac = RING_FRACTIONS[winner.ring];
-        // Se limita a 0.68 para dejar margen amplio frente a la etiqueta del eje (a 1.32),
-        // sin importar el tamaño del radar, y así el texto de la dimensión nunca queda tapado.
-        const calloutFrac = Math.min(radiusFrac + 0.2, 0.68);
-        const basePoint = point(axisAngle(i), calloutFrac);
-        // Un desplazamiento tangencial (perpendicular al eje), alternado por índice,
-        // separa aún más las tarjetas de ejes adyacentes cuyo ganador cayó en el mismo anillo.
-        const angleRad = (axisAngle(i) * Math.PI) / 180;
-        const tangentShift = (i % 2 === 0 ? 1 : -1) * (size > BASE_SIZE ? 32 : 14);
-        const calloutPoint = {
-          x: basePoint.x + -Math.sin(angleRad) * tangentShift,
-          y: basePoint.y + Math.cos(angleRad) * tangentShift,
-        };
+        const pts = voteTotal[v.winner.id] ?? 0;
+        const badgeOffset = size > BASE_SIZE ? 22 : 16;
         return (
           <div
             key={v.axis.key}
-            className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-lg text-center leading-tight shadow-lg ${
-              size > BASE_SIZE ? "w-36 text-xs p-2" : "w-24 text-[9px] p-1"
-            } ${variant === "dark" ? "text-dark" : ""} ${autoBg(winner.round - 1, ROUND_PALETTE_SOFT)} backdrop-blur-sm`}
-            style={{ left: calloutPoint.x, top: calloutPoint.y }}
+            className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full text-center font-bold shadow ${
+              size > BASE_SIZE ? "px-2 py-0.5 text-[11px]" : "px-1.5 py-0.5 text-[9px]"
+            }`}
+            style={{
+              left: v.x,
+              top: v.y - badgeOffset,
+              backgroundColor: t.vertex,
+              color: variant === "dark" ? "#0b1f18" : "#fff",
+            }}
           >
-            {winner.text}
-            <div className="mt-0.5 font-semibold text-brand-dark">{voteTotal[winner.id] ?? 0} pts</div>
+            {pts}
           </div>
         );
       })}
