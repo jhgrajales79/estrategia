@@ -31,6 +31,8 @@ function WheelPanel({
   scaleMax,
   size,
   active,
+  compact = false,
+  heading,
 }: {
   activity: ActivityRow;
   session: SessionRow;
@@ -39,10 +41,38 @@ function WheelPanel({
   scaleMax: number;
   size: number;
   active: boolean;
+  compact?: boolean;
+  heading?: { label: string; bgClass: string };
 }) {
   const { content, loaded } = useSubmission<Content>(activity, session, aspirationId, participant, { items: [] });
 
   if (!active) return null;
+
+  const average =
+    content.items.length > 0 ? content.items.reduce((a, it) => a + it.score, 0) / content.items.length : null;
+
+  if (compact) {
+    return (
+      <div className="flex flex-col items-center gap-3">
+        {heading && (
+          <span className={`rounded-full px-3 py-1 text-xs font-bold text-dark ${heading.bgClass}`}>{heading.label}</span>
+        )}
+        {!loaded ? (
+          <div className="flex items-center justify-center text-sm text-white/40" style={{ height: size }}>
+            Cargando…
+          </div>
+        ) : (
+          <CapabilityWheelView items={content.items} scaleMax={scaleMax} size={size} variant="dark" />
+        )}
+        <p className="text-xs text-white/50">
+          {content.items.length === 0
+            ? "Sin capacidades registradas"
+            : `Promedio ${average!.toFixed(1)}/${scaleMax} · ${content.items.length} ${content.items.length === 1 ? "capacidad" : "capacidades"}`}
+        </p>
+      </div>
+    );
+  }
+
   if (!loaded) return <div className="flex h-[340px] items-center justify-center text-sm text-white/40">Cargando…</div>;
 
   return (
@@ -84,8 +114,9 @@ export default function RuedaFullscreenPage({ params }: { params: Promise<{ acti
   const [activity, setActivity] = useState<ActivityRow | null>(null);
   const [session, setSession] = useState<SessionRow | null>(null);
   const [aspirations, setAspirations] = useState<Aspiration[]>([]);
-  const [activeAspId, setActiveAspId] = useState<number | null>(null);
+  const [view, setView] = useState<"consolidado" | number>("consolidado");
   const [size, setSize] = useState(420);
+  const [compactSize, setCompactSize] = useState(220);
 
   useEffect(() => {
     fetchAspirations().then(setAspirations).catch(console.error);
@@ -96,16 +127,10 @@ export default function RuedaFullscreenPage({ params }: { params: Promise<{ acti
   }, [activityId]);
 
   useEffect(() => {
-    if (activeAspId === null && aspirations.length > 0) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setActiveAspId(aspirations[0].id);
-    }
-  }, [aspirations, activeAspId]);
-
-  useEffect(() => {
     function computeSize() {
       const w = window.innerWidth;
       setSize(Math.round(Math.min(w >= 900 ? w - 480 : w - 32, 520)));
+      setCompactSize(w >= 1100 ? 260 : w >= 700 ? 220 : 180);
     }
     computeSize();
     window.addEventListener("resize", computeSize);
@@ -142,13 +167,23 @@ export default function RuedaFullscreenPage({ params }: { params: Promise<{ acti
 
       {perAspiration && (
         <div className="mx-auto mt-6 flex max-w-[1400px] flex-wrap gap-2">
+          <button
+            onClick={() => setView("consolidado")}
+            className={`rounded-full border px-4 py-1.5 text-sm font-semibold transition-colors ${
+              view === "consolidado"
+                ? "border-transparent bg-brand text-dark"
+                : "border-white/15 bg-white/[0.03] text-white/60 hover:bg-white/[0.08]"
+            }`}
+          >
+            📊 Consolidado
+          </button>
           {tabs.map((a) => {
             const cls = aspClasses(a.number);
-            const active = activeAspId === a.id;
+            const active = view === a.id;
             return (
               <button
                 key={a.id}
-                onClick={() => setActiveAspId(a.id)}
+                onClick={() => setView(a.id)}
                 className={`rounded-full border px-4 py-1.5 text-sm font-semibold transition-colors ${
                   active ? `border-transparent ${cls.bg} text-dark` : "border-white/15 bg-white/[0.03] text-white/60 hover:bg-white/[0.08]"
                 }`}
@@ -162,18 +197,37 @@ export default function RuedaFullscreenPage({ params }: { params: Promise<{ acti
 
       <div className="mx-auto mt-10 max-w-[1400px]">
         {perAspiration ? (
-          aspirations.map((a) => (
-            <WheelPanel
-              key={a.id}
-              activity={activity}
-              session={session}
-              aspirationId={a.id}
-              participant={participant}
-              scaleMax={scaleMax}
-              size={size}
-              active={activeAspId === a.id}
-            />
-          ))
+          view === "consolidado" ? (
+            <div className="flex flex-wrap items-start justify-center gap-10">
+              {aspirations.map((a) => (
+                <WheelPanel
+                  key={a.id}
+                  activity={activity}
+                  session={session}
+                  aspirationId={a.id}
+                  participant={participant}
+                  scaleMax={scaleMax}
+                  size={compactSize}
+                  active
+                  compact
+                  heading={{ label: `Aspiración ${a.number} · ${ARCHETYPE_LABEL[a.number]}`, bgClass: aspClasses(a.number).bg }}
+                />
+              ))}
+            </div>
+          ) : (
+            aspirations.map((a) => (
+              <WheelPanel
+                key={a.id}
+                activity={activity}
+                session={session}
+                aspirationId={a.id}
+                participant={participant}
+                scaleMax={scaleMax}
+                size={size}
+                active={view === a.id}
+              />
+            ))
+          )
         ) : (
           <WheelPanel
             activity={activity}

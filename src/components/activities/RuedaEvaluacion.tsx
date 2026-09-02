@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { useSubmission, effectiveAspirationId } from "@/lib/useSubmission";
+import { useEffect, useState } from "react";
+import { useSubmission } from "@/lib/useSubmission";
 import { isPresenter } from "@/lib/presenter";
+import { aspClasses, ARCHETYPE_LABEL } from "@/lib/aspirationStyle";
 import QuadrantPoint from "@/components/charts/QuadrantPoint";
 import { ActivityComponentProps, inputCls, textareaCls, btnPrimary, btnDanger, SaveIndicator, PresenterHint, uid } from "./shared";
 
@@ -25,13 +26,28 @@ const AXIS_LABEL: Record<string, string> = {
   FI: "Fortaleza de la industria",
 };
 
-export default function RuedaEvaluacion({ activity, session, participant }: ActivityComponentProps) {
+export default function RuedaEvaluacion({ activity, session, aspirations, participant }: ActivityComponentProps) {
   const scaleMax = (activity.config.scaleMax as number) ?? 5;
   const dynamicItems = Boolean(activity.config.dynamicItems);
   const peeaMode = Boolean(activity.config.peeaMode);
+  const perAspiration = Boolean(activity.config.perAspiration);
   const fixedItems = (activity.config.items as Item[]) ?? [];
   const presenter = isPresenter(participant);
-  const submissionAspId = effectiveAspirationId(activity, participant);
+  const [activeAspId, setActiveAspId] = useState<number | null>(
+    () => participant.aspiration_id ?? aspirations[0]?.id ?? null
+  );
+  useEffect(() => {
+    // El facilitador no tiene aspiración propia: si las aspiraciones aún no habían
+    // cargado al montar, se selecciona la primera apenas estén disponibles.
+    if (activeAspId === null && aspirations.length > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setActiveAspId(aspirations[0].id);
+    }
+  }, [aspirations, activeAspId]);
+  const submissionAspId = perAspiration ? activeAspId : null;
+  // Cada quien solo edita el tablero de su propia aspiración; las demás pestañas
+  // se pueden mirar (para seguir el avance de los otros equipos) pero en solo lectura.
+  const canEdit = perAspiration ? !presenter && activeAspId === participant.aspiration_id : !presenter;
   const { content, save, saving, updatedAt, saveError, loaded } = useSubmission<Content>(
     activity,
     session,
@@ -96,8 +112,33 @@ export default function RuedaEvaluacion({ activity, session, participant }: Acti
           </button>
         </div>
       )}
+      {perAspiration && aspirations.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {aspirations.map((a) => {
+            const cls = aspClasses(a.number);
+            const active = activeAspId === a.id;
+            const isMine = a.id === participant.aspiration_id;
+            return (
+              <button
+                key={a.id}
+                type="button"
+                onClick={() => setActiveAspId(a.id)}
+                className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                  active ? `border-transparent ${cls.bg} text-dark` : `${cls.border} ${cls.text} bg-card hover:bg-black/5`
+                }`}
+              >
+                Aspiración {a.number} · {ARCHETYPE_LABEL[a.number]}
+                {isMine && <span className="ml-1">· tu equipo</span>}
+              </button>
+            );
+          })}
+        </div>
+      )}
       {presenter && content.items.length === 0 && (
         <p className="text-sm text-muted">Aún no hay capacidades registradas. Cada equipo las agrega desde su propia sesión.</p>
+      )}
+      {perAspiration && !canEdit && !presenter && content.items.length === 0 && (
+        <p className="text-sm text-muted">Este equipo aún no ha registrado capacidades.</p>
       )}
       <div className="space-y-2">
         {content.items.map((item) => (
@@ -107,9 +148,7 @@ export default function RuedaEvaluacion({ activity, session, participant }: Acti
                 {item.label}
                 {item.axis && <span className="ml-2 text-xs text-muted">({AXIS_LABEL[item.axis]})</span>}
               </p>
-              {presenter ? (
-                item.note && <p className="mt-1 text-xs text-muted">{item.note}</p>
-              ) : (
+              {canEdit ? (
                 <input
                   className={textareaCls + " mt-1"}
                   placeholder="Sustento / nota…"
@@ -118,52 +157,52 @@ export default function RuedaEvaluacion({ activity, session, participant }: Acti
                   onBlur={() => commitNote(item)}
                   onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
                 />
+              ) : (
+                item.note && <p className="mt-1 text-xs text-muted">{item.note}</p>
               )}
             </div>
             <div className="flex items-center gap-2">
-              {presenter ? (
-                <span className="text-sm font-semibold">{item.score}</span>
-              ) : (
-                <>
-                  <button
-                    type="button"
-                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border text-sm hover:bg-black/5 disabled:opacity-40"
-                    disabled={item.score <= 0}
-                    onClick={() => step(item, -1)}
-                    aria-label="Bajar calificación"
-                  >
-                    −
-                  </button>
-                  <div className="h-2 w-28 shrink-0 overflow-hidden rounded-full bg-black/10">
-                    <div
-                      className="h-full rounded-full bg-brand transition-all duration-300 ease-out"
-                      style={{ width: `${(item.score / scaleMax) * 100}%` }}
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border text-sm hover:bg-black/5 disabled:opacity-40"
-                    disabled={item.score >= scaleMax}
-                    onClick={() => step(item, 1)}
-                    aria-label="Subir calificación"
-                  >
-                    +
-                  </button>
-                  <span className="w-10 shrink-0 text-center text-sm font-semibold text-foreground">
-                    {item.score}/{scaleMax}
-                  </span>
-                  {dynamicItems && (
-                    <button className={btnDanger} onClick={() => removeItem(item.id)}>
-                      quitar
-                    </button>
-                  )}
-                </>
+              {canEdit && (
+                <button
+                  type="button"
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border text-sm hover:bg-black/5 disabled:opacity-40"
+                  disabled={item.score <= 0}
+                  onClick={() => step(item, -1)}
+                  aria-label="Bajar calificación"
+                >
+                  −
+                </button>
+              )}
+              <div className="h-2 w-28 shrink-0 overflow-hidden rounded-full bg-black/10">
+                <div
+                  className="h-full rounded-full bg-brand transition-all duration-300 ease-out"
+                  style={{ width: `${(item.score / scaleMax) * 100}%` }}
+                />
+              </div>
+              {canEdit && (
+                <button
+                  type="button"
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border text-sm hover:bg-black/5 disabled:opacity-40"
+                  disabled={item.score >= scaleMax}
+                  onClick={() => step(item, 1)}
+                  aria-label="Subir calificación"
+                >
+                  +
+                </button>
+              )}
+              <span className="w-10 shrink-0 text-center text-sm font-semibold text-foreground">
+                {item.score}/{scaleMax}
+              </span>
+              {dynamicItems && canEdit && (
+                <button className={btnDanger} onClick={() => removeItem(item.id)}>
+                  quitar
+                </button>
               )}
             </div>
           </div>
         ))}
       </div>
-      {dynamicItems && !presenter && (
+      {dynamicItems && canEdit && (
         <div className="flex gap-2">
           <input
             className={inputCls}
