@@ -80,7 +80,7 @@ insert into activities (session_id, title, time_minutes, description, materials,
 insert into activities (session_id, title, time_minutes, description, materials, activity_type, config, order_index) values
 ((select id from sessions where code='S1'), 'Rueda de capacidades por aspiración', 60,
  'Se conforman 3 mesas, una por aspiración. Cada mesa dibuja una rueda con las capacidades habilitantes de su aspiración y califica de 1 a 5 el desempeño actual de cada capacidad, sustentado con los datos traídos por el líder de aspiración. Plenaria: se comparan las tres ruedas y se identifican las capacidades más débiles que explican las brechas del acumulado anual.',
- 'Plantillas de rueda (3), marcadores, datos base por aspiración.', 'rueda_evaluacion',
+ null, 'rueda_evaluacion',
  '{"scaleMax":5,"dynamicItems":true,"perAspiration":true}', 0),
 ((select id from sessions where code='S1'), 'PCI consolidado (lluvia de ideas silenciosa)', 70,
  'Cada persona escribe fortalezas y debilidades específicas, marcando a qué aspiración pertenece cada una. Se agrupan por afinidad dentro de cada aspiración y se califica el impacto (alto/medio/bajo) en la matriz PCI.',
