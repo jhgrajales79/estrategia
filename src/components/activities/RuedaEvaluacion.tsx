@@ -33,21 +33,18 @@ export default function RuedaEvaluacion({ activity, session, aspirations, partic
   const perAspiration = Boolean(activity.config.perAspiration);
   const fixedItems = (activity.config.items as Item[]) ?? [];
   const presenter = isPresenter(participant);
-  const [activeAspId, setActiveAspId] = useState<number | null>(
-    () => participant.aspiration_id ?? aspirations[0]?.id ?? null
-  );
+  // No hay (todavía) una asignación real de aspiración por participante — todos
+  // se registran con aspiration_id null — así que las pestañas son de libre elección:
+  // cada equipo se ubica en la que le corresponde y trabaja ahí, sin restricción por identidad.
+  const [activeAspId, setActiveAspId] = useState<number | null>(() => aspirations[0]?.id ?? null);
   useEffect(() => {
-    // El facilitador no tiene aspiración propia: si las aspiraciones aún no habían
-    // cargado al montar, se selecciona la primera apenas estén disponibles.
     if (activeAspId === null && aspirations.length > 0) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setActiveAspId(aspirations[0].id);
     }
   }, [aspirations, activeAspId]);
   const submissionAspId = perAspiration ? activeAspId : null;
-  // Cada quien solo edita el tablero de su propia aspiración; las demás pestañas
-  // se pueden mirar (para seguir el avance de los otros equipos) pero en solo lectura.
-  const canEdit = perAspiration ? !presenter && activeAspId === participant.aspiration_id : !presenter;
+  const canEdit = !presenter;
   const { content, save, saving, updatedAt, saveError, loaded } = useSubmission<Content>(
     activity,
     session,
@@ -117,7 +114,6 @@ export default function RuedaEvaluacion({ activity, session, aspirations, partic
           {aspirations.map((a) => {
             const cls = aspClasses(a.number);
             const active = activeAspId === a.id;
-            const isMine = a.id === participant.aspiration_id;
             return (
               <button
                 key={a.id}
@@ -128,17 +124,20 @@ export default function RuedaEvaluacion({ activity, session, aspirations, partic
                 }`}
               >
                 Aspiración {a.number} · {ARCHETYPE_LABEL[a.number]}
-                {isMine && <span className="ml-1">· tu equipo</span>}
               </button>
             );
           })}
         </div>
       )}
       {presenter && content.items.length === 0 && (
-        <p className="text-sm text-muted">Aún no hay capacidades registradas. Cada equipo las agrega desde su propia sesión.</p>
+        <p className="text-sm text-muted">Aún no hay capacidades registradas. El equipo de esta aspiración las agrega desde su propia sesión.</p>
       )}
-      {perAspiration && !canEdit && !presenter && content.items.length === 0 && (
-        <p className="text-sm text-muted">Este equipo aún no ha registrado capacidades.</p>
+      {!presenter && content.items.length === 0 && (
+        <p className="text-sm text-muted">
+          {perAspiration
+            ? "Este equipo aún no ha registrado capacidades. Agrega la primera abajo."
+            : "Aún no hay capacidades registradas. Agrega la primera abajo."}
+        </p>
       )}
       <div className="space-y-2">
         {content.items.map((item) => (
