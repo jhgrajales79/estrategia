@@ -40,11 +40,25 @@ export default function RuedaEvaluacion({ activity, session, participant }: Acti
     { items: dynamicItems ? [] : fixedItems.map((f) => ({ ...f, id: f.key ?? uid(), score: 0, note: "" })) }
   );
   const [newLabel, setNewLabel] = useState("");
+  const [noteDraft, setNoteDraft] = useState<Record<string, string>>({});
 
   if (!loaded) return <p className="text-sm text-muted">Cargando…</p>;
 
   function setItem(id: string, patch: Partial<Item>) {
     save({ items: content.items.map((i) => (i.id === id ? { ...i, ...patch } : i)) });
+  }
+  function commitNote(item: Item) {
+    const text = (noteDraft[item.id] ?? item.note ?? "").trim();
+    setNoteDraft((d) => {
+      const next = { ...d };
+      delete next[item.id];
+      return next;
+    });
+    if (text !== (item.note ?? "")) setItem(item.id, { note: text });
+  }
+  function step(item: Item, delta: number) {
+    const next = Math.max(0, Math.min(scaleMax, item.score + delta));
+    if (next !== item.score) setItem(item.id, { score: next });
   }
   function addItem() {
     if (!newLabel.trim()) return;
@@ -88,8 +102,10 @@ export default function RuedaEvaluacion({ activity, session, participant }: Acti
                 <input
                   className={textareaCls + " mt-1"}
                   placeholder="Sustento / nota…"
-                  value={item.note ?? ""}
-                  onChange={(e) => setItem(item.id, { note: e.target.value })}
+                  value={noteDraft[item.id] ?? item.note ?? ""}
+                  onChange={(e) => setNoteDraft((d) => ({ ...d, [item.id]: e.target.value }))}
+                  onBlur={() => commitNote(item)}
+                  onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
                 />
               )}
             </div>
@@ -98,14 +114,33 @@ export default function RuedaEvaluacion({ activity, session, participant }: Acti
                 <span className="text-sm font-semibold">{item.score}</span>
               ) : (
                 <>
-                  <input
-                    type="range"
-                    min={0}
-                    max={scaleMax}
-                    value={item.score}
-                    onChange={(e) => setItem(item.id, { score: Number(e.target.value) })}
-                  />
-                  <span className="w-6 text-center text-sm font-semibold">{item.score}</span>
+                  <button
+                    type="button"
+                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border text-sm hover:bg-black/5 disabled:opacity-40"
+                    disabled={item.score <= 0}
+                    onClick={() => step(item, -1)}
+                    aria-label="Bajar calificación"
+                  >
+                    −
+                  </button>
+                  <div className="h-2 w-28 shrink-0 overflow-hidden rounded-full bg-black/10">
+                    <div
+                      className="h-full rounded-full bg-brand transition-all duration-300 ease-out"
+                      style={{ width: `${(item.score / scaleMax) * 100}%` }}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border text-sm hover:bg-black/5 disabled:opacity-40"
+                    disabled={item.score >= scaleMax}
+                    onClick={() => step(item, 1)}
+                    aria-label="Subir calificación"
+                  >
+                    +
+                  </button>
+                  <span className="w-10 shrink-0 text-center text-sm font-semibold text-foreground">
+                    {item.score}/{scaleMax}
+                  </span>
                   {dynamicItems && (
                     <button className={btnDanger} onClick={() => removeItem(item.id)}>
                       quitar
