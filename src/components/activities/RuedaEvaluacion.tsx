@@ -84,7 +84,18 @@ export default function RuedaEvaluacion({ activity, session, participant }: Acti
 
   return (
     <div className="space-y-3">
-      {presenter && <PresenterHint />}
+      {presenter && (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <PresenterHint />
+          <button
+            className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-black/5"
+            title="Ver la rueda en una pestaña nueva"
+            onClick={() => window.open(`/rueda/${activity.id}`, "_blank", "noopener,noreferrer")}
+          >
+            ⛶ Ver tablero
+          </button>
+        </div>
+      )}
       {presenter && content.items.length === 0 && (
         <p className="text-sm text-muted">Aún no hay capacidades registradas. Cada equipo las agrega desde su propia sesión.</p>
       )}
