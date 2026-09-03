@@ -1,9 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useRef, useState } from "react";
 import { useSubmission, effectiveAspirationId } from "@/lib/useSubmission";
 import { isPresenter } from "@/lib/presenter";
 import RadarChartView, { axisColor } from "@/components/RadarChartView";
+import HomologatedRadarView from "@/components/HomologatedRadarView";
+import { cellKey, parseHomologacionXml, type HomologacionSignal } from "@/lib/homologacion";
 import { ActivityComponentProps, inputCls, btnPrimary, btnGhost, btnDanger, SaveIndicator, PresenterHint, uid } from "./shared";
 
 interface Axis {
@@ -30,7 +32,12 @@ interface Content extends Record<string, unknown> {
   signals: Signal[];
   votes: Vote[];
   roundStatus: Record<string, RoundStage>;
+  // Evaluación homologada por el facilitador: totalmente aparte de signals/votes/roundStatus,
+  // nunca se lee ni se escribe desde la lógica del radar en vivo.
+  homologacion?: { cells: Record<string, string> };
 }
+
+const HOMOLOGACION_KEY = "__homologacion__";
 
 const STAGE_META: Record<RoundStage, { label: string; icon: string; badgeClass: string; tabActiveClass: string }> = {
   pending: { label: "Pendiente", icon: "⏳", badgeClass: "bg-black/5 text-muted", tabActiveClass: "border-border bg-card" },
@@ -64,6 +71,10 @@ export default function RadarContexto({ activity, session, participant }: Activi
   const [activeKey, setActiveKey] = useState<string>(axes[0]?.key ?? "");
   const [draftText, setDraftText] = useState<Record<string, string>>({});
   const [draftRing, setDraftRing] = useState<Record<string, number>>({});
+  const [homologDraft, setHomologDraft] = useState<Record<string, string>>({});
+  const [pendingXml, setPendingXml] = useState<HomologacionSignal[] | null>(null);
+  const [xmlError, setXmlError] = useState<string | null>(null);
+  const homologFileRef = useRef<HTMLInputElement>(null);
 
   const voteTotal = useMemo(() => {
     const totals: Record<string, number> = {};
@@ -114,6 +125,58 @@ export default function RadarContexto({ activity, session, participant }: Activi
     );
   }
 
+  function homologCellValue(axisKey: string, ring: number) {
+    const key = cellKey(axisKey, ring);
+    return homologDraft[key] ?? content.homologacion?.cells?.[key] ?? "";
+  }
+
+  function commitHomologCell(axisKey: string, ring: number) {
+    const key = cellKey(axisKey, ring);
+    const text = (homologDraft[key] ?? "").trim();
+    setHomologDraft((d) => {
+      const next = { ...d };
+      delete next[key];
+      return next;
+    });
+    const current = content.homologacion?.cells?.[key] ?? "";
+    if (text === current) return;
+    const nextCells = { ...(content.homologacion?.cells ?? {}) };
+    if (text) nextCells[key] = text;
+    else delete nextCells[key];
+    save(
+      { ...content, homologacion: { cells: nextCells } },
+      { eventType: "homologacion", summary: `${participant.name} ajustó la homologación (${axisLabel(axisKey)})` }
+    );
+  }
+
+  function handleHomologXmlFile(file: File) {
+    setXmlError(null);
+    file
+      .text()
+      .then((text) => {
+        try {
+          setPendingXml(parseHomologacionXml(text));
+        } catch (err) {
+          setXmlError(err instanceof Error ? err.message : "No se pudo leer el archivo.");
+        }
+      })
+      .catch(() => setXmlError("No se pudo leer el archivo."));
+  }
+
+  function confirmHomologImport() {
+    if (!pendingXml) return;
+    const cells: Record<string, string> = {};
+    for (const s of pendingXml) {
+      if (!axes.some((a) => a.key === s.axis)) continue;
+      cells[cellKey(s.axis, s.ring)] = s.text;
+    }
+    save(
+      { ...content, homologacion: { cells } },
+      { eventType: "homologacion", summary: `${participant.name} importó una homologación desde XML` }
+    );
+    setPendingXml(null);
+  }
+
   const liveAxisKeys = axes.filter((a) => stageOf(a.key) === "collect" || stageOf(a.key) === "vote").map((a) => a.key);
 
   function remainingFor(axisKey: string) {
@@ -160,7 +223,8 @@ export default function RadarContexto({ activity, session, participant }: Activi
     save({ ...content, votes }, { eventType: "voto_radar", summary: `${participant.name} votó una señal del radar` });
   }
 
-  const activeAxis = axes.find((a) => a.key === activeKey) ?? axes[0];
+  const isHomologTab = activeKey === HOMOLOGACION_KEY;
+  const activeAxis = !isHomologTab ? axes.find((a) => a.key === activeKey) ?? axes[0] : undefined;
   const stage = activeAxis ? stageOf(activeAxis.key) : "pending";
   const myRemaining = activeAxis ? remainingFor(activeAxis.key) : 0;
   const signalsInAxis = activeAxis ? content.signals.filter((s) => s.axis === activeAxis.key) : [];
@@ -226,7 +290,107 @@ export default function RadarContexto({ activity, session, participant }: Activi
                 </button>
               );
             })}
+            {presenter && (
+              <button
+                onClick={() => setActiveKey(HOMOLOGACION_KEY)}
+                className={`shrink-0 rounded-lg border px-3 py-2 text-left transition-colors ${
+                  isHomologTab ? "border-brand-dark bg-brand/5" : "border-border bg-card hover:bg-black/5"
+                }`}
+                style={{ minWidth: 150 }}
+              >
+                <p className="text-xs font-semibold text-foreground">🗂️ Homologación</p>
+                <p className="mt-1 text-[10px] text-muted">Solo facilitador</p>
+              </button>
+            )}
           </div>
+
+          {isHomologTab && presenter && (
+            <div className="rounded-lg border border-border bg-card p-3">
+              <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <p className="text-sm font-semibold text-foreground">Homologación de la evaluación</p>
+                  <p className="mt-0.5 text-xs text-muted">
+                    Vista independiente, solo tuya: nunca se mezcla con las señales ni los votos del radar en vivo.
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <button className={btnGhost} onClick={() => homologFileRef.current?.click()}>
+                    ⬆ Subir XML
+                  </button>
+                  <input
+                    ref={homologFileRef}
+                    type="file"
+                    accept=".xml,text/xml,application/xml"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleHomologXmlFile(file);
+                      e.target.value = "";
+                    }}
+                  />
+                </div>
+              </div>
+
+              {xmlError && <p className="mb-2 text-xs text-red-600">{xmlError}</p>}
+
+              {pendingXml && (
+                <div className="mb-3 flex flex-wrap items-center gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2.5 text-xs text-amber-900">
+                  <span>
+                    Se importarán {pendingXml.length} señal(es). Esto reemplazará por completo la homologación actual
+                    (no afecta el radar en vivo). ¿Continuar?
+                  </span>
+                  <div className="ml-auto flex shrink-0 items-center gap-2">
+                    <button
+                      className="rounded-md border border-border bg-card px-2.5 py-1 text-xs font-medium text-foreground hover:bg-black/5"
+                      onClick={() => setPendingXml(null)}
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      className="rounded-md bg-amber-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-amber-700"
+                      onClick={confirmHomologImport}
+                    >
+                      Sí, reemplazar
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="mb-4 flex justify-center">
+                <HomologatedRadarView axes={axes} rings={rings} cells={content.homologacion?.cells ?? {}} size={300} />
+              </div>
+
+              <div className="overflow-x-auto">
+                <div
+                  className="grid min-w-[640px] gap-2"
+                  style={{ gridTemplateColumns: `160px repeat(${rings.length}, minmax(200px, 1fr))` }}
+                >
+                  <div />
+                  {rings.map((r, i) => (
+                    <div key={i} className="flex items-center gap-1.5 px-1 text-xs font-semibold uppercase tracking-wide text-muted">
+                      <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: ["#087062", "#ff8300", "#00a0df"][i] }} />
+                      {r}
+                    </div>
+                  ))}
+                  {axes.map((a) => (
+                    <Fragment key={a.key}>
+                      <div className="flex items-center text-xs font-semibold text-foreground">{a.label}</div>
+                      {rings.map((_, ringIdx) => (
+                        <textarea
+                          key={ringIdx}
+                          className="min-h-[70px] w-full rounded-md border border-border bg-card px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-brand/40"
+                          placeholder="Texto homologado…"
+                          value={homologCellValue(a.key, ringIdx)}
+                          onChange={(e) => setHomologDraft((d) => ({ ...d, [cellKey(a.key, ringIdx)]: e.target.value }))}
+                          onBlur={() => commitHomologCell(a.key, ringIdx)}
+                        />
+                      ))}
+                    </Fragment>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
 
           {activeAxis && (
             <div className="rounded-lg border border-border bg-card p-3">
