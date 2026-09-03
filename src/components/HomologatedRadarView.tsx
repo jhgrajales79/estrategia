@@ -1,8 +1,10 @@
-import { cellKey } from "@/lib/homologacion";
-
 interface Axis {
   key: string;
   label: string;
+}
+interface Signal {
+  axis: string;
+  ring: number;
 }
 
 const BASE_SIZE = 320;
@@ -19,13 +21,13 @@ const THEME = {
 export default function HomologatedRadarView({
   axes,
   rings,
-  cells,
+  signals,
   size = BASE_SIZE,
   variant = "light",
 }: {
   axes: Axis[];
   rings: string[];
-  cells: Record<string, string>;
+  signals: Signal[];
   size?: number;
   variant?: "light" | "dark";
 }) {
@@ -41,7 +43,11 @@ export default function HomologatedRadarView({
     return { x: center + radiusFrac * maxR * Math.cos(rad), y: center + radiusFrac * maxR * Math.sin(rad) };
   }
 
-  const hasAny = axes.some((a) => rings.some((_, ringIdx) => Boolean(cells[cellKey(a.key, ringIdx)]?.trim())));
+  function hasSignal(axisKey: string, ring: number) {
+    return signals.some((s) => s.axis === axisKey && s.ring === ring);
+  }
+
+  const hasAny = signals.length > 0;
 
   return (
     <div className="flex flex-col items-center gap-3">
@@ -55,7 +61,7 @@ export default function HomologatedRadarView({
             return <line key={a.key} x1={center} y1={center} x2={p.x} y2={p.y} stroke={t.grid} strokeWidth={1} />;
           })}
           {rings.map((_, ringIdx) => {
-            const filled = axes.map((a) => Boolean(cells[cellKey(a.key, ringIdx)]?.trim()));
+            const filled = axes.map((a) => hasSignal(a.key, ringIdx));
             if (!filled.some(Boolean)) return null;
             const pts = axes.map((a, i) => point(axisAngle(i), filled[i] ? RING_FRACTIONS[ringIdx] : 0));
             const poly = pts.map((p) => `${p.x},${p.y}`).join(" ");

@@ -28,13 +28,22 @@ interface Vote {
 }
 type RoundStage = "pending" | "collect" | "vote" | "closed";
 
+interface HomologSignal {
+  id: string;
+  axis: string;
+  ring: number;
+  text: string;
+  score: number;
+}
+
 interface Content extends Record<string, unknown> {
   signals: Signal[];
   votes: Vote[];
   roundStatus: Record<string, RoundStage>;
   // Evaluación homologada por el facilitador: totalmente aparte de signals/votes/roundStatus,
-  // nunca se lee ni se escribe desde la lógica del radar en vivo.
-  homologacion?: { cells: Record<string, string> };
+  // nunca se lee ni se escribe desde la lógica del radar en vivo. Cada señal se guarda separada
+  // (nunca combinada con otras) junto con su calificación.
+  homologacion?: { signals: HomologSignal[] };
 }
 
 const HOMOLOGACION_KEY = "__homologacion__";
@@ -71,7 +80,8 @@ export default function RadarContexto({ activity, session, participant }: Activi
   const [activeKey, setActiveKey] = useState<string>(axes[0]?.key ?? "");
   const [draftText, setDraftText] = useState<Record<string, string>>({});
   const [draftRing, setDraftRing] = useState<Record<string, number>>({});
-  const [homologDraft, setHomologDraft] = useState<Record<string, string>>({});
+  const [homologDraft, setHomologDraft] = useState<Record<string, { text: string; score: string }>>({});
+  const [homologNewText, setHomologNewText] = useState<Record<string, string>>({});
   const [pendingXml, setPendingXml] = useState<HomologacionSignal[] | null>(null);
   const [xmlError, setXmlError] = useState<string | null>(null);
   const homologFileRef = useRef<HTMLInputElement>(null);
@@ -125,28 +135,47 @@ export default function RadarContexto({ activity, session, participant }: Activi
     );
   }
 
-  function homologCellValue(axisKey: string, ring: number) {
-    const key = cellKey(axisKey, ring);
-    return homologDraft[key] ?? content.homologacion?.cells?.[key] ?? "";
+  function homologSignals(): HomologSignal[] {
+    return content.homologacion?.signals ?? [];
   }
 
-  function commitHomologCell(axisKey: string, ring: number) {
-    const key = cellKey(axisKey, ring);
-    const text = (homologDraft[key] ?? "").trim();
+  function homologSignalsInCell(axisKey: string, ring: number) {
+    return homologSignals().filter((s) => s.axis === axisKey && s.ring === ring);
+  }
+
+  function commitHomologSignal(base: HomologSignal) {
+    const draft = homologDraft[base.id];
+    if (!draft) return;
     setHomologDraft((d) => {
       const next = { ...d };
-      delete next[key];
+      delete next[base.id];
       return next;
     });
-    const current = content.homologacion?.cells?.[key] ?? "";
-    if (text === current) return;
-    const nextCells = { ...(content.homologacion?.cells ?? {}) };
-    if (text) nextCells[key] = text;
-    else delete nextCells[key];
+    const text = draft.text.trim() || base.text;
+    const scoreNum = Number(draft.score);
+    const score = Number.isNaN(scoreNum) ? base.score : scoreNum;
+    if (text === base.text && score === base.score) return;
+    const nextSignals = homologSignals().map((s) => (s.id === base.id ? { ...s, text, score } : s));
     save(
-      { ...content, homologacion: { cells: nextCells } },
-      { eventType: "homologacion", summary: `${participant.name} ajustó la homologación (${axisLabel(axisKey)})` }
+      { ...content, homologacion: { signals: nextSignals } },
+      { eventType: "homologacion", summary: `${participant.name} ajustó una señal homologada (${axisLabel(base.axis)})` }
     );
+  }
+
+  function removeHomologSignal(id: string) {
+    save({ ...content, homologacion: { signals: homologSignals().filter((s) => s.id !== id) } });
+  }
+
+  function addHomologSignal(axisKey: string, ring: number) {
+    const key = cellKey(axisKey, ring);
+    const text = (homologNewText[key] ?? "").trim();
+    if (!text) return;
+    const entry: HomologSignal = { id: uid(), axis: axisKey, ring, text, score: 0 };
+    save(
+      { ...content, homologacion: { signals: [...homologSignals(), entry] } },
+      { eventType: "homologacion", summary: `${participant.name} agregó una señal homologada (${axisLabel(axisKey)})` }
+    );
+    setHomologNewText((d) => ({ ...d, [key]: "" }));
   }
 
   function handleHomologXmlFile(file: File) {
@@ -165,14 +194,14 @@ export default function RadarContexto({ activity, session, participant }: Activi
 
   function confirmHomologImport() {
     if (!pendingXml) return;
-    const cells: Record<string, string> = {};
-    for (const s of pendingXml) {
-      if (!axes.some((a) => a.key === s.axis)) continue;
-      cells[cellKey(s.axis, s.ring)] = s.text;
-    }
+    // Cada señal se conserva separada, con su propia calificación — nunca se combinan varias
+    // en un solo texto, y el eje/anillo (la evaluación) se respeta tal como venía en el archivo.
+    const signals: HomologSignal[] = pendingXml
+      .filter((s) => axes.some((a) => a.key === s.axis))
+      .map((s) => ({ id: s.id || uid(), axis: s.axis, ring: s.ring, text: s.text, score: s.score ?? 0 }));
     save(
-      { ...content, homologacion: { cells } },
-      { eventType: "homologacion", summary: `${participant.name} importó una homologación desde XML` }
+      { ...content, homologacion: { signals } },
+      { eventType: "homologacion", summary: `${participant.name} importó una homologación (${signals.length} señales)` }
     );
     setPendingXml(null);
   }
@@ -357,13 +386,13 @@ export default function RadarContexto({ activity, session, participant }: Activi
               )}
 
               <div className="mb-4 flex justify-center">
-                <HomologatedRadarView axes={axes} rings={rings} cells={content.homologacion?.cells ?? {}} size={300} />
+                <HomologatedRadarView axes={axes} rings={rings} signals={homologSignals()} size={300} />
               </div>
 
               <div className="overflow-x-auto">
                 <div
-                  className="grid min-w-[640px] gap-2"
-                  style={{ gridTemplateColumns: `160px repeat(${rings.length}, minmax(200px, 1fr))` }}
+                  className="grid min-w-[760px] gap-2"
+                  style={{ gridTemplateColumns: `160px repeat(${rings.length}, minmax(220px, 1fr))` }}
                 >
                   <div />
                   {rings.map((r, i) => (
@@ -375,16 +404,57 @@ export default function RadarContexto({ activity, session, participant }: Activi
                   {axes.map((a) => (
                     <Fragment key={a.key}>
                       <div className="flex items-center text-xs font-semibold text-foreground">{a.label}</div>
-                      {rings.map((_, ringIdx) => (
-                        <textarea
-                          key={ringIdx}
-                          className="min-h-[70px] w-full rounded-md border border-border bg-card px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-brand/40"
-                          placeholder="Texto homologado…"
-                          value={homologCellValue(a.key, ringIdx)}
-                          onChange={(e) => setHomologDraft((d) => ({ ...d, [cellKey(a.key, ringIdx)]: e.target.value }))}
-                          onBlur={() => commitHomologCell(a.key, ringIdx)}
-                        />
-                      ))}
+                      {rings.map((_, ringIdx) => {
+                        const inCell = homologSignalsInCell(a.key, ringIdx);
+                        const newKey = cellKey(a.key, ringIdx);
+                        return (
+                          <div key={ringIdx} className="flex min-h-[90px] flex-col gap-1.5 rounded-lg border border-border bg-black/[0.015] p-1.5">
+                            <div className="flex max-h-56 flex-col gap-1.5 overflow-y-auto">
+                              {inCell.map((s) => {
+                                const draft = homologDraft[s.id] ?? { text: s.text, score: String(s.score) };
+                                return (
+                                  <div key={s.id} className="rounded-md border border-border bg-card p-1.5">
+                                    <textarea
+                                      className="w-full resize-none bg-transparent text-xs text-foreground focus:outline-none"
+                                      rows={2}
+                                      value={draft.text}
+                                      onChange={(e) =>
+                                        setHomologDraft((d) => ({ ...d, [s.id]: { ...(d[s.id] ?? draft), text: e.target.value } }))
+                                      }
+                                      onBlur={() => commitHomologSignal(s)}
+                                    />
+                                    <div className="mt-1 flex items-center justify-between gap-1">
+                                      <label className="flex items-center gap-1 text-[10px] text-muted">
+                                        Calificación
+                                        <input
+                                          type="number"
+                                          className="w-14 rounded border border-border bg-card px-1 py-0.5 text-[10px] text-foreground focus:outline-none"
+                                          value={draft.score}
+                                          onChange={(e) =>
+                                            setHomologDraft((d) => ({ ...d, [s.id]: { ...(d[s.id] ?? draft), score: e.target.value } }))
+                                          }
+                                          onBlur={() => commitHomologSignal(s)}
+                                        />
+                                      </label>
+                                      <button className="text-[10px] text-red-600 hover:underline" onClick={() => removeHomologSignal(s.id)}>
+                                        eliminar
+                                      </button>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                            <input
+                              className="w-full rounded-md border border-dashed border-border bg-transparent px-2 py-1 text-xs placeholder:text-muted focus:border-solid focus:border-brand/50 focus:outline-none"
+                              placeholder="+ Agregar señal…"
+                              value={homologNewText[newKey] ?? ""}
+                              onChange={(e) => setHomologNewText((d) => ({ ...d, [newKey]: e.target.value }))}
+                              onKeyDown={(e) => e.key === "Enter" && addHomologSignal(a.key, ringIdx)}
+                              onBlur={() => addHomologSignal(a.key, ringIdx)}
+                            />
+                          </div>
+                        );
+                      })}
                     </Fragment>
                   ))}
                 </div>
