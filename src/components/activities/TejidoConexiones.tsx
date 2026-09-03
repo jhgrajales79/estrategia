@@ -59,11 +59,20 @@ export default function TejidoConexiones({ activity, session, participant }: Act
     removeThread(myThread.id);
   }
 
-  async function handleUpload(file: File) {
+  async function handleUpload(files: FileList) {
     setUploading(true);
     try {
-      const url = await uploadMedia(file, `activity-${activity.id}`);
-      save({ ...content, media: [...content.media, url] }, { eventType: "foto", summary: `${participant.name} subió una foto en "${activity.title}"` });
+      // Se suben todos los archivos primero y se guardan juntos en un solo save: si cada uno
+      // guardara por separado, cada llamada partiría del mismo content.media desactualizado
+      // (closure) y las subidas se pisarían entre sí en vez de acumularse.
+      const urls = await Promise.all(Array.from(files).map((f) => uploadMedia(f, `activity-${activity.id}`)));
+      save(
+        { ...content, media: [...content.media, ...urls] },
+        {
+          eventType: "foto",
+          summary: `${participant.name} subió ${urls.length > 1 ? `${urls.length} fotos/videos` : "una foto"} en "${activity.title}"`,
+        }
+      );
     } catch (err) {
       console.error(err);
     } finally {
@@ -152,15 +161,16 @@ export default function TejidoConexiones({ activity, session, participant }: Act
             ))}
           </div>
           <label className={btnGhost + " cursor-pointer"}>
-            {uploading ? "Subiendo…" : "📷 Subir foto o video"}
+            {uploading ? "Subiendo…" : "📷 Subir fotos o videos"}
             <input
               type="file"
               accept="image/*,video/*"
+              multiple
               className="hidden"
               disabled={uploading}
               onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) handleUpload(file);
+                const files = e.target.files;
+                if (files && files.length > 0) handleUpload(files);
                 e.target.value = "";
               }}
             />
