@@ -14,6 +14,7 @@ import usePresence from "@/lib/usePresence";
 import { Avatar } from "@/components/activities/shared";
 import AspirationBadge from "@/components/AspirationBadge";
 import MediaSlideshow from "@/components/MediaSlideshow";
+import SystemBackupPanel from "@/components/SystemBackupPanel";
 
 export default function PanelPage() {
   const participant = useRequireParticipant();
@@ -154,6 +155,7 @@ export default function PanelPage() {
         <Cronograma sessions={sessions} progress={sessionProgress} presenter={presenter} onToggleEnabled={toggleSession} twoColumn />
       </section>
 
+      {presenter && <SystemBackupPanel />}
     </div>
   );
 }
