@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRequireParticipant } from "@/lib/useRequireParticipant";
-import { fetchAspirations, fetchOutputs, fetchSessions, fetchTrackingBoard } from "@/lib/data";
+import { fetchAspirations, fetchOutputs, fetchSessionMedia, fetchSessions, fetchTrackingBoard } from "@/lib/data";
+import type { SessionMedia } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
 import { logActivity } from "@/lib/feed";
 import { isPresenter } from "@/lib/presenter";
@@ -12,6 +13,7 @@ import { aspClasses, findAspiration } from "@/lib/aspirationStyle";
 import usePresence from "@/lib/usePresence";
 import { Avatar } from "@/components/activities/shared";
 import AspirationBadge from "@/components/AspirationBadge";
+import MediaSlideshow from "@/components/MediaSlideshow";
 
 export default function PanelPage() {
   const participant = useRequireParticipant();
@@ -20,6 +22,7 @@ export default function PanelPage() {
   const [outputs, setOutputs] = useState<OutputRow[]>([]);
   const [aspirations, setAspirations] = useState<Aspiration[]>([]);
   const [tracking, setTracking] = useState<TrackingBoardRow[]>([]);
+  const [media, setMedia] = useState<SessionMedia[]>([]);
   const online = usePresence(participant);
 
   useEffect(() => {
@@ -27,6 +30,7 @@ export default function PanelPage() {
     fetchOutputs().then(setOutputs).catch(console.error);
     fetchAspirations().then(setAspirations).catch(console.error);
     fetchTrackingBoard().then(setTracking).catch(console.error);
+    fetchSessionMedia().then(setMedia).catch(console.error);
   }, []);
 
   useEffect(() => {
@@ -41,11 +45,20 @@ export default function PanelPage() {
       .on("postgres_changes", { event: "*", schema: "public", table: "sessions" }, () => {
         fetchSessions().then(setSessions).catch(console.error);
       })
+      .on("postgres_changes", { event: "*", schema: "public", table: "submissions" }, () => {
+        // No se puede filtrar de forma fiable por actividad en el payload; se recarga siempre.
+        fetchSessionMedia().then(setMedia).catch(console.error);
+      })
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
   }, []);
+
+  const slides = useMemo(
+    () => media.flatMap((m) => m.media.map((url) => ({ url, caption: m.activity_title }))),
+    [media]
+  );
 
   const sessionProgress = useMemo(() => {
     const map: Record<number, number> = {};
@@ -83,6 +96,13 @@ export default function PanelPage() {
           </span>
         )}
       </div>
+
+      {slides.length > 0 && (
+        <section className="mt-5">
+          <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted">🖼️ Momentos de la sesión</h2>
+          <MediaSlideshow slides={slides} className="h-64 w-full sm:h-80 lg:h-96" />
+        </section>
+      )}
 
       <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {aspirations.map((a) => {

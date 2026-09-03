@@ -7,6 +7,10 @@ import { isPresenter } from "@/lib/presenter";
 import ConnectionsWebView from "@/components/ConnectionsWebView";
 import { ActivityComponentProps, inputCls, btnPrimary, btnGhost, SaveIndicator, PresenterHint, uid } from "./shared";
 
+function isVideoUrl(url: string) {
+  return /\.(mp4|webm|ogg|mov|m4v)(\?|$)/i.test(url);
+}
+
 interface Thread {
   id: string;
   author: string;
@@ -119,16 +123,24 @@ export default function TejidoConexiones({ activity, session, participant }: Act
 
       {presenter && showMedia && (
         <div className="rounded-lg border border-border bg-card p-3">
-          <h4 className="mb-2 text-sm font-semibold text-foreground">Fotos y panel visual</h4>
+          <h4 className="mb-2 text-sm font-semibold text-foreground">Fotos, videos y panel visual</h4>
           <p className="mb-2 text-xs text-muted">
-            Solo tú, como facilitador, gestionas esto. Los participantes lo verán en el panel de avance, no aquí en la sesión.
+            Solo tú, como facilitador, gestionas esto. Los participantes lo verán rotando en presentación en{" "}
+            <strong className="text-foreground">Panel en vivo</strong>, no aquí en la sesión.
           </p>
           <div className="mb-3 flex flex-wrap gap-2">
             {content.media.map((url) => (
-              <div key={url} className="group relative h-20 w-20 overflow-hidden rounded-md border border-border">
-                <button className="h-full w-full cursor-zoom-in" title="Ampliar foto" onClick={() => setLightboxUrl(url)}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={url} alt="Foto de la actividad" className="h-full w-full object-cover" />
+              <div key={url} className="group relative h-20 w-20 overflow-hidden rounded-md border border-border bg-black/5">
+                <button className="relative h-full w-full cursor-zoom-in" title="Ampliar" onClick={() => setLightboxUrl(url)}>
+                  {isVideoUrl(url) ? (
+                    <>
+                      <video src={url} className="h-full w-full object-cover" muted />
+                      <span className="absolute inset-0 flex items-center justify-center text-lg text-white drop-shadow">▶</span>
+                    </>
+                  ) : (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={url} alt="Foto de la actividad" className="h-full w-full object-cover" />
+                  )}
                 </button>
                 <button
                   className="absolute right-0.5 top-0.5 rounded-full bg-black/60 px-1 text-xs text-white opacity-0 group-hover:opacity-100"
@@ -140,10 +152,10 @@ export default function TejidoConexiones({ activity, session, participant }: Act
             ))}
           </div>
           <label className={btnGhost + " cursor-pointer"}>
-            {uploading ? "Subiendo…" : "📷 Subir foto"}
+            {uploading ? "Subiendo…" : "📷 Subir foto o video"}
             <input
               type="file"
-              accept="image/*"
+              accept="image/*,video/*"
               className="hidden"
               disabled={uploading}
               onChange={(e) => {
@@ -172,8 +184,18 @@ export default function TejidoConexiones({ activity, session, participant }: Act
           <button className="absolute right-4 top-4 rounded-md bg-white/10 px-3 py-1.5 text-sm text-white hover:bg-white/20" onClick={() => setLightboxUrl(null)}>
             ✕ Cerrar
           </button>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={lightboxUrl} alt="Foto ampliada" className="max-h-full max-w-full rounded-lg object-contain" onClick={(e) => e.stopPropagation()} />
+          {isVideoUrl(lightboxUrl) ? (
+            <video
+              src={lightboxUrl}
+              controls
+              autoPlay
+              className="max-h-full max-w-full rounded-lg"
+              onClick={(e) => e.stopPropagation()}
+            />
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={lightboxUrl} alt="Foto ampliada" className="max-h-full max-w-full rounded-lg object-contain" onClick={(e) => e.stopPropagation()} />
+          )}
         </div>
       )}
     </div>
