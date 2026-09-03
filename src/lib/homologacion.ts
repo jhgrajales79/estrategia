@@ -36,3 +36,50 @@ export function parseHomologacionXml(xmlText: string): HomologacionSignal[] {
   }
   return result;
 }
+
+interface RawSignal {
+  axis: string;
+  ring: number;
+  text: string;
+}
+
+// Además del XML de homologación, se acepta el propio JSON de respaldo que exporta esta app
+// (botón "⬇ Exportar" de la actividad): agrupa las señales crudas del radar en vivo por eje y
+// anillo, y las deja como una lista numerada por celda — un punto de partida para homologar,
+// sin perder ningún aporte y sin mover ninguna señal de anillo (la evaluación no cambia).
+export function parseHomologacionSource(fileText: string, activityId: number): HomologacionSignal[] {
+  const trimmed = fileText.trim();
+  if (trimmed.startsWith("<")) return parseHomologacionXml(fileText);
+
+  let data: unknown;
+  try {
+    data = JSON.parse(trimmed);
+  } catch {
+    throw new Error("El archivo no es XML ni JSON válido.");
+  }
+  const rows = (data as { rows?: unknown }).rows;
+  if (!Array.isArray(rows)) {
+    throw new Error("El JSON no tiene el formato esperado (falta 'rows'). ¿Es un respaldo exportado desde esta app?");
+  }
+  const row = rows.find((r) => (r as { activity_id?: number }).activity_id === activityId) as
+    | { content?: { signals?: RawSignal[] } }
+    | undefined;
+  const signals = row?.content?.signals;
+  if (!Array.isArray(signals) || signals.length === 0) {
+    throw new Error("El archivo no tiene señales del radar en vivo para esta actividad.");
+  }
+
+  const grouped = new Map<string, string[]>();
+  for (const s of signals) {
+    if (typeof s.axis !== "string" || typeof s.ring !== "number" || typeof s.text !== "string") continue;
+    const key = cellKey(s.axis, s.ring);
+    const list = grouped.get(key) ?? [];
+    if (!list.includes(s.text)) list.push(s.text);
+    grouped.set(key, list);
+  }
+
+  return Array.from(grouped.entries()).map(([key, texts]) => {
+    const [axis, ringStr] = key.split(":");
+    return { axis, ring: Number(ringStr), text: texts.map((t, i) => `${i + 1}. ${t}`).join("\n") };
+  });
+}

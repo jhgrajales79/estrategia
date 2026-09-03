@@ -5,7 +5,7 @@ import { useSubmission, effectiveAspirationId } from "@/lib/useSubmission";
 import { isPresenter } from "@/lib/presenter";
 import RadarChartView, { axisColor } from "@/components/RadarChartView";
 import HomologatedRadarView from "@/components/HomologatedRadarView";
-import { cellKey, parseHomologacionXml, type HomologacionSignal } from "@/lib/homologacion";
+import { cellKey, parseHomologacionSource, type HomologacionSignal } from "@/lib/homologacion";
 import { ActivityComponentProps, inputCls, btnPrimary, btnGhost, btnDanger, SaveIndicator, PresenterHint, uid } from "./shared";
 
 interface Axis {
@@ -155,7 +155,7 @@ export default function RadarContexto({ activity, session, participant }: Activi
       .text()
       .then((text) => {
         try {
-          setPendingXml(parseHomologacionXml(text));
+          setPendingXml(parseHomologacionSource(text, activity.id));
         } catch (err) {
           setXmlError(err instanceof Error ? err.message : "No se pudo leer el archivo.");
         }
@@ -315,12 +315,12 @@ export default function RadarContexto({ activity, session, participant }: Activi
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   <button className={btnGhost} onClick={() => homologFileRef.current?.click()}>
-                    ⬆ Subir XML
+                    ⬆ Subir XML o JSON
                   </button>
                   <input
                     ref={homologFileRef}
                     type="file"
-                    accept=".xml,text/xml,application/xml"
+                    accept=".xml,.json,text/xml,application/xml,application/json"
                     className="hidden"
                     onChange={(e) => {
                       const file = e.target.files?.[0];
