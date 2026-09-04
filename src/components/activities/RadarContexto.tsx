@@ -80,6 +80,7 @@ export default function RadarContexto({ activity, session, participant }: Activi
   const [activeKey, setActiveKey] = useState<string>(axes[0]?.key ?? "");
   const [draftText, setDraftText] = useState<Record<string, string>>({});
   const [draftRing, setDraftRing] = useState<Record<string, number>>({});
+  const [homologView, setHomologView] = useState<"general" | 0 | 1 | 2>("general");
   const [homologDraft, setHomologDraft] = useState<Record<string, { text: string; score: string }>>({});
   const [homologNewText, setHomologNewText] = useState<Record<string, string>>({});
   const [pendingXml, setPendingXml] = useState<HomologacionSignal[] | null>(null);
@@ -386,7 +387,38 @@ export default function RadarContexto({ activity, session, participant }: Activi
               )}
 
               <div className="mb-4 flex justify-center">
-                <HomologatedRadarView axes={axes} rings={rings} signals={homologSignals()} size={300} />
+                <div className="flex w-full flex-col items-center gap-3">
+                  <div className="flex flex-wrap justify-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setHomologView("general")}
+                      className={`rounded-full border px-3 py-1 text-[11px] font-semibold transition-colors ${
+                        homologView === "general" ? "border-brand-dark bg-brand/10 text-brand-dark" : "border-border text-muted hover:bg-black/5"
+                      }`}
+                    >
+                      📊 General
+                    </button>
+                    {rings.map((r, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => setHomologView(i as 0 | 1 | 2)}
+                        className={`rounded-full border px-3 py-1 text-[11px] font-semibold transition-colors ${
+                          homologView === i ? "border-brand-dark bg-brand/10 text-brand-dark" : "border-border text-muted hover:bg-black/5"
+                        }`}
+                      >
+                        {r}
+                      </button>
+                    ))}
+                  </div>
+                  <HomologatedRadarView
+                    axes={axes}
+                    rings={rings}
+                    signals={homologSignals()}
+                    size={300}
+                    ringFilter={homologView === "general" ? null : homologView}
+                  />
+                </div>
               </div>
 
               <div className="overflow-x-auto">

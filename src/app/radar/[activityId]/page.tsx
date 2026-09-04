@@ -62,6 +62,7 @@ export default function RadarFullscreenPage({ params }: { params: Promise<{ acti
   const [session, setSession] = useState<SessionRow | null>(null);
   const [size, setSize] = useState(600);
   const [view, setView] = useState<"vivo" | "homolog">("vivo");
+  const [homologView, setHomologView] = useState<"general" | 0 | 1 | 2>("general");
 
   useEffect(() => {
     fetchActivityById(Number(activityId)).then((a) => {
@@ -210,13 +211,44 @@ export default function RadarFullscreenPage({ params }: { params: Promise<{ acti
           </div>
         </div>
       ) : (
-        <div className="mx-auto mt-6 flex max-w-[1400px] flex-col items-center gap-8 md:flex-row md:items-start md:justify-center md:gap-24">
-          <HomologatedRadarView axes={axes} rings={rings} signals={content.homologacion?.signals ?? []} size={size} variant="dark" />
+        <div className="mx-auto mt-6 max-w-[1400px]">
+          <div className="mb-6 flex flex-wrap justify-center gap-2">
+            <button
+              onClick={() => setHomologView("general")}
+              className={`rounded-full border px-4 py-1.5 text-sm font-semibold transition-colors ${
+                homologView === "general" ? "border-transparent bg-brand text-dark" : "border-white/15 bg-white/[0.03] text-white/60 hover:bg-white/[0.08]"
+              }`}
+            >
+              📊 General
+            </button>
+            {rings.map((r, i) => (
+              <button
+                key={i}
+                onClick={() => setHomologView(i as 0 | 1 | 2)}
+                className={`rounded-full border px-4 py-1.5 text-sm font-semibold transition-colors ${
+                  homologView === i ? "border-transparent bg-brand text-dark" : "border-white/15 bg-white/[0.03] text-white/60 hover:bg-white/[0.08]"
+                }`}
+              >
+                {r}
+              </button>
+            ))}
+          </div>
 
-          <div className="w-full max-w-sm shrink-0 space-y-3 md:mt-8">
-            {rings.map((ringLabel, ringIdx) => {
-              const inRing = (content.homologacion?.signals ?? []).filter((s) => s.ring === ringIdx);
-              if (inRing.length === 0) return null;
+          <div className="flex flex-col items-center gap-8 md:flex-row md:items-start md:justify-center md:gap-24">
+            <HomologatedRadarView
+              axes={axes}
+              rings={rings}
+              signals={content.homologacion?.signals ?? []}
+              size={size}
+              variant="dark"
+              ringFilter={homologView === "general" ? null : homologView}
+            />
+
+            <div className="w-full max-w-sm shrink-0 space-y-3">
+              {rings.map((ringLabel, ringIdx) => {
+                if (homologView !== "general" && homologView !== ringIdx) return null;
+                const inRing = (content.homologacion?.signals ?? []).filter((s) => s.ring === ringIdx);
+                if (inRing.length === 0) return null;
               return (
                 <div key={ringIdx} className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
                   <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-white/60">
@@ -234,13 +266,14 @@ export default function RadarFullscreenPage({ params }: { params: Promise<{ acti
                       ))}
                   </ul>
                 </div>
-              );
-            })}
-            {(content.homologacion?.signals ?? []).length === 0 && (
-              <p className="text-sm text-white/40">
-                Aún no hay homologación cargada. Se gestiona desde la actividad, en la pestaña &ldquo;🗂️ Homologación&rdquo;.
-              </p>
-            )}
+                );
+              })}
+              {(content.homologacion?.signals ?? []).length === 0 && (
+                <p className="text-sm text-white/40">
+                  Aún no hay homologación cargada. Se gestiona desde la actividad, en la pestaña &ldquo;🗂️ Homologación&rdquo;.
+                </p>
+              )}
+            </div>
           </div>
         </div>
       )}

@@ -24,16 +24,21 @@ export default function HomologatedRadarView({
   signals,
   size = BASE_SIZE,
   variant = "light",
+  ringFilter = null,
 }: {
   axes: Axis[];
   rings: string[];
   signals: Signal[];
   size?: number;
   variant?: "light" | "dark";
+  // null/undefined = radar general (los 3 anillos superpuestos). Un número = radar de un solo
+  // anillo (ese horizonte en solitario), mismo criterio visual, sin mezclar con los otros.
+  ringFilter?: number | null;
 }) {
   const t = THEME[variant];
   const center = size / 2;
   const maxR = size / 2 - (size > BASE_SIZE ? 64 : 48);
+  const ringIndices = ringFilter === null ? rings.map((_, i) => i) : [ringFilter];
 
   function axisAngle(i: number) {
     return -90 + (360 / Math.max(axes.length, 1)) * i;
@@ -47,7 +52,7 @@ export default function HomologatedRadarView({
     return signals.some((s) => s.axis === axisKey && s.ring === ring);
   }
 
-  const hasAny = signals.length > 0;
+  const hasAny = signals.some((s) => ringIndices.includes(s.ring));
 
   return (
     <div className="flex flex-col items-center gap-3">
@@ -60,7 +65,7 @@ export default function HomologatedRadarView({
             const p = point(axisAngle(i), 1);
             return <line key={a.key} x1={center} y1={center} x2={p.x} y2={p.y} stroke={t.grid} strokeWidth={1} />;
           })}
-          {rings.map((_, ringIdx) => {
+          {ringIndices.map((ringIdx) => {
             const filled = axes.map((a) => hasSignal(a.key, ringIdx));
             if (!filled.some(Boolean)) return null;
             const pts = axes.map((a, i) => point(axisAngle(i), filled[i] ? RING_FRACTIONS[ringIdx] : 0));
@@ -104,10 +109,10 @@ export default function HomologatedRadarView({
         )}
       </div>
       <div className="flex flex-wrap justify-center gap-3 text-xs" style={{ color: t.label }}>
-        {rings.map((r, i) => (
+        {ringIndices.map((i) => (
           <span key={i} className="flex items-center gap-1.5">
             <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: RING_COLORS[i] }} />
-            {r}
+            {rings[i]}
           </span>
         ))}
       </div>
