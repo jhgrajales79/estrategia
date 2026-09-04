@@ -5,6 +5,7 @@ import { useSubmission, effectiveAspirationId } from "@/lib/useSubmission";
 import { isPresenter } from "@/lib/presenter";
 import RadarChartView, { axisColor } from "@/components/RadarChartView";
 import HomologatedRadarView from "@/components/HomologatedRadarView";
+import AxisRingsView from "@/components/AxisRingsView";
 import { cellKey, parseHomologacionSource, type HomologacionSignal } from "@/lib/homologacion";
 import { ActivityComponentProps, inputCls, btnPrimary, btnGhost, btnDanger, SaveIndicator, PresenterHint, uid } from "./shared";
 
@@ -80,7 +81,9 @@ export default function RadarContexto({ activity, session, participant }: Activi
   const [activeKey, setActiveKey] = useState<string>(axes[0]?.key ?? "");
   const [draftText, setDraftText] = useState<Record<string, string>>({});
   const [draftRing, setDraftRing] = useState<Record<string, number>>({});
+  const [homologDimension, setHomologDimension] = useState<"anillo" | "eje">("anillo");
   const [homologView, setHomologView] = useState<"general" | 0 | 1 | 2>("general");
+  const [homologAxisFilter, setHomologAxisFilter] = useState<string>(axes[0]?.key ?? "");
   const [homologDraft, setHomologDraft] = useState<Record<string, { text: string; score: string }>>({});
   const [homologNewText, setHomologNewText] = useState<Record<string, string>>({});
   const [pendingXml, setPendingXml] = useState<HomologacionSignal[] | null>(null);
@@ -388,36 +391,83 @@ export default function RadarContexto({ activity, session, participant }: Activi
 
               <div className="mb-4 flex justify-center">
                 <div className="flex w-full flex-col items-center gap-3">
-                  <div className="flex flex-wrap justify-center gap-1.5">
+                  <div className="flex flex-wrap justify-center gap-1.5 rounded-full border border-border bg-black/[0.02] p-1">
                     <button
                       type="button"
-                      onClick={() => setHomologView("general")}
-                      className={`rounded-full border px-3 py-1 text-[11px] font-semibold transition-colors ${
-                        homologView === "general" ? "border-brand-dark bg-brand/10 text-brand-dark" : "border-border text-muted hover:bg-black/5"
+                      onClick={() => setHomologDimension("anillo")}
+                      className={`rounded-full px-3 py-1 text-[11px] font-semibold transition-colors ${
+                        homologDimension === "anillo" ? "bg-card text-foreground shadow-sm" : "text-muted hover:bg-black/5"
                       }`}
                     >
-                      📊 General
+                      Por anillo (radar)
                     </button>
-                    {rings.map((r, i) => (
-                      <button
-                        key={i}
-                        type="button"
-                        onClick={() => setHomologView(i as 0 | 1 | 2)}
-                        className={`rounded-full border px-3 py-1 text-[11px] font-semibold transition-colors ${
-                          homologView === i ? "border-brand-dark bg-brand/10 text-brand-dark" : "border-border text-muted hover:bg-black/5"
-                        }`}
-                      >
-                        {r}
-                      </button>
-                    ))}
+                    <button
+                      type="button"
+                      onClick={() => setHomologDimension("eje")}
+                      className={`rounded-full px-3 py-1 text-[11px] font-semibold transition-colors ${
+                        homologDimension === "eje" ? "bg-card text-foreground shadow-sm" : "text-muted hover:bg-black/5"
+                      }`}
+                    >
+                      Por eje (barras)
+                    </button>
                   </div>
-                  <HomologatedRadarView
-                    axes={axes}
-                    rings={rings}
-                    signals={homologSignals()}
-                    size={300}
-                    ringFilter={homologView === "general" ? null : homologView}
-                  />
+
+                  {homologDimension === "anillo" ? (
+                    <>
+                      <div className="flex flex-wrap justify-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setHomologView("general")}
+                          className={`rounded-full border px-3 py-1 text-[11px] font-semibold transition-colors ${
+                            homologView === "general" ? "border-brand-dark bg-brand/10 text-brand-dark" : "border-border text-muted hover:bg-black/5"
+                          }`}
+                        >
+                          📊 General
+                        </button>
+                        {rings.map((r, i) => (
+                          <button
+                            key={i}
+                            type="button"
+                            onClick={() => setHomologView(i as 0 | 1 | 2)}
+                            className={`rounded-full border px-3 py-1 text-[11px] font-semibold transition-colors ${
+                              homologView === i ? "border-brand-dark bg-brand/10 text-brand-dark" : "border-border text-muted hover:bg-black/5"
+                            }`}
+                          >
+                            {r}
+                          </button>
+                        ))}
+                      </div>
+                      <HomologatedRadarView
+                        axes={axes}
+                        rings={rings}
+                        signals={homologSignals()}
+                        size={300}
+                        ringFilter={homologView === "general" ? null : homologView}
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex flex-wrap justify-center gap-1.5">
+                        {axes.map((a) => (
+                          <button
+                            key={a.key}
+                            type="button"
+                            onClick={() => setHomologAxisFilter(a.key)}
+                            className={`rounded-full border px-3 py-1 text-[11px] font-semibold transition-colors ${
+                              homologAxisFilter === a.key ? "border-brand-dark bg-brand/10 text-brand-dark" : "border-border text-muted hover:bg-black/5"
+                            }`}
+                          >
+                            {a.label}
+                          </button>
+                        ))}
+                      </div>
+                      <AxisRingsView
+                        axisLabel={axisLabel(homologAxisFilter)}
+                        rings={rings}
+                        signals={homologSignals().filter((s) => s.axis === homologAxisFilter)}
+                      />
+                    </>
+                  )}
                 </div>
               </div>
 

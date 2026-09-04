@@ -1,25 +1,27 @@
-interface Axis {
+export interface Axis {
   key: string;
   label: string;
 }
-interface Signal {
+export interface HomologSignal {
   id: string;
   axis: string;
   ring: number;
   text: string;
   score: number;
 }
+type Signal = HomologSignal;
 
 const BASE_SIZE = 320;
 const RING_FRACTIONS = [0.35, 0.68, 1];
 // Un color fijo por anillo (no por eje): el mismo criterio de "color fijo y reconocible" que
 // axisColor() en RadarChartView, pero aquí identifica el horizonte temporal, no el eje.
-const RING_COLORS = ["#087062", "#ff8300", "#00a0df"];
+export const RING_COLORS = ["#087062", "#ff8300", "#00a0df"];
 
-const THEME = {
+export const HOMOLOG_THEME = {
   light: { grid: "rgba(18, 60, 73, 0.14)", label: "var(--muted)", card: "#fff", cardText: "var(--foreground)" },
   dark: { grid: "rgba(255, 255, 255, 0.14)", label: "rgba(255, 255, 255, 0.55)", card: "rgba(255,255,255,0.03)", cardText: "#fff" },
 };
+const THEME = HOMOLOG_THEME;
 
 export default function HomologatedRadarView({
   axes,

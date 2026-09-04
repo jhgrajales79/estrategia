@@ -8,6 +8,7 @@ import { fetchActivityById, fetchSessionById } from "@/lib/data";
 import { useSubmission, effectiveAspirationId } from "@/lib/useSubmission";
 import RadarChartView, { axisColor } from "@/components/RadarChartView";
 import HomologatedRadarView from "@/components/HomologatedRadarView";
+import AxisRingsView from "@/components/AxisRingsView";
 import type { ActivityRow, SessionRow } from "@/lib/types";
 
 interface Axis {
@@ -60,7 +61,9 @@ export default function RadarFullscreenPage({ params }: { params: Promise<{ acti
   const [session, setSession] = useState<SessionRow | null>(null);
   const [size, setSize] = useState(600);
   const [view, setView] = useState<"vivo" | "homolog">("vivo");
+  const [homologDimension, setHomologDimension] = useState<"anillo" | "eje">("anillo");
   const [homologView, setHomologView] = useState<"general" | 0 | 1 | 2>("general");
+  const [homologAxisFilter, setHomologAxisFilter] = useState<string | null>(null);
 
   useEffect(() => {
     fetchActivityById(Number(activityId)).then((a) => {
@@ -210,36 +213,89 @@ export default function RadarFullscreenPage({ params }: { params: Promise<{ acti
         </div>
       ) : (
         <div className="mx-auto mt-6 max-w-[1400px]">
-          <div className="mb-6 flex flex-wrap justify-center gap-2">
+          <div className="mb-4 flex flex-wrap justify-center gap-2 rounded-full border border-white/10 bg-white/[0.03] p-1">
             <button
-              onClick={() => setHomologView("general")}
-              className={`rounded-full border px-4 py-1.5 text-sm font-semibold transition-colors ${
-                homologView === "general" ? "border-transparent bg-brand text-dark" : "border-white/15 bg-white/[0.03] text-white/60 hover:bg-white/[0.08]"
+              onClick={() => setHomologDimension("anillo")}
+              className={`rounded-full px-4 py-1.5 text-sm font-semibold transition-colors ${
+                homologDimension === "anillo" ? "bg-white/15 text-white" : "text-white/50 hover:bg-white/[0.08]"
               }`}
             >
-              📊 General
+              Por anillo (radar)
             </button>
-            {rings.map((r, i) => (
-              <button
-                key={i}
-                onClick={() => setHomologView(i as 0 | 1 | 2)}
-                className={`rounded-full border px-4 py-1.5 text-sm font-semibold transition-colors ${
-                  homologView === i ? "border-transparent bg-brand text-dark" : "border-white/15 bg-white/[0.03] text-white/60 hover:bg-white/[0.08]"
-                }`}
-              >
-                {r}
-              </button>
-            ))}
+            <button
+              onClick={() => setHomologDimension("eje")}
+              className={`rounded-full px-4 py-1.5 text-sm font-semibold transition-colors ${
+                homologDimension === "eje" ? "bg-white/15 text-white" : "text-white/50 hover:bg-white/[0.08]"
+              }`}
+            >
+              Por eje (barras)
+            </button>
           </div>
 
-          <HomologatedRadarView
-            axes={axes}
-            rings={rings}
-            signals={content.homologacion?.signals ?? []}
-            size={size}
-            variant="dark"
-            ringFilter={homologView === "general" ? null : homologView}
-          />
+          {homologDimension === "anillo" ? (
+            <>
+              <div className="mb-6 flex flex-wrap justify-center gap-2">
+                <button
+                  onClick={() => setHomologView("general")}
+                  className={`rounded-full border px-4 py-1.5 text-sm font-semibold transition-colors ${
+                    homologView === "general" ? "border-transparent bg-brand text-dark" : "border-white/15 bg-white/[0.03] text-white/60 hover:bg-white/[0.08]"
+                  }`}
+                >
+                  📊 General
+                </button>
+                {rings.map((r, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setHomologView(i as 0 | 1 | 2)}
+                    className={`rounded-full border px-4 py-1.5 text-sm font-semibold transition-colors ${
+                      homologView === i ? "border-transparent bg-brand text-dark" : "border-white/15 bg-white/[0.03] text-white/60 hover:bg-white/[0.08]"
+                    }`}
+                  >
+                    {r}
+                  </button>
+                ))}
+              </div>
+
+              <HomologatedRadarView
+                axes={axes}
+                rings={rings}
+                signals={content.homologacion?.signals ?? []}
+                size={size}
+                variant="dark"
+                ringFilter={homologView === "general" ? null : homologView}
+              />
+            </>
+          ) : (
+            (() => {
+              const activeAxis = homologAxisFilter ?? axes[0]?.key ?? "";
+              return (
+                <>
+                  <div className="mb-6 flex flex-wrap justify-center gap-2">
+                    {axes.map((a) => (
+                      <button
+                        key={a.key}
+                        onClick={() => setHomologAxisFilter(a.key)}
+                        className={`rounded-full border px-4 py-1.5 text-sm font-semibold transition-colors ${
+                          activeAxis === a.key ? "border-transparent bg-brand text-dark" : "border-white/15 bg-white/[0.03] text-white/60 hover:bg-white/[0.08]"
+                        }`}
+                      >
+                        {a.label}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex justify-center">
+                    <AxisRingsView
+                      axisLabel={axes.find((a) => a.key === activeAxis)?.label ?? activeAxis}
+                      rings={rings}
+                      signals={(content.homologacion?.signals ?? []).filter((s) => s.axis === activeAxis)}
+                      variant="dark"
+                    />
+                  </div>
+                </>
+              );
+            })()
+          )}
+
           {(content.homologacion?.signals ?? []).length === 0 && (
             <p className="mt-4 text-center text-sm text-white/40">
               Aún no hay homologación cargada. Se gestiona desde la actividad, en la pestaña &ldquo;🗂️ Homologación&rdquo;.
