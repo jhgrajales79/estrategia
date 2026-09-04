@@ -62,7 +62,7 @@ export default function RadarFullscreenPage({ params }: { params: Promise<{ acti
   const [size, setSize] = useState(600);
   const [view, setView] = useState<"vivo" | "homolog">("vivo");
   const [homologDimension, setHomologDimension] = useState<"anillo" | "eje">("anillo");
-  const [homologView, setHomologView] = useState<"general" | 0 | 1 | 2>("general");
+  const [homologView, setHomologView] = useState<"general" | 0 | 1 | 2 | "focus01">("general");
   const [homologAxisFilter, setHomologAxisFilter] = useState<string | null>(null);
 
   useEffect(() => {
@@ -254,6 +254,14 @@ export default function RadarFullscreenPage({ params }: { params: Promise<{ acti
                     {r}
                   </button>
                 ))}
+                <button
+                  onClick={() => setHomologView("focus01")}
+                  className={`rounded-full border px-4 py-1.5 text-sm font-semibold transition-colors ${
+                    homologView === "focus01" ? "border-transparent bg-brand text-dark" : "border-white/15 bg-white/[0.03] text-white/60 hover:bg-white/[0.08]"
+                  }`}
+                >
+                  🎯 Hoy + este año
+                </button>
               </div>
 
               <HomologatedRadarView
@@ -262,7 +270,8 @@ export default function RadarFullscreenPage({ params }: { params: Promise<{ acti
                 signals={content.homologacion?.signals ?? []}
                 size={size}
                 variant="dark"
-                ringFilter={homologView === "general" ? null : homologView}
+                ringFilter={homologView === "general" || homologView === "focus01" ? null : homologView}
+                focusRings={homologView === "focus01" ? [0, 1] : null}
               />
             </>
           ) : (

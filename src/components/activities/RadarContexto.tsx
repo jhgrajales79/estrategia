@@ -82,7 +82,7 @@ export default function RadarContexto({ activity, session, participant }: Activi
   const [draftText, setDraftText] = useState<Record<string, string>>({});
   const [draftRing, setDraftRing] = useState<Record<string, number>>({});
   const [homologDimension, setHomologDimension] = useState<"anillo" | "eje">("anillo");
-  const [homologView, setHomologView] = useState<"general" | 0 | 1 | 2>("general");
+  const [homologView, setHomologView] = useState<"general" | 0 | 1 | 2 | "focus01">("general");
   const [homologAxisFilter, setHomologAxisFilter] = useState<string>(axes[0]?.key ?? "");
   const [homologDraft, setHomologDraft] = useState<Record<string, { text: string; score: string }>>({});
   const [homologNewText, setHomologNewText] = useState<Record<string, string>>({});
@@ -436,13 +436,23 @@ export default function RadarContexto({ activity, session, participant }: Activi
                             {r}
                           </button>
                         ))}
+                        <button
+                          type="button"
+                          onClick={() => setHomologView("focus01")}
+                          className={`rounded-full border px-3 py-1 text-[11px] font-semibold transition-colors ${
+                            homologView === "focus01" ? "border-brand-dark bg-brand/10 text-brand-dark" : "border-border text-muted hover:bg-black/5"
+                          }`}
+                        >
+                          🎯 Hoy + este año
+                        </button>
                       </div>
                       <HomologatedRadarView
                         axes={axes}
                         rings={rings}
                         signals={homologSignals()}
                         size={300}
-                        ringFilter={homologView === "general" ? null : homologView}
+                        ringFilter={homologView === "general" || homologView === "focus01" ? null : homologView}
+                        focusRings={homologView === "focus01" ? [0, 1] : null}
                       />
                     </>
                   ) : (
