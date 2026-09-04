@@ -6,6 +6,7 @@ import IdeaCloudView from "@/components/IdeaCloudView";
 import NotesBoardView from "@/components/NotesBoardView";
 import ConnectionsWebView from "@/components/ConnectionsWebView";
 import RadarContextoResults from "@/components/results/RadarContextoResults";
+import { axisColor } from "@/components/RadarChartView";
 import { Avatar } from "@/components/activities/shared";
 import { aspAbbrev, aspClasses, findAspiration } from "@/lib/aspirationStyle";
 import type { ActivityRow, Aspiration } from "@/lib/types";
@@ -25,7 +26,66 @@ function AspTag({ aspirations, id }: { aspirations: Aspiration[]; id: number | n
 }
 
 function Empty() {
-  return <p className="text-sm text-muted">Sin resultados registrados todavía.</p>;
+  return (
+    <div className="flex flex-col items-center gap-1.5 py-6 text-center">
+      <span className="text-xl opacity-40">🗒️</span>
+      <p className="text-sm text-muted">Sin resultados registrados todavía.</p>
+    </div>
+  );
+}
+
+export const ACTIVITY_TYPE_ICON: Record<string, string> = {
+  tejido_conexiones: "🧶",
+  crazy8: "⚡",
+  compromiso_personal: "✍️",
+  notas: "🗒️",
+  notas_matriz: "🧩",
+  matriz_ponderada: "⚖️",
+  matriz_cuadrantes: "🧭",
+  rueda_evaluacion: "🎡",
+  votacion_fichas: "🗳️",
+  tarjeta_estructurada: "🗂️",
+  mapa_estrategico: "🗺️",
+  tablero_proyectos: "📁",
+  ficha_kpi: "📌",
+  radar_contexto: "📡",
+};
+
+// Cálculo aproximado (mejor esfuerzo) de "cuántos aportes" tiene una actividad, para mostrar
+// un contador junto al título sin tener que abrirla. Cada tipo guarda su colección bajo una
+// clave distinta; si no se reconoce el tipo o no hay nada, simplemente no se muestra número.
+const ENTRY_KEY_BY_TYPE: Record<string, string> = {
+  tejido_conexiones: "threads",
+  compromiso_personal: "commitments",
+  notas: "notes",
+  notas_matriz: "notes",
+  matriz_cuadrantes: "cards",
+  rueda_evaluacion: "items",
+  votacion_fichas: "candidates",
+  mapa_estrategico: "cards",
+  tablero_proyectos: "projects",
+  ficha_kpi: "kpis",
+  radar_contexto: "signals",
+};
+
+function countEntries(activity: ActivityRow, submissions: SubmissionLike[]): number {
+  const key: string | undefined = ENTRY_KEY_BY_TYPE[activity.activity_type];
+  if (activity.activity_type === "crazy8") {
+    return submissions.reduce((a, s) => a + asArray<Record<string, unknown>>(s.content.candidates).filter((c) => c.starred).length, 0);
+  }
+  if (activity.activity_type === "matriz_ponderada") {
+    const cfg = activity.config as Record<string, unknown>;
+    const k = cfg.mode === "qspm" ? "strategies" : "rows";
+    return submissions.reduce((a, s) => a + asArray(s.content[k]).length, 0);
+  }
+  if (activity.activity_type === "tarjeta_estructurada") {
+    const cfg = activity.config as Record<string, unknown>;
+    if (cfg.repeatable) return submissions.reduce((a, s) => a + asArray(s.content.entries).length, 0);
+    const fields = asArray<{ key: string }>(cfg.fields);
+    return submissions.filter((s) => fields.some((f) => str(asRecord(s.content.values)[f.key]))).length;
+  }
+  if (!key) return 0;
+  return submissions.reduce((a, s) => a + asArray(s.content[key]).length, 0);
 }
 
 function MediaGrid({
@@ -81,6 +141,23 @@ function MediaGrid({
           />
         </div>
       )}
+    </div>
+  );
+}
+
+// Grilla de definición (label arriba en mayúscula pequeña, valor abajo) en vez de líneas
+// apiladas "Label: valor" — más fácil de escanear con varios campos por tarjeta.
+function FieldGrid({ fields, values }: { fields: { key: string; label: string }[]; values: Record<string, unknown> }) {
+  return (
+    <div className="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3">
+      {fields.map((f) => (
+        <div key={f.key} className="min-w-0">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-muted">{f.label}</p>
+          <p className="truncate text-sm text-foreground" title={str(values[f.key])}>
+            {str(values[f.key]) || "—"}
+          </p>
+        </div>
+      ))}
     </div>
   );
 }
@@ -224,21 +301,44 @@ function renderContent(activity: ActivityRow, content: Record<string, unknown>, 
       }
       const rows = asArray<Record<string, unknown>>(content.rows);
       if (rows.length === 0) return <Empty />;
-      const total = rows.reduce((a, r) => a + Number(r.peso ?? 0) * Number(r.calificacion ?? 0), 0);
+      const withScore = rows.map((r) => {
+        const peso = Number(r.peso ?? 0);
+        const calificacion = Number(r.calificacion ?? 0);
+        return {
+          factor: str(r.factor),
+          aspiration_id: (r.aspiration_id as number) ?? null,
+          peso,
+          calificacion,
+          contrib: peso * calificacion,
+        };
+      });
+      const total = withScore.reduce((a, r) => a + r.contrib, 0);
+      const maxContrib = Math.max(0.0001, ...withScore.map((r) => r.contrib));
+      const interpretHint = str(config.interpretHint);
       return (
-        <div className="space-y-1.5">
-          {rows.map((r, i) => (
-            <div key={i} className="flex items-center justify-between text-sm">
-              <span>
-                <AspTag aspirations={aspirations} id={(r.aspiration_id as number) ?? null} />
-                {str(r.factor)}
-              </span>
-              <span className="text-muted">
-                {str(r.peso)} × {str(r.calificacion)} = {(Number(r.peso ?? 0) * Number(r.calificacion ?? 0)).toFixed(2)}
-              </span>
-            </div>
-          ))}
-          <p className="pt-1 text-xs font-semibold text-foreground">Total: {total.toFixed(2)}</p>
+        <div className="space-y-3">
+          <div className="space-y-2">
+            {[...withScore]
+              .sort((a, b) => b.contrib - a.contrib)
+              .map((r, i) => (
+                <div key={i} className="flex items-center gap-2 text-sm">
+                  <span className="flex min-w-0 flex-1 items-center gap-1 truncate">
+                    <AspTag aspirations={aspirations} id={r.aspiration_id} />
+                    {r.factor}
+                  </span>
+                  <div className="h-1.5 w-20 shrink-0 overflow-hidden rounded-full bg-black/5">
+                    <div className="h-full rounded-full bg-brand" style={{ width: `${(r.contrib / maxContrib) * 100}%` }} />
+                  </div>
+                  <span className="w-28 shrink-0 text-right text-xs text-muted">
+                    {r.peso} × {r.calificacion} = {r.contrib.toFixed(2)}
+                  </span>
+                </div>
+              ))}
+          </div>
+          <div className="rounded-md bg-brand/5 px-3 py-2">
+            <p className="text-sm font-bold text-brand-dark">Total: {total.toFixed(2)}</p>
+            {interpretHint && <p className="mt-0.5 text-xs text-muted">{interpretHint}</p>}
+          </div>
         </div>
       );
     }
@@ -249,12 +349,16 @@ function renderContent(activity: ActivityRow, content: Record<string, unknown>, 
       if (cards.length === 0) return <Empty />;
       return (
         <div className="grid gap-3 sm:grid-cols-2">
-          {quadrants.map((q) => {
+          {quadrants.map((q, qi) => {
             const inQ = cards.filter((c) => c.quadrant === q.key);
             if (inQ.length === 0) return null;
+            const color = axisColor(qi);
             return (
-              <div key={q.key}>
-                <p className="mb-1 text-xs font-semibold text-muted">{q.label}</p>
+              <div key={q.key} className="rounded-lg border-l-4 bg-black/[0.015] p-2.5" style={{ borderLeftColor: color }}>
+                <p className="mb-1.5 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide" style={{ color }}>
+                  {q.label}
+                  <span className="rounded-full bg-black/5 px-1.5 py-0.5 text-[10px] font-semibold text-muted">{inQ.length}</span>
+                </p>
                 <ul className="space-y-1">
                   {inQ.map((c, i) => (
                     <li key={i} className="text-sm text-foreground">
@@ -315,16 +419,15 @@ function renderContent(activity: ActivityRow, content: Record<string, unknown>, 
         const entries = asArray<Record<string, unknown>>(content.entries);
         if (entries.length === 0) return <Empty />;
         return (
-          <div className="space-y-3">
+          <div className="space-y-2.5">
             {entries.map((entry, i) => (
-              <div key={i} className="rounded-md bg-black/[0.03] p-2 text-sm">
-                <AspTag aspirations={aspirations} id={(entry.aspiration_id as number) ?? null} />
-                {fields.map((f) => (
-                  <div key={f.key}>
-                    <span className="font-semibold text-muted">{f.label}: </span>
-                    <span className="text-foreground">{str(entry[f.key]) || "—"}</span>
+              <div key={i} className="rounded-lg border border-border bg-black/[0.015] p-3">
+                {(entry.aspiration_id as number) != null && (
+                  <div className="mb-1.5">
+                    <AspTag aspirations={aspirations} id={(entry.aspiration_id as number) ?? null} />
                   </div>
-                ))}
+                )}
+                <FieldGrid fields={fields} values={entry} />
               </div>
             ))}
           </div>
@@ -334,13 +437,8 @@ function renderContent(activity: ActivityRow, content: Record<string, unknown>, 
       const hasAny = fields.some((f) => str(values[f.key]));
       if (!hasAny) return <Empty />;
       return (
-        <div className="space-y-1 text-sm">
-          {fields.map((f) => (
-            <div key={f.key}>
-              <span className="font-semibold text-muted">{f.label}: </span>
-              <span className="text-foreground">{str(values[f.key]) || "—"}</span>
-            </div>
-          ))}
+        <div className="rounded-lg border border-border bg-black/[0.015] p-3">
+          <FieldGrid fields={fields} values={values} />
         </div>
       );
     }
@@ -349,17 +447,23 @@ function renderContent(activity: ActivityRow, content: Record<string, unknown>, 
       const perspectives = asArray<{ key: string; label: string }>(config.perspectives);
       const cards = asArray<Record<string, unknown>>(content.cards);
       if (cards.length === 0) return <Empty />;
+      const reversed = [...perspectives].reverse();
       return (
         <div className="space-y-2">
-          {[...perspectives].reverse().map((p) => {
+          {reversed.map((p, i) => {
             const inP = cards.filter((c) => c.perspective === p.key);
             if (inP.length === 0) return null;
+            // Banda de color de base (verde, cimiento) a cúspide (dorado, resultado),
+            // para que se lea como pirámide/mapa de perspectivas y no como una lista plana.
+            const hue = 150 - (i / Math.max(reversed.length - 1, 1)) * 105;
             return (
-              <div key={p.key}>
-                <p className="mb-1 text-xs font-semibold text-muted">{p.label}</p>
+              <div key={p.key} className="rounded-lg border-l-4 bg-black/[0.015] p-2.5" style={{ borderLeftColor: `hsl(${hue} 55% 42%)` }}>
+                <p className="mb-1 text-xs font-bold uppercase tracking-wide" style={{ color: `hsl(${hue} 55% 32%)` }}>
+                  {p.label}
+                </p>
                 <ul className="space-y-1">
-                  {inP.map((c, i) => (
-                    <li key={i} className="text-sm text-foreground">
+                  {inP.map((c, ci) => (
+                    <li key={ci} className="text-sm text-foreground">
                       <AspTag aspirations={aspirations} id={(c.aspiration_id as number) ?? null} />
                       {str(c.text)}
                     </li>
@@ -377,15 +481,10 @@ function renderContent(activity: ActivityRow, content: Record<string, unknown>, 
       const projects = asArray<Record<string, unknown>>(content.projects);
       if (projects.length === 0) return <Empty />;
       return (
-        <div className="space-y-3">
+        <div className="space-y-2.5">
           {projects.map((p, i) => (
-            <div key={i} className="rounded-md bg-black/[0.03] p-2 text-sm">
-              {fields.map((f) => (
-                <div key={f.key}>
-                  <span className="font-semibold text-muted">{f.label}: </span>
-                  <span className="text-foreground">{str(p[f.key]) || "—"}</span>
-                </div>
-              ))}
+            <div key={i} className="rounded-lg border border-border bg-black/[0.015] p-3">
+              <FieldGrid fields={fields} values={p} />
             </div>
           ))}
         </div>
@@ -396,15 +495,21 @@ function renderContent(activity: ActivityRow, content: Record<string, unknown>, 
       const kpis = asArray<Record<string, unknown>>(content.kpis);
       if (kpis.length === 0) return <Empty />;
       return (
-        <div className="space-y-2">
+        <div className="grid gap-2.5 sm:grid-cols-2">
           {kpis.map((k, i) => (
-            <div key={i} className="rounded-md bg-black/[0.03] p-2 text-sm">
-              <AspTag aspirations={aspirations} id={(k.aspiration_id as number) ?? null} />
-              <span className="font-semibold text-foreground">{str(k.nombre)}</span>
-              <p className="text-xs text-muted">
-                {str(k.formula)} · línea base {str(k.linea_base)} · meta 2027 {str(k.meta_2027)} · {str(k.frecuencia)} ·{" "}
-                {str(k.responsable)}
-              </p>
+            <div key={i} className="rounded-lg border border-border bg-black/[0.015] p-3">
+              <div className="mb-1.5 flex items-center gap-1.5">
+                <AspTag aspirations={aspirations} id={(k.aspiration_id as number) ?? null} />
+                <span className="text-sm font-semibold text-foreground">{str(k.nombre) || "—"}</span>
+              </div>
+              {str(k.formula) && <p className="mb-2 text-xs italic text-muted">{str(k.formula)}</p>}
+              <div className="flex items-center gap-2 rounded-md bg-brand/5 px-2.5 py-1.5 text-xs">
+                <span className="font-semibold text-foreground">{str(k.linea_base) || "—"}</span>
+                <span className="text-muted">→</span>
+                <span className="font-bold text-brand-dark">{str(k.meta_2027) || "—"}</span>
+                <span className="ml-auto shrink-0 text-muted">{str(k.frecuencia)}</span>
+              </div>
+              {str(k.responsable) && <p className="mt-1.5 text-[11px] text-muted">👤 {str(k.responsable)}</p>}
             </div>
           ))}
         </div>
@@ -512,20 +617,32 @@ export default function ActivityResults({
   const [open, setOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const hasAny = submissions.length > 0;
+  const icon = ACTIVITY_TYPE_ICON[activity.activity_type] ?? "📄";
+  const entryCount = hasAny ? countEntries(activity, submissions) : 0;
 
   return (
-    <div className="rounded-lg border border-border bg-card">
+    <div className="group rounded-lg border border-border bg-card transition-shadow hover:shadow-sm">
       <div className="flex items-center gap-2 px-4 py-3">
         <button className="flex flex-1 items-center justify-between gap-3 text-left" onClick={() => setOpen((o) => !o)}>
-          <span className="text-sm font-semibold text-foreground">{activity.title}</span>
-          <span className="flex items-center gap-2">
+          <span className="flex min-w-0 items-center gap-2">
+            <span className="shrink-0 text-base leading-none" aria-hidden>
+              {icon}
+            </span>
+            <span className="truncate text-sm font-semibold text-foreground">{activity.title}</span>
+          </span>
+          <span className="flex shrink-0 items-center gap-2">
             {!hasAny && <span className="text-xs text-muted">sin datos</span>}
-            <span className="text-muted">{open ? "▲" : "▼"}</span>
+            {hasAny && entryCount > 0 && (
+              <span className="rounded-full bg-brand/10 px-2 py-0.5 text-[11px] font-semibold text-brand-dark">
+                {entryCount} {entryCount === 1 ? "aporte" : "aportes"}
+              </span>
+            )}
+            <span className={`text-muted transition-transform duration-200 ${open ? "rotate-180" : ""}`}>▾</span>
           </span>
         </button>
         {hasAny && (
           <button
-            className="shrink-0 rounded-md border border-border px-2 py-1 text-xs text-muted hover:bg-black/5"
+            className="shrink-0 rounded-md border border-border px-2 py-1 text-xs text-muted transition-colors hover:bg-black/5"
             title="Ampliar para ver mejor"
             onClick={() => setExpanded(true)}
           >

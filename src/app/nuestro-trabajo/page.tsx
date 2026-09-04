@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRequireParticipant } from "@/lib/useRequireParticipant";
 import { fetchActivities, fetchAspirations, fetchSessions, fetchSubmissionsByActivityIds } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
@@ -58,33 +58,48 @@ export default function NuestroTrabajoPage() {
       .finally(() => setLoadingTab(false));
   }, [activeTab]);
 
+  const activityIdsWithData = useMemo(() => new Set(submissions.map((s) => s.activity_id)), [submissions]);
+  const withDataCount = activities.filter((a) => activityIdsWithData.has(a.id)).length;
+
   if (!participant) return null;
 
   const activeSession = sessions.find((s) => s.id === activeTab);
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8">
-      <h1 className="text-xl font-bold text-dark">Nuestro trabajo</h1>
-      <p className="mb-6 text-sm text-muted">Los resultados de cada ejercicio, sesión por sesión.</p>
+    <div className="mx-auto max-w-5xl px-4 py-8">
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-2">
+        <div>
+          <h1 className="flex items-center gap-2 text-xl font-bold text-dark">
+            <span aria-hidden>🗂️</span> Nuestro trabajo
+          </h1>
+          <p className="mt-0.5 text-sm text-muted">Los resultados de cada ejercicio, sesión por sesión.</p>
+        </div>
+        {!loadingTab && activeSession && activities.length > 0 && (
+          <span className="shrink-0 rounded-full bg-brand/10 px-3 py-1 text-xs font-semibold text-brand-dark">
+            {withDataCount} de {activities.length} con datos
+          </span>
+        )}
+      </div>
 
-      <div className="mb-6 flex flex-wrap gap-1.5 border-b border-border pb-3">
+      <div className="mb-6 flex flex-wrap gap-1.5 border-b border-border pb-4">
         {sessions.map((s) => {
           const locked = !s.is_enabled && !presenter;
+          const active = activeTab === s.id;
           return (
             <button
               key={s.id}
               onClick={() => !locked && setActiveTab(s.id)}
               disabled={locked}
-              title={locked ? "El facilitador aún no ha habilitado esta sesión" : undefined}
-              className={`flex items-center gap-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+              title={locked ? "El facilitador aún no ha habilitado esta sesión" : s.name}
+              className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors ${
                 locked
                   ? "cursor-not-allowed bg-black/5 text-muted opacity-50"
-                  : activeTab === s.id
-                    ? "bg-brand text-dark"
+                  : active
+                    ? "bg-brand text-dark shadow-sm"
                     : "bg-black/5 text-foreground hover:bg-black/10"
               }`}
             >
-              {locked && "🔒 "}
+              {locked && "🔒"}
               {s.code}
             </button>
           );
@@ -99,7 +114,11 @@ export default function NuestroTrabajoPage() {
         <div>
           <h2 className="mb-3 text-sm font-semibold text-foreground">{activeSession.name}</h2>
           {loadingTab ? (
-            <p className="text-sm text-muted">Cargando…</p>
+            <div className="space-y-2">
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="h-12 animate-pulse rounded-lg bg-black/5" />
+              ))}
+            </div>
           ) : (
             <div className="space-y-2">
               {activities.map((a) => (
