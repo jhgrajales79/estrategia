@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import BarChart from "@/components/charts/BarChart";
-import RadarChartView, { axisColor } from "@/components/RadarChartView";
 import IdeaCloudView from "@/components/IdeaCloudView";
 import NotesBoardView from "@/components/NotesBoardView";
 import ConnectionsWebView from "@/components/ConnectionsWebView";
+import RadarContextoResults from "@/components/results/RadarContextoResults";
 import { Avatar } from "@/components/activities/shared";
 import { aspAbbrev, aspClasses, findAspiration } from "@/lib/aspirationStyle";
 import type { ActivityRow, Aspiration } from "@/lib/types";
@@ -445,38 +445,24 @@ function renderContent(activity: ActivityRow, content: Record<string, unknown>, 
         }
         winnerByAxis[a.key] = bestVotes > 0 ? best : undefined;
       }
-      const hasVotedSignals = signals.some((s) => (voteTotal[s.id] ?? 0) > 0);
+      const rawHomolog = asArray<Record<string, unknown>>((content.homologacion as Record<string, unknown> | undefined)?.signals);
+      const homologSignals = rawHomolog.map((s) => ({
+        id: str(s.id),
+        axis: str(s.axis),
+        ring: Number(s.ring ?? 0),
+        text: str(s.text),
+        score: Number(s.score ?? 0),
+      }));
       return (
-        <div className="flex flex-col items-center gap-4">
-          {/* Mismo radar (poligono de la mas votada por dimension) que ve el facilitador. */}
-          <RadarChartView axes={axes} winnerByAxis={winnerByAxis} voteTotal={voteTotal} size={large ? 560 : 340} />
-          {hasVotedSignals && (
-          <div className="w-full space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted">Señales votadas</p>
-            {axes.map((a, i) => {
-              const inAxis = signals.filter((s) => s.axis === a.key && (voteTotal[s.id] ?? 0) > 0);
-              if (inAxis.length === 0) return null;
-              return (
-                <div key={a.key}>
-                  <p className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-muted">
-                    <span className="inline-block h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: axisColor(i) }} />
-                    {a.label}
-                  </p>
-                  <ul className="space-y-1">
-                    {inAxis
-                      .sort((x, y) => (voteTotal[y.id] ?? 0) - (voteTotal[x.id] ?? 0))
-                      .map((s) => (
-                        <li key={s.id} className="text-sm text-foreground">
-                          {s.text} <span className="text-xs text-muted">· {rings[s.ring] ?? ""} · {voteTotal[s.id] ?? 0} votos</span>
-                        </li>
-                      ))}
-                  </ul>
-                </div>
-              );
-            })}
-          </div>
-          )}
-        </div>
+        <RadarContextoResults
+          axes={axes}
+          rings={rings}
+          signals={signals}
+          voteTotal={voteTotal}
+          winnerByAxis={winnerByAxis}
+          homologSignals={homologSignals}
+          large={large}
+        />
       );
     }
 
