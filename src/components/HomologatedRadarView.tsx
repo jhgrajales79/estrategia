@@ -20,6 +20,18 @@ export const RING_COLORS = ["#087062", "#ff8300", "#00a0df"];
 // para que no se confunda con ninguno de ellos.
 const FOCUS_COLOR = "#e11d48";
 
+// Compartido entre el radar normal y el de "enfoque": por cada eje + anillo, el tema con más
+// calificación es el único que representa a ese anillo (mismo criterio en toda la app; nunca se
+// suman los sub-temas de un mismo anillo entre sí).
+function winnerIn(signals: Signal[], axisKey: string, ring: number): Signal | undefined {
+  let best: Signal | undefined;
+  for (const s of signals) {
+    if (s.axis !== axisKey || s.ring !== ring || s.score <= 0) continue;
+    if (!best || s.score > best.score) best = s;
+  }
+  return best;
+}
+
 export const HOMOLOG_THEME = {
   light: { grid: "rgba(18, 60, 73, 0.14)", label: "var(--muted)", card: "#fff", cardText: "var(--foreground)" },
   dark: { grid: "rgba(255, 255, 255, 0.14)", label: "rgba(255, 255, 255, 0.55)", card: "rgba(255,255,255,0.03)", cardText: "#fff" },
@@ -64,12 +76,7 @@ export default function HomologatedRadarView({
   // Solo se marcan puntos con calificación mayor a 0: por cada eje, dentro de cada anillo, se
   // toma el tema con más votos (si hay varios) como el que se ubica en el radar.
   function winner(axisKey: string, ring: number): Signal | undefined {
-    let best: Signal | undefined;
-    for (const s of signals) {
-      if (s.axis !== axisKey || s.ring !== ring || s.score <= 0) continue;
-      if (!best || s.score > best.score) best = s;
-    }
-    return best;
+    return winnerIn(signals, axisKey, ring);
   }
 
   if (focusRings && focusRings.length > 0) {
@@ -226,9 +233,13 @@ function FocusRadar({
     return { x: center + radiusFrac * maxR * Math.cos(rad), y: center + radiusFrac * maxR * Math.sin(rad) };
   }
 
+  // Se suma el ganador de CADA anillo incluido (el mismo tema que ya se ve como punto en las
+  // vistas de un solo anillo), no todos los sub-temas de esos anillos — si no, esta suma no
+  // coincidiría con "Ya nos afecta" + "Este año" vistos por separado.
   const byAxis = axes.map((a) => {
-    const contributing = signals
-      .filter((s) => s.axis === a.key && focusRings.includes(s.ring) && s.score > 0)
+    const contributing = focusRings
+      .map((r) => winnerIn(signals, a.key, r))
+      .filter((w): w is Signal => Boolean(w))
       .sort((x, y) => y.score - x.score);
     const sum = contributing.reduce((acc, s) => acc + s.score, 0);
     return { axis: a, contributing, sum };
