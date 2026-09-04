@@ -66,6 +66,15 @@ export default function HomologatedRadarView({
     axes.map((a) => winner(a.key, ringIdx)).filter((w): w is Signal => Boolean(w))
   );
   const hasAny = plotted.length > 0;
+  const maxScore = Math.max(1, ...plotted.map((s) => s.score));
+  // La posición (radio) marca el anillo (horizonte temporal); el tamaño del punto y su
+  // insignia de puntos marcan la calificación, para que dos ejes con votos distintos en el
+  // mismo anillo no se vean idénticos.
+  function dotRadius(score: number) {
+    const base = size > BASE_SIZE ? 4.5 : 3.5;
+    const extra = size > BASE_SIZE ? 6 : 4.5;
+    return base + (score / maxScore) * extra;
+  }
 
   return (
     <div className="flex flex-col items-center gap-6 md:flex-row md:items-start md:justify-center">
@@ -93,16 +102,34 @@ export default function HomologatedRadarView({
                   strokeWidth={2}
                   strokeLinejoin="round"
                 />
-                {pts.map(
-                  (p, i) =>
-                    winners[i] && (
-                      <circle key={axes[i].key} cx={p.x} cy={p.y} r={size > BASE_SIZE ? 5.5 : 4} fill={RING_COLORS[ringIdx]} stroke="#fff" strokeWidth={1.5} />
-                    )
-                )}
+                {pts.map((p, i) => {
+                  const w = winners[i];
+                  if (!w) return null;
+                  return <circle key={axes[i].key} cx={p.x} cy={p.y} r={dotRadius(w.score)} fill={RING_COLORS[ringIdx]} stroke="#fff" strokeWidth={1.5} />;
+                })}
               </g>
             );
           })}
         </svg>
+        {ringIndices.map((ringIdx) =>
+          axes.map((a, i) => {
+            const w = winner(a.key, ringIdx);
+            if (!w) return null;
+            const p = point(axisAngle(i), RING_FRACTIONS[ringIdx]);
+            const badgeOffset = dotRadius(w.score) + (size > BASE_SIZE ? 12 : 9);
+            return (
+              <div
+                key={w.id}
+                className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full text-center font-bold text-white shadow ${
+                  size > BASE_SIZE ? "px-1.5 py-0.5 text-[10px]" : "px-1 py-0.5 text-[9px]"
+                }`}
+                style={{ left: p.x, top: p.y - badgeOffset, backgroundColor: RING_COLORS[ringIdx] }}
+              >
+                {w.score}
+              </div>
+            );
+          })
+        )}
         {axes.map((a, i) => {
           const p = point(axisAngle(i), 1.26);
           return (
