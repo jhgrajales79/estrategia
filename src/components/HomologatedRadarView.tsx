@@ -3,8 +3,11 @@ interface Axis {
   label: string;
 }
 interface Signal {
+  id: string;
   axis: string;
   ring: number;
+  text: string;
+  score: number;
 }
 
 const BASE_SIZE = 320;
@@ -14,8 +17,8 @@ const RING_FRACTIONS = [0.35, 0.68, 1];
 const RING_COLORS = ["#087062", "#ff8300", "#00a0df"];
 
 const THEME = {
-  light: { grid: "rgba(18, 60, 73, 0.14)", label: "var(--muted)" },
-  dark: { grid: "rgba(255, 255, 255, 0.14)", label: "rgba(255, 255, 255, 0.55)" },
+  light: { grid: "rgba(18, 60, 73, 0.14)", label: "var(--muted)", card: "#fff", cardText: "var(--foreground)" },
+  dark: { grid: "rgba(255, 255, 255, 0.14)", label: "rgba(255, 255, 255, 0.55)", card: "rgba(255,255,255,0.03)", cardText: "#fff" },
 };
 
 export default function HomologatedRadarView({
@@ -48,14 +51,24 @@ export default function HomologatedRadarView({
     return { x: center + radiusFrac * maxR * Math.cos(rad), y: center + radiusFrac * maxR * Math.sin(rad) };
   }
 
-  function hasSignal(axisKey: string, ring: number) {
-    return signals.some((s) => s.axis === axisKey && s.ring === ring);
+  // Solo se marcan puntos con calificación mayor a 0: por cada eje, dentro de cada anillo, se
+  // toma el tema con más votos (si hay varios) como el que se ubica en el radar.
+  function winner(axisKey: string, ring: number): Signal | undefined {
+    let best: Signal | undefined;
+    for (const s of signals) {
+      if (s.axis !== axisKey || s.ring !== ring || s.score <= 0) continue;
+      if (!best || s.score > best.score) best = s;
+    }
+    return best;
   }
 
-  const hasAny = signals.some((s) => ringIndices.includes(s.ring));
+  const plotted = ringIndices.flatMap((ringIdx) =>
+    axes.map((a) => winner(a.key, ringIdx)).filter((w): w is Signal => Boolean(w))
+  );
+  const hasAny = plotted.length > 0;
 
   return (
-    <div className="flex flex-col items-center gap-3">
+    <div className="flex flex-col items-center gap-6 md:flex-row md:items-start md:justify-center">
       <div className="relative shrink-0" style={{ width: size, height: size }}>
         <svg width={size} height={size} className="absolute inset-0 overflow-visible">
           {RING_FRACTIONS.map((f, i) => (
@@ -66,9 +79,9 @@ export default function HomologatedRadarView({
             return <line key={a.key} x1={center} y1={center} x2={p.x} y2={p.y} stroke={t.grid} strokeWidth={1} />;
           })}
           {ringIndices.map((ringIdx) => {
-            const filled = axes.map((a) => hasSignal(a.key, ringIdx));
-            if (!filled.some(Boolean)) return null;
-            const pts = axes.map((a, i) => point(axisAngle(i), filled[i] ? RING_FRACTIONS[ringIdx] : 0));
+            const winners = axes.map((a) => winner(a.key, ringIdx));
+            if (!winners.some(Boolean)) return null;
+            const pts = axes.map((a, i) => point(axisAngle(i), winners[i] ? RING_FRACTIONS[ringIdx] : 0));
             const poly = pts.map((p) => `${p.x},${p.y}`).join(" ");
             return (
               <g key={ringIdx}>
@@ -82,7 +95,7 @@ export default function HomologatedRadarView({
                 />
                 {pts.map(
                   (p, i) =>
-                    filled[i] && (
+                    winners[i] && (
                       <circle key={axes[i].key} cx={p.x} cy={p.y} r={size > BASE_SIZE ? 5.5 : 4} fill={RING_COLORS[ringIdx]} stroke="#fff" strokeWidth={1.5} />
                     )
                 )}
@@ -104,18 +117,41 @@ export default function HomologatedRadarView({
         })}
         {!hasAny && (
           <div className="absolute inset-0 flex items-center justify-center text-center text-xs" style={{ color: t.label }}>
-            Sin datos homologados todavía
+            Sin calificaciones todavía
           </div>
         )}
       </div>
-      <div className="flex flex-wrap justify-center gap-3 text-xs" style={{ color: t.label }}>
-        {ringIndices.map((i) => (
-          <span key={i} className="flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: RING_COLORS[i] }} />
-            {rings[i]}
-          </span>
-        ))}
-      </div>
+
+      {/* Solo el punto va sobre el radar; el texto de cada tema se lee en la lista al lado,
+          para que nada se solape sobre el gráfico. */}
+      {hasAny && (
+        <div className="w-full max-w-xs shrink-0 space-y-1.5">
+          {ringIndices.map((ringIdx) =>
+            axes.map((a) => {
+              const w = winner(a.key, ringIdx);
+              if (!w) return null;
+              return (
+                <div
+                  key={w.id}
+                  className="flex items-start gap-2 rounded-md border px-2 py-1.5 text-xs"
+                  style={{ borderColor: t.grid, backgroundColor: t.card }}
+                >
+                  <span className="mt-0.5 h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: RING_COLORS[ringIdx] }} />
+                  <div className="min-w-0 flex-1" style={{ color: t.cardText }}>
+                    <p className="font-semibold">
+                      {a.label}
+                      {ringFilter === null && <span className="font-normal opacity-70"> · {rings[ringIdx]}</span>}
+                    </p>
+                    <p className="opacity-90">
+                      {w.text} <span className="font-semibold">· {w.score} pts</span>
+                    </p>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
     </div>
   );
 }

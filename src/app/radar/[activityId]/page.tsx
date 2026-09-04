@@ -10,8 +10,6 @@ import RadarChartView, { axisColor } from "@/components/RadarChartView";
 import HomologatedRadarView from "@/components/HomologatedRadarView";
 import type { ActivityRow, SessionRow } from "@/lib/types";
 
-const RING_COLORS = ["#087062", "#ff8300", "#00a0df"];
-
 interface Axis {
   key: string;
   label: string;
@@ -234,47 +232,19 @@ export default function RadarFullscreenPage({ params }: { params: Promise<{ acti
             ))}
           </div>
 
-          <div className="flex flex-col items-center gap-8 md:flex-row md:items-start md:justify-center md:gap-24">
-            <HomologatedRadarView
-              axes={axes}
-              rings={rings}
-              signals={content.homologacion?.signals ?? []}
-              size={size}
-              variant="dark"
-              ringFilter={homologView === "general" ? null : homologView}
-            />
-
-            <div className="w-full max-w-sm shrink-0 space-y-3">
-              {rings.map((ringLabel, ringIdx) => {
-                if (homologView !== "general" && homologView !== ringIdx) return null;
-                const inRing = (content.homologacion?.signals ?? []).filter((s) => s.ring === ringIdx);
-                if (inRing.length === 0) return null;
-              return (
-                <div key={ringIdx} className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
-                  <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-white/60">
-                    <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: RING_COLORS[ringIdx] }} />
-                    {ringLabel}
-                  </p>
-                  <ul className="max-h-72 space-y-1.5 overflow-y-auto">
-                    {[...inRing]
-                      .sort((a, b) => b.score - a.score)
-                      .map((s) => (
-                        <li key={s.id} className="text-sm text-white/80">
-                          <span className="font-semibold text-white">{axes.find((a) => a.key === s.axis)?.label ?? s.axis}: </span>
-                          {s.text} <span className="text-xs text-white/50">· {s.score} pts</span>
-                        </li>
-                      ))}
-                  </ul>
-                </div>
-                );
-              })}
-              {(content.homologacion?.signals ?? []).length === 0 && (
-                <p className="text-sm text-white/40">
-                  Aún no hay homologación cargada. Se gestiona desde la actividad, en la pestaña &ldquo;🗂️ Homologación&rdquo;.
-                </p>
-              )}
-            </div>
-          </div>
+          <HomologatedRadarView
+            axes={axes}
+            rings={rings}
+            signals={content.homologacion?.signals ?? []}
+            size={size}
+            variant="dark"
+            ringFilter={homologView === "general" ? null : homologView}
+          />
+          {(content.homologacion?.signals ?? []).length === 0 && (
+            <p className="mt-4 text-center text-sm text-white/40">
+              Aún no hay homologación cargada. Se gestiona desde la actividad, en la pestaña &ldquo;🗂️ Homologación&rdquo;.
+            </p>
+          )}
         </div>
       )}
     </div>
