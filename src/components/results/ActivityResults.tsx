@@ -4,6 +4,7 @@ import { useState } from "react";
 import BarChart from "@/components/charts/BarChart";
 import IdeaCloudView from "@/components/IdeaCloudView";
 import NotesBoardView from "@/components/NotesBoardView";
+import PriorityLevelChart from "@/components/PriorityLevelChart";
 import ConnectionsWebView from "@/components/ConnectionsWebView";
 import RadarContextoResults from "@/components/results/RadarContextoResults";
 import { axisColor } from "@/components/RadarChartView";
@@ -237,6 +238,7 @@ function renderContent(activity: ActivityRow, content: Record<string, unknown>, 
 
     case "notas": {
       const categories = asArray<{ key: string; label: string }>(config.categories);
+      const impactLevels = Boolean(config.impactLevels);
       const rawNotes = asArray<Record<string, unknown>>(content.notes);
       const media = asArray<string>(content.media);
       const externalLink = str(content.external_link);
@@ -254,6 +256,7 @@ function renderContent(activity: ActivityRow, content: Record<string, unknown>, 
       }));
       return (
         <div>
+          {rawNotes.length > 0 && impactLevels && <PriorityLevelChart categories={categories} notes={notes} />}
           {rawNotes.length > 0 && <NotesBoardView categories={categories} notes={notes} aspirations={aspirations} large={large} />}
           <MediaGrid media={media} externalLink={externalLink} externalLinkLabel={externalLinkLabel} large={large} />
         </div>
@@ -262,6 +265,7 @@ function renderContent(activity: ActivityRow, content: Record<string, unknown>, 
 
     case "notas_matriz": {
       const categories = asArray<{ key: string; label: string }>(config.categories);
+      const impactLevels = Boolean(config.impactLevels);
       const rawNotes = asArray<Record<string, unknown>>(content.notes);
       const externalLink = str(content.external_link);
       const externalLinkLabel = str(config.externalLinkLabel);
@@ -278,6 +282,7 @@ function renderContent(activity: ActivityRow, content: Record<string, unknown>, 
       }));
       return (
         <div>
+          {rawNotes.length > 0 && impactLevels && <PriorityLevelChart categories={categories} notes={notes} />}
           {rawNotes.length > 0 && <NotesBoardView categories={categories} notes={notes} aspirations={aspirations} large={large} />}
           <MediaGrid media={[]} externalLink={externalLink} externalLinkLabel={externalLinkLabel} large={large} />
         </div>

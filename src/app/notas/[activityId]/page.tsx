@@ -7,6 +7,7 @@ import { isPresenter } from "@/lib/presenter";
 import { fetchActivityById, fetchAspirations, fetchSessionById } from "@/lib/data";
 import { useSubmission, effectiveAspirationId } from "@/lib/useSubmission";
 import NotesBoardView from "@/components/NotesBoardView";
+import PriorityLevelChart from "@/components/PriorityLevelChart";
 import type { ActivityRow, Aspiration, SessionRow } from "@/lib/types";
 
 interface Note {
@@ -63,6 +64,7 @@ export default function NotasFullscreenPage({ params }: { params: Promise<{ acti
   }
 
   const categories = (activity.config.categories as { key: string; label: string }[]) ?? [];
+  const impactLevels = Boolean(activity.config.impactLevels);
   const totalNotes = content.notes.length;
 
   return (
@@ -87,14 +89,17 @@ export default function NotasFullscreenPage({ params }: { params: Promise<{ acti
             <p className="text-sm text-white/40">Aún no hay aportes registrados en esta actividad.</p>
           </div>
         ) : (
-          <NotesBoardView
-            categories={categories}
-            notes={content.notes}
-            aspirations={aspirations}
-            showOnlyHighlighted={content.showOnlyHighlighted}
-            large
-            dark
-          />
+          <>
+            {impactLevels && <PriorityLevelChart categories={categories} notes={content.notes} dark />}
+            <NotesBoardView
+              categories={categories}
+              notes={content.notes}
+              aspirations={aspirations}
+              showOnlyHighlighted={content.showOnlyHighlighted}
+              large
+              dark
+            />
+          </>
         )}
       </div>
     </div>
