@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSubmission, effectiveAspirationId } from "@/lib/useSubmission";
-import { aspClasses, findAspiration } from "@/lib/aspirationStyle";
+import { aspClasses, ARCHETYPE_LABEL } from "@/lib/aspirationStyle";
 import { isPresenter } from "@/lib/presenter";
 import BarChart from "@/components/charts/BarChart";
 import { ActivityComponentProps, inputCls, btnPrimary, btnDanger, SaveIndicator, PresenterHint, uid } from "./shared";
@@ -47,6 +47,38 @@ export default function MatrizPonderada({ activity, session, aspirations, partic
   const scaleMax = (activity.config.scaleMax as number) ?? 4;
   const interpretHint = activity.config.interpretHint as string | undefined;
   const presenter = isPresenter(participant);
+
+  if (mode === "qspm") {
+    return <QspmMatrix activity={activity} session={session} participant={participant} presenter={presenter} scaleMax={scaleMax} />;
+  }
+
+  // modo simple (EFI / EFE)
+  return (
+    <SimpleMatrix
+      activity={activity}
+      session={session}
+      aspirations={aspirations}
+      participant={participant}
+      presenter={presenter}
+      scaleMax={scaleMax}
+      interpretHint={interpretHint}
+    />
+  );
+}
+
+function QspmMatrix({
+  activity,
+  session,
+  participant,
+  presenter,
+  scaleMax,
+}: {
+  activity: ActivityComponentProps["activity"];
+  session: ActivityComponentProps["session"];
+  participant: ActivityComponentProps["participant"];
+  presenter: boolean;
+  scaleMax: number;
+}) {
   const submissionAspId = effectiveAspirationId(activity, participant);
   const { content, save, saving, updatedAt, saveError, loaded } = useSubmission<Content>(
     activity,
@@ -58,196 +90,192 @@ export default function MatrizPonderada({ activity, session, aspirations, partic
 
   if (!loaded) return <p className="text-sm text-muted">Cargando…</p>;
 
-  if (mode === "qspm") {
-    const strategies = content.strategies;
-    const factors = content.factors;
+  const strategies = content.strategies;
+  const factors = content.factors;
 
-    function addStrategy() {
-      save({ ...content, strategies: [...strategies, { id: uid(), name: `Estrategia ${strategies.length + 1}` }] });
-    }
-    function addFactor() {
-      save({ ...content, factors: [...factors, { id: uid(), name: "Nuevo factor", peso: 0 }] });
-    }
-    function setFactor(id: string, patch: Partial<QspmFactor>) {
-      save({ ...content, factors: factors.map((f) => (f.id === id ? { ...f, ...patch } : f)) });
-    }
-    function setStrategy(id: string, name: string) {
-      save({ ...content, strategies: strategies.map((s) => (s.id === id ? { ...s, name } : s)) });
-    }
-    function setRating(factorId: string, strategyId: string, value: number) {
-      const ratings = { ...content.ratings, [factorId]: { ...(content.ratings[factorId] ?? {}), [strategyId]: value } };
-      save({ ...content, ratings });
-    }
-    function removeFactor(id: string) {
-      const rest = { ...content.ratings };
+  function addStrategy() {
+    save({ ...content, strategies: [...strategies, { id: uid(), name: `Estrategia ${strategies.length + 1}` }] });
+  }
+  function addFactor() {
+    save({ ...content, factors: [...factors, { id: uid(), name: "Nuevo factor", peso: 0 }] });
+  }
+  function setFactor(id: string, patch: Partial<QspmFactor>) {
+    save({ ...content, factors: factors.map((f) => (f.id === id ? { ...f, ...patch } : f)) });
+  }
+  function setStrategy(id: string, name: string) {
+    save({ ...content, strategies: strategies.map((s) => (s.id === id ? { ...s, name } : s)) });
+  }
+  function setRating(factorId: string, strategyId: string, value: number) {
+    const ratings = { ...content.ratings, [factorId]: { ...(content.ratings[factorId] ?? {}), [strategyId]: value } };
+    save({ ...content, ratings });
+  }
+  function removeFactor(id: string) {
+    const rest = { ...content.ratings };
+    delete rest[id];
+    save({ ...content, factors: factors.filter((f) => f.id !== id), ratings: rest });
+  }
+  function removeStrategy(id: string) {
+    const ratings: typeof content.ratings = {};
+    for (const [fid, row] of Object.entries(content.ratings)) {
+      const rest = { ...row };
       delete rest[id];
-      save({ ...content, factors: factors.filter((f) => f.id !== id), ratings: rest });
+      ratings[fid] = rest;
     }
-    function removeStrategy(id: string) {
-      const ratings: typeof content.ratings = {};
-      for (const [fid, row] of Object.entries(content.ratings)) {
-        const rest = { ...row };
-        delete rest[id];
-        ratings[fid] = rest;
-      }
-      save({ ...content, strategies: strategies.filter((s) => s.id !== id), ratings });
-    }
+    save({ ...content, strategies: strategies.filter((s) => s.id !== id), ratings });
+  }
 
-    const totals = strategies.map((s) => {
-      const total = factors.reduce((acc, f) => acc + f.peso * (content.ratings[f.id]?.[s.id] ?? 0), 0);
-      return { id: s.id, total };
-    });
-    const ranked = [...totals].sort((a, b) => b.total - a.total);
+  const totals = strategies.map((s) => {
+    const total = factors.reduce((acc, f) => acc + f.peso * (content.ratings[f.id]?.[s.id] ?? 0), 0);
+    return { id: s.id, total };
+  });
+  const ranked = [...totals].sort((a, b) => b.total - a.total);
 
-    return (
-      <div className="space-y-3">
-        {presenter && <PresenterHint />}
-        <div className="overflow-x-auto rounded-lg border border-border">
-          <table className="min-w-full text-sm">
-            <thead className="bg-black/[0.03]">
-              <tr>
-                <th className="p-2 text-left font-medium">Factor clave</th>
-                <th className="p-2 text-left font-medium w-24">Peso</th>
-                {strategies.map((s) => (
-                  <th key={s.id} className="p-2 text-left font-medium min-w-40">
-                    <input className={inputCls} value={s.name} disabled={presenter} onChange={(e) => setStrategy(s.id, e.target.value)} />
-                    {!presenter && (
-                      <button className={btnDanger} onClick={() => removeStrategy(s.id)}>
-                        quitar
-                      </button>
-                    )}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {factors.map((f) => (
-                <tr key={f.id} className="border-t border-border">
-                  <td className="p-2">
-                    <input className={inputCls} value={f.name} disabled={presenter} onChange={(e) => setFactor(f.id, { name: e.target.value })} />
-                    {!presenter && (
-                      <button className={btnDanger} onClick={() => removeFactor(f.id)}>
-                        quitar
-                      </button>
-                    )}
-                  </td>
-                  <td className="p-2">
-                    <input
-                      type="number"
-                      step="0.01"
-                      className={inputCls}
-                      value={f.peso}
-                      disabled={presenter}
-                      onChange={(e) => setFactor(f.id, { peso: parseFloat(e.target.value) || 0 })}
-                    />
-                  </td>
-                  {strategies.map((s) => (
-                    <td key={s.id} className="p-2">
-                      <input
-                        type="number"
-                        min={1}
-                        max={scaleMax}
-                        className={inputCls}
-                        value={content.ratings[f.id]?.[s.id] ?? ""}
-                        disabled={presenter}
-                        onChange={(e) => setRating(f.id, s.id, parseFloat(e.target.value) || 0)}
-                      />
-                    </td>
-                  ))}
-                </tr>
+  return (
+    <div className="space-y-3">
+      {presenter && <PresenterHint />}
+      <div className="overflow-x-auto rounded-lg border border-border">
+        <table className="min-w-full text-sm">
+          <thead className="bg-black/[0.03]">
+            <tr>
+              <th className="p-2 text-left font-medium">Factor clave</th>
+              <th className="p-2 text-left font-medium w-24">Peso</th>
+              {strategies.map((s) => (
+                <th key={s.id} className="p-2 text-left font-medium min-w-40">
+                  <input className={inputCls} value={s.name} disabled={presenter} onChange={(e) => setStrategy(s.id, e.target.value)} />
+                  {!presenter && (
+                    <button className={btnDanger} onClick={() => removeStrategy(s.id)}>
+                      quitar
+                    </button>
+                  )}
+                </th>
               ))}
-              <tr className="border-t border-border bg-black/[0.03] font-semibold">
-                <td className="p-2" colSpan={2}>
-                  Puntaje total ponderado
+            </tr>
+          </thead>
+          <tbody>
+            {factors.map((f) => (
+              <tr key={f.id} className="border-t border-border">
+                <td className="p-2">
+                  <input className={inputCls} value={f.name} disabled={presenter} onChange={(e) => setFactor(f.id, { name: e.target.value })} />
+                  {!presenter && (
+                    <button className={btnDanger} onClick={() => removeFactor(f.id)}>
+                      quitar
+                    </button>
+                  )}
+                </td>
+                <td className="p-2">
+                  <input
+                    type="number"
+                    step="0.01"
+                    className={inputCls}
+                    value={f.peso}
+                    disabled={presenter}
+                    onChange={(e) => setFactor(f.id, { peso: parseFloat(e.target.value) || 0 })}
+                  />
                 </td>
                 {strategies.map((s) => (
                   <td key={s.id} className="p-2">
-                    {(totals.find((t) => t.id === s.id)?.total ?? 0).toFixed(2)}
+                    <input
+                      type="number"
+                      min={1}
+                      max={scaleMax}
+                      className={inputCls}
+                      value={content.ratings[f.id]?.[s.id] ?? ""}
+                      disabled={presenter}
+                      onChange={(e) => setRating(f.id, s.id, parseFloat(e.target.value) || 0)}
+                    />
                   </td>
                 ))}
               </tr>
-            </tbody>
-          </table>
-        </div>
-        {!presenter && (
-          <div className="flex gap-2">
-            <button className={btnPrimary} onClick={addFactor}>
-              + Factor
-            </button>
-            <button className={btnPrimary} onClick={addStrategy}>
-              + Estrategia
-            </button>
-          </div>
-        )}
-        {ranked.length > 0 && (
-          <div className="rounded-md bg-black/[0.03] p-3">
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Ranking QSPM</p>
-            <BarChart
-              bars={ranked.map((r) => ({
-                label: strategies.find((s) => s.id === r.id)?.name ?? "",
-                value: Number(r.total.toFixed(2)),
-                colorClass: "bg-brand",
-              }))}
-            />
-          </div>
-        )}
-        <SaveIndicator saving={saving} updatedAt={updatedAt} error={saveError} />
+            ))}
+            <tr className="border-t border-border bg-black/[0.03] font-semibold">
+              <td className="p-2" colSpan={2}>
+                Puntaje total ponderado
+              </td>
+              {strategies.map((s) => (
+                <td key={s.id} className="p-2">
+                  {(totals.find((t) => t.id === s.id)?.total ?? 0).toFixed(2)}
+                </td>
+              ))}
+            </tr>
+          </tbody>
+        </table>
       </div>
-    );
-  }
-
-  // modo simple (EFI / EFE)
-  return (
-    <SimpleMatrix
-      activity={activity}
-      aspirations={aspirations}
-      participant={participant}
-      presenter={presenter}
-      scaleMax={scaleMax}
-      interpretHint={interpretHint}
-      content={content}
-      save={save}
-      saving={saving}
-      updatedAt={updatedAt}
-      saveError={saveError}
-    />
+      {!presenter && (
+        <div className="flex gap-2">
+          <button className={btnPrimary} onClick={addFactor}>
+            + Factor
+          </button>
+          <button className={btnPrimary} onClick={addStrategy}>
+            + Estrategia
+          </button>
+        </div>
+      )}
+      {ranked.length > 0 && (
+        <div className="rounded-md bg-black/[0.03] p-3">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Ranking QSPM</p>
+          <BarChart
+            bars={ranked.map((r) => ({
+              label: strategies.find((s) => s.id === r.id)?.name ?? "",
+              value: Number(r.total.toFixed(2)),
+              colorClass: "bg-brand",
+            }))}
+          />
+        </div>
+      )}
+      <SaveIndicator saving={saving} updatedAt={updatedAt} error={saveError} />
+    </div>
   );
 }
 
 function SimpleMatrix({
   activity,
+  session,
   aspirations,
   participant,
   presenter,
   scaleMax,
   interpretHint,
-  content,
-  save,
-  saving,
-  updatedAt,
-  saveError,
 }: {
   activity: ActivityComponentProps["activity"];
+  session: ActivityComponentProps["session"];
   aspirations: ActivityComponentProps["aspirations"];
   participant: ActivityComponentProps["participant"];
   presenter: boolean;
   scaleMax: number;
   interpretHint?: string;
-  content: Content;
-  save: (next: Content, opts?: { eventType?: string; summary?: string }) => void;
-  saving: boolean;
-  updatedAt: string | null;
-  saveError: string | null;
 }) {
   const ratingLabels = activity.config.ratingLabels as RatingLabel[] | undefined;
+  const perAspiration = Boolean(activity.config.perAspiration);
+  // No hay (todavía) una asignación real de aspiración por participante — todos
+  // se registran con aspiration_id null — así que las pestañas son de libre elección:
+  // cada equipo se ubica en la que le corresponde y trabaja ahí, sin restricción por identidad.
+  const [activeAspId, setActiveAspId] = useState<number | null>(() => aspirations[0]?.id ?? null);
+  useEffect(() => {
+    if (activeAspId === null && aspirations.length > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setActiveAspId(aspirations[0].id);
+    }
+  }, [aspirations, activeAspId]);
+  const submissionAspId = perAspiration ? activeAspId : null;
+  const canEdit = !presenter;
+  const { content, save, saving, updatedAt, saveError, loaded } = useSubmission<Content>(
+    activity,
+    session,
+    submissionAspId,
+    participant,
+    { rows: [], strategies: [], factors: [], ratings: {} }
+  );
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
   // Factor y Peso se escriben en cada tecleo pero solo se guardan al salir del campo
   // (blur/Enter): guardar en cada tecla saturaba la red y afectaba el rendimiento.
   const [drafts, setDrafts] = useState<Record<string, { factor?: string; peso?: string }>>({});
+
+  if (!loaded) return <p className="text-sm text-muted">Cargando…</p>;
+
   const rows = content.rows;
 
   function addRow() {
-    save({ ...content, rows: [...rows, { id: uid(), factor: "", peso: 0, calificacion: 1, aspiration_id: participant.aspiration_id }] });
+    save({ ...content, rows: [...rows, { id: uid(), factor: "", peso: 0, calificacion: 1, aspiration_id: submissionAspId }] });
   }
   function setRow(id: string, patch: Partial<SimpleRow>) {
     save({ ...content, rows: rows.map((r) => (r.id === id ? { ...r, ...patch } : r)) });
@@ -297,15 +325,30 @@ function SimpleMatrix({
   const threshold = parseThreshold(interpretHint);
   const isStrong = threshold !== null ? total > threshold : null;
 
-  const sortedRows = [...rows].sort((a, b) => {
-    const na = findAspiration(aspirations, a.aspiration_id)?.number ?? 99;
-    const nb = findAspiration(aspirations, b.aspiration_id)?.number ?? 99;
-    return na - nb;
-  });
-
   return (
     <div className="space-y-4">
       {presenter && <PresenterHint />}
+
+      {perAspiration && aspirations.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {aspirations.map((a) => {
+            const cls = aspClasses(a.number);
+            const active = activeAspId === a.id;
+            return (
+              <button
+                key={a.id}
+                type="button"
+                onClick={() => setActiveAspId(a.id)}
+                className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                  active ? `border-transparent ${cls.bg} text-dark` : `${cls.border} ${cls.text} bg-card hover:bg-black/5`
+                }`}
+              >
+                Aspiración {a.number} · {ARCHETYPE_LABEL[a.number]}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="rounded-lg border border-border bg-card p-3">
@@ -346,30 +389,11 @@ function SimpleMatrix({
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        {aspirations.map((a) => {
-          const count = rows.filter((r) => r.aspiration_id === a.id).length;
-          const cls = aspClasses(a.number);
-          return (
-            <span
-              key={a.id}
-              className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${
-                count > 0 ? `${cls.bgSoft} ${cls.text}` : "border border-dashed border-border text-muted"
-              }`}
-            >
-              {count === 0 && "⚠ "}
-              Aspiración {a.number}: {count} {count === 1 ? "factor" : "factores"}
-            </span>
-          );
-        })}
-      </div>
-
       <div className="overflow-x-auto rounded-lg border border-border">
         <table className="min-w-full text-sm">
           <thead className="bg-black/[0.03]">
             <tr>
               <th className="p-2 text-left font-medium">Factor</th>
-              <th className="p-2 text-left font-medium">Aspiración</th>
               <th className="p-2 text-left font-medium w-24">Peso</th>
               <th className="p-2 text-left font-medium w-44">Calificación</th>
               <th className="p-2 text-left font-medium w-24">Ponderado</th>
@@ -377,101 +401,80 @@ function SimpleMatrix({
             </tr>
           </thead>
           <tbody>
-            {sortedRows.map((r) => {
-              const asp = findAspiration(aspirations, r.aspiration_id);
-              const cls = aspClasses(asp?.number);
-              return (
-                <tr key={r.id} className="border-t border-border">
-                  <td className="p-2">
-                    <input
-                      className={inputCls}
-                      value={draftFactor(r)}
-                      disabled={presenter}
-                      onChange={(e) => setDrafts((d) => ({ ...d, [r.id]: { ...d[r.id], factor: e.target.value } }))}
-                      onBlur={() => commitFactor(r)}
-                      onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
-                    />
-                  </td>
-                  <td className="p-2">
+            {rows.map((r) => (
+              <tr key={r.id} className="border-t border-border">
+                <td className="p-2">
+                  <input
+                    className={inputCls}
+                    value={draftFactor(r)}
+                    disabled={presenter}
+                    onChange={(e) => setDrafts((d) => ({ ...d, [r.id]: { ...d[r.id], factor: e.target.value } }))}
+                    onBlur={() => commitFactor(r)}
+                    onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
+                  />
+                </td>
+                <td className="p-2">
+                  <input
+                    type="number"
+                    step="0.01"
+                    min={0}
+                    max={1}
+                    className={inputCls}
+                    value={draftPesoStr(r)}
+                    disabled={presenter}
+                    onChange={(e) => setDrafts((d) => ({ ...d, [r.id]: { ...d[r.id], peso: e.target.value } }))}
+                    onBlur={() => commitPeso(r)}
+                    onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
+                  />
+                </td>
+                <td className="p-2">
+                  {ratingLabels ? (
                     <select
                       className={inputCls}
-                      value={r.aspiration_id ?? ""}
+                      value={r.calificacion}
                       disabled={presenter}
-                      onChange={(e) => setRow(r.id, { aspiration_id: e.target.value ? Number(e.target.value) : null })}
+                      onChange={(e) => setRow(r.id, { calificacion: Number(e.target.value) })}
                     >
-                      <option value="">—</option>
-                      {aspirations.map((a) => (
-                        <option key={a.id} value={a.id}>
-                          Asp. {a.number}
+                      {ratingLabels.map((rl) => (
+                        <option key={rl.value} value={rl.value}>
+                          {rl.value} — {rl.label}
                         </option>
                       ))}
                     </select>
-                  </td>
-                  <td className="p-2">
+                  ) : (
                     <input
                       type="number"
-                      step="0.01"
-                      min={0}
-                      max={1}
+                      min={1}
+                      max={scaleMax}
                       className={inputCls}
-                      value={draftPesoStr(r)}
+                      value={r.calificacion}
                       disabled={presenter}
-                      onChange={(e) => setDrafts((d) => ({ ...d, [r.id]: { ...d[r.id], peso: e.target.value } }))}
-                      onBlur={() => commitPeso(r)}
-                      onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
+                      onChange={(e) => setRow(r.id, { calificacion: parseFloat(e.target.value) || 0 })}
                     />
-                  </td>
-                  <td className="p-2">
-                    {ratingLabels ? (
-                      <select
-                        className={inputCls}
-                        value={r.calificacion}
-                        disabled={presenter}
-                        onChange={(e) => setRow(r.id, { calificacion: Number(e.target.value) })}
-                      >
-                        {ratingLabels.map((rl) => (
-                          <option key={rl.value} value={rl.value}>
-                            {rl.value} — {rl.label}
-                          </option>
-                        ))}
-                      </select>
-                    ) : (
-                      <input
-                        type="number"
-                        min={1}
-                        max={scaleMax}
-                        className={inputCls}
-                        value={r.calificacion}
-                        disabled={presenter}
-                        onChange={(e) => setRow(r.id, { calificacion: parseFloat(e.target.value) || 0 })}
-                      />
-                    )}
-                  </td>
-                  <td className={`p-2 font-medium ${cls.text}`}>{(draftPesoNum(r) * r.calificacion).toFixed(2)}</td>
-                  <td className="p-2">
-                    {!presenter &&
-                      (confirmRemove === r.id ? (
-                        <div className="flex items-center gap-2 text-xs">
-                          <button className="font-medium text-red-600 hover:underline" onClick={() => removeRow(r.id)}>
-                            Confirmar
-                          </button>
-                          <button className="text-muted hover:underline" onClick={() => setConfirmRemove(null)}>
-                            Cancelar
-                          </button>
-                        </div>
-                      ) : (
-                        <button className={btnDanger} onClick={() => requestRemove(r)}>
-                          quitar
+                  )}
+                </td>
+                <td className="p-2 font-medium">{(draftPesoNum(r) * r.calificacion).toFixed(2)}</td>
+                <td className="p-2">
+                  {!presenter &&
+                    (confirmRemove === r.id ? (
+                      <div className="flex items-center gap-2 text-xs">
+                        <button className="font-medium text-red-600 hover:underline" onClick={() => removeRow(r.id)}>
+                          Confirmar
                         </button>
-                      ))}
-                  </td>
-                </tr>
-              );
-            })}
+                        <button className="text-muted hover:underline" onClick={() => setConfirmRemove(null)}>
+                          Cancelar
+                        </button>
+                      </div>
+                    ) : (
+                      <button className={btnDanger} onClick={() => requestRemove(r)}>
+                        quitar
+                      </button>
+                    ))}
+                </td>
+              </tr>
+            ))}
             <tr className="border-t border-border bg-black/[0.03] font-semibold">
-              <td className="p-2" colSpan={2}>
-                Totales
-              </td>
+              <td className="p-2">Totales</td>
               <td className={`p-2 ${pesoOk ? "" : "text-red-600"}`}>{pesoTotal.toFixed(2)}</td>
               <td className="p-2" />
               <td className="p-2">{total.toFixed(2)}</td>
@@ -480,7 +483,7 @@ function SimpleMatrix({
           </tbody>
         </table>
       </div>
-      {!presenter && (
+      {canEdit && (
         <button className={btnPrimary} onClick={addRow}>
           + Factor
         </button>
