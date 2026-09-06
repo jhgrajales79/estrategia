@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useSubmission, effectiveAspirationId } from "@/lib/useSubmission";
 import { isPresenter } from "@/lib/presenter";
+import { supabase } from "@/lib/supabase";
+import { aspClasses, findAspiration } from "@/lib/aspirationStyle";
 import BarChart from "@/components/charts/BarChart";
 import { ActivityComponentProps, inputCls, btnPrimary, btnGhost, btnDanger, SaveIndicator, PresenterHint, uid } from "./shared";
 
@@ -12,7 +14,18 @@ interface Candidate {
   author: string;
   owner?: string;
   target_date?: string;
+  aspiration_id?: number | null;
+  impact?: "alto" | "medio" | "bajo";
 }
+interface SourceNote {
+  id: string;
+  text: string;
+  author: string;
+  category: string;
+  impact?: "alto" | "medio" | "bajo";
+  aspiration_id: number | null;
+}
+const IMPACT_LABEL: Record<string, string> = { alto: "Alto", medio: "Medio", bajo: "Bajo" };
 interface Vote {
   participant_id: string;
   participant_name: string;
@@ -24,13 +37,15 @@ interface Content extends Record<string, unknown> {
   votes: Vote[];
 }
 
-export default function VotacionFichas({ activity, session, participant }: ActivityComponentProps) {
+export default function VotacionFichas({ activity, session, aspirations, participant }: ActivityComponentProps) {
   const pointsPerPerson = (activity.config.pointsPerPerson as number) ?? 3;
   const allowSubmitCandidates = Boolean(activity.config.allowSubmitCandidates);
   const candidateLabel = (activity.config.candidateLabel as string) ?? "Candidata";
   const requireOwnerAndDate = Boolean(activity.config.requireOwnerAndDate);
   const cloudView = Boolean(activity.config.cloudView);
   const maxTextLength = (activity.config.maxTextLength as number) ?? (cloudView ? 40 : 140);
+  const importCandidatesFrom = activity.config.importCandidatesFrom as number | undefined;
+  const importCategory = (activity.config.importCategory as string) ?? "debilidad";
   const presenter = isPresenter(participant);
   const submissionAspId = effectiveAspirationId(activity, participant);
   const { content, save, saving, updatedAt, saveError, loaded } = useSubmission<Content>(
@@ -43,8 +58,38 @@ export default function VotacionFichas({ activity, session, participant }: Activ
   const [newText, setNewText] = useState("");
   const [newOwner, setNewOwner] = useState("");
   const [newDate, setNewDate] = useState("");
+  const [importing, setImporting] = useState(false);
+  const [importMsg, setImportMsg] = useState<string | null>(null);
 
   if (!loaded) return <p className="text-sm text-muted">Cargando…</p>;
+
+  async function importFromSource() {
+    if (!importCandidatesFrom) return;
+    setImporting(true);
+    setImportMsg(null);
+    const { data, error } = await supabase
+      .from("submissions")
+      .select("content")
+      .eq("activity_id", importCandidatesFrom)
+      .is("aspiration_id", null)
+      .maybeSingle();
+    setImporting(false);
+    if (error) {
+      setImportMsg("No se pudo consultar la actividad de origen.");
+      return;
+    }
+    const notes = ((data?.content as { notes?: SourceNote[] } | null)?.notes ?? []).filter((n) => n.category === importCategory);
+    const existing = new Set(content.candidates.map((c) => c.text.trim().toLowerCase()));
+    const newCandidates: Candidate[] = notes
+      .filter((n) => !existing.has(n.text.trim().toLowerCase()))
+      .map((n) => ({ id: uid(), text: n.text.trim(), author: n.author, aspiration_id: n.aspiration_id, impact: n.impact }));
+    if (newCandidates.length === 0) {
+      setImportMsg("No hay candidatas nuevas por importar.");
+      return;
+    }
+    save({ ...content, candidates: [...content.candidates, ...newCandidates] });
+    setImportMsg(`Se importaron ${newCandidates.length} ${newCandidates.length === 1 ? "candidata" : "candidatas"}.`);
+  }
 
   const myVotes = content.votes.filter((v) => v.participant_id === participant.id);
   const myUsed = myVotes.length;
@@ -83,17 +128,25 @@ export default function VotacionFichas({ activity, session, participant }: Activ
       {presenter && (
         <div className="flex flex-wrap items-center justify-between gap-2">
           <PresenterHint />
-          {cloudView && (
-            <button
-              className={btnGhost}
-              title="Ampliar como nube de ideas en una pestaña nueva"
-              onClick={() => window.open(`/ideas/${activity.id}`, "_blank", "noopener,noreferrer")}
-            >
-              ⛶ Ampliar
-            </button>
-          )}
+          <div className="flex flex-wrap items-center gap-2">
+            {importCandidatesFrom && (
+              <button className={btnGhost} disabled={importing} onClick={importFromSource}>
+                {importing ? "Importando…" : "⬇ Importar del PCI"}
+              </button>
+            )}
+            {cloudView && (
+              <button
+                className={btnGhost}
+                title="Ampliar como nube de ideas en una pestaña nueva"
+                onClick={() => window.open(`/ideas/${activity.id}`, "_blank", "noopener,noreferrer")}
+              >
+                ⛶ Ampliar
+              </button>
+            )}
+          </div>
         </div>
       )}
+      {presenter && importMsg && <p className="text-xs text-muted">{importMsg}</p>}
       {hasVotes && (
         <div className="rounded-lg border border-border bg-card p-3">
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Resultados en vivo</p>
@@ -148,6 +201,24 @@ export default function VotacionFichas({ activity, session, participant }: Activ
                   {c.owner ? ` · doliente: ${c.owner}` : ""}
                   {c.target_date ? ` · fecha objetivo: ${c.target_date}` : ""}
                 </p>
+                {(c.aspiration_id !== undefined && c.aspiration_id !== null) || c.impact ? (
+                  <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                    {c.aspiration_id !== undefined && c.aspiration_id !== null && (() => {
+                      const asp = findAspiration(aspirations, c.aspiration_id);
+                      const cls = aspClasses(asp?.number);
+                      return asp ? (
+                        <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${cls.bgSoft} ${cls.text}`}>
+                          Aspiración {asp.number}
+                        </span>
+                      ) : null;
+                    })()}
+                    {c.impact && (
+                      <span className="rounded-full bg-black/5 px-2 py-0.5 text-[11px] font-semibold text-muted">
+                        Impacto {IMPACT_LABEL[c.impact]}
+                      </span>
+                    )}
+                  </div>
+                ) : null}
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-sm font-semibold text-brand">{total} pts</span>
