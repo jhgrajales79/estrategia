@@ -62,8 +62,7 @@ export default function NotasFullscreenPage({ params }: { params: Promise<{ acti
     );
   }
 
-  const categories = (activity.config.categories as { key: string; label: string; negative?: boolean }[]) ?? [];
-  const impactLevels = Boolean(activity.config.impactLevels);
+  const categories = (activity.config.categories as { key: string; label: string }[]) ?? [];
   const totalNotes = content.notes.length;
 
   return (
@@ -93,7 +92,6 @@ export default function NotasFullscreenPage({ params }: { params: Promise<{ acti
             notes={content.notes}
             aspirations={aspirations}
             showOnlyHighlighted={content.showOnlyHighlighted}
-            impactLevels={impactLevels}
             large
             dark
           />
