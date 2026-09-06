@@ -100,12 +100,14 @@ export function autoBg(index: number, palette: string[] = NEUTRAL_PALETTE) {
 
 export function PostIt({
   bgClass,
+  bgColor,
   index = 0,
   highlighted = false,
   className = "",
   children,
 }: {
   bgClass?: string;
+  bgColor?: string;
   index?: number;
   highlighted?: boolean;
   className?: string;
@@ -114,10 +116,10 @@ export function PostIt({
   const rotate = highlighted ? 0 : ROTATIONS[index % ROTATIONS.length];
   return (
     <div
-      className={`relative rounded-sm p-3 text-sm shadow-md ${bgClass ?? autoBg(index)} ${
+      className={`relative rounded-sm p-3 text-sm shadow-md ${bgColor ? "" : (bgClass ?? autoBg(index))} ${
         highlighted ? "ring-2 ring-brand shadow-lg scale-105" : ""
       } ${className}`}
-      style={{ transform: `rotate(${rotate}deg)` }}
+      style={{ transform: `rotate(${rotate}deg)`, backgroundColor: bgColor }}
     >
       <span className="absolute -top-1.5 left-1/2 h-3 w-8 -translate-x-1/2 rounded-sm bg-black/10" />
       {highlighted && <span className="absolute -right-1.5 -top-1.5 text-sm">📌</span>}

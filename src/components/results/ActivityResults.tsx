@@ -236,7 +236,8 @@ function renderContent(activity: ActivityRow, content: Record<string, unknown>, 
     }
 
     case "notas": {
-      const categories = asArray<{ key: string; label: string }>(config.categories);
+      const categories = asArray<{ key: string; label: string; negative?: boolean }>(config.categories);
+      const impactLevels = Boolean(config.impactLevels);
       const rawNotes = asArray<Record<string, unknown>>(content.notes);
       const media = asArray<string>(content.media);
       const externalLink = str(content.external_link);
@@ -254,14 +255,17 @@ function renderContent(activity: ActivityRow, content: Record<string, unknown>, 
       }));
       return (
         <div>
-          {rawNotes.length > 0 && <NotesBoardView categories={categories} notes={notes} aspirations={aspirations} large={large} />}
+          {rawNotes.length > 0 && (
+            <NotesBoardView categories={categories} notes={notes} aspirations={aspirations} impactLevels={impactLevels} large={large} />
+          )}
           <MediaGrid media={media} externalLink={externalLink} externalLinkLabel={externalLinkLabel} large={large} />
         </div>
       );
     }
 
     case "notas_matriz": {
-      const categories = asArray<{ key: string; label: string }>(config.categories);
+      const categories = asArray<{ key: string; label: string; negative?: boolean }>(config.categories);
+      const impactLevels = Boolean(config.impactLevels);
       const rawNotes = asArray<Record<string, unknown>>(content.notes);
       const externalLink = str(content.external_link);
       const externalLinkLabel = str(config.externalLinkLabel);
@@ -278,7 +282,9 @@ function renderContent(activity: ActivityRow, content: Record<string, unknown>, 
       }));
       return (
         <div>
-          {rawNotes.length > 0 && <NotesBoardView categories={categories} notes={notes} aspirations={aspirations} large={large} />}
+          {rawNotes.length > 0 && (
+            <NotesBoardView categories={categories} notes={notes} aspirations={aspirations} impactLevels={impactLevels} large={large} />
+          )}
           <MediaGrid media={[]} externalLink={externalLink} externalLinkLabel={externalLinkLabel} large={large} />
         </div>
       );
