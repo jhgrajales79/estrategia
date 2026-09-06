@@ -4,8 +4,17 @@ import { useEffect, useState } from "react";
 import { useSubmission, effectiveAspirationId } from "@/lib/useSubmission";
 import { aspClasses, ARCHETYPE_LABEL } from "@/lib/aspirationStyle";
 import { isPresenter } from "@/lib/presenter";
+import { supabase } from "@/lib/supabase";
 import BarChart from "@/components/charts/BarChart";
 import { ActivityComponentProps, inputCls, btnPrimary, btnDanger, SaveIndicator, PresenterHint, uid } from "./shared";
+
+interface PciNote {
+  id: string;
+  text: string;
+  category: string;
+  impact?: "alto" | "medio" | "bajo";
+  aspiration_id: number | null;
+}
 
 interface SimpleRow {
   id: string;
@@ -246,6 +255,7 @@ function SimpleMatrix({
 }) {
   const ratingLabels = activity.config.ratingLabels as RatingLabel[] | undefined;
   const perAspiration = Boolean(activity.config.perAspiration);
+  const importFactorsFrom = activity.config.importFactorsFrom as number | undefined;
   // No hay (todavía) una asignación real de aspiración por participante — todos
   // se registran con aspiration_id null — así que las pestañas son de libre elección:
   // cada equipo se ubica en la que le corresponde y trabaja ahí, sin restricción por identidad.
@@ -269,6 +279,8 @@ function SimpleMatrix({
   // Factor y Peso se escriben en cada tecleo pero solo se guardan al salir del campo
   // (blur/Enter): guardar en cada tecla saturaba la red y afectaba el rendimiento.
   const [drafts, setDrafts] = useState<Record<string, { factor?: string; peso?: string }>>({});
+  const [importing, setImporting] = useState(false);
+  const [importMsg, setImportMsg] = useState<string | null>(null);
 
   if (!loaded) return <p className="text-sm text-muted">Cargando…</p>;
 
@@ -276,6 +288,44 @@ function SimpleMatrix({
 
   function addRow() {
     save({ ...content, rows: [...rows, { id: uid(), factor: "", peso: 0, calificacion: 1, aspiration_id: submissionAspId }] });
+  }
+
+  async function importFromPci() {
+    if (!importFactorsFrom) return;
+    setImporting(true);
+    setImportMsg(null);
+    const { data, error } = await supabase
+      .from("submissions")
+      .select("content")
+      .eq("activity_id", importFactorsFrom)
+      .is("aspiration_id", null)
+      .maybeSingle();
+    setImporting(false);
+    if (error) {
+      setImportMsg("No se pudo consultar el PCI.");
+      return;
+    }
+    const notes = ((data?.content as { notes?: PciNote[] } | null)?.notes ?? []).filter(
+      (n) => n.impact === "alto" && (n.category === "fortaleza" || n.category === "debilidad") && n.aspiration_id === submissionAspId
+    );
+    const existing = new Set(rows.map((r) => r.factor.trim().toLowerCase()));
+    const fortalezaValue = ratingLabels?.find((rl) => rl.label.toLowerCase().includes("fortaleza mayor"))?.value ?? scaleMax;
+    const debilidadValue = ratingLabels?.find((rl) => rl.label.toLowerCase().includes("debilidad mayor"))?.value ?? 1;
+    const newRows: SimpleRow[] = notes
+      .filter((n) => !existing.has(n.text.trim().toLowerCase()))
+      .map((n) => ({
+        id: uid(),
+        factor: n.text.trim(),
+        peso: 0,
+        calificacion: n.category === "fortaleza" ? fortalezaValue : debilidadValue,
+        aspiration_id: submissionAspId,
+      }));
+    if (newRows.length === 0) {
+      setImportMsg("No hay factores nuevos de alto impacto por importar desde el PCI para esta aspiración.");
+      return;
+    }
+    save({ ...content, rows: [...rows, ...newRows] });
+    setImportMsg(`Se importaron ${newRows.length} ${newRows.length === 1 ? "factor" : "factores"} desde el PCI.`);
   }
   function setRow(id: string, patch: Partial<SimpleRow>) {
     save({ ...content, rows: rows.map((r) => (r.id === id ? { ...r, ...patch } : r)) });
@@ -358,6 +408,19 @@ function SimpleMatrix({
               </button>
             );
           })}
+        </div>
+      )}
+
+      {canEdit && importFactorsFrom && perAspiration && (
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            className={btnPrimary}
+            disabled={importing || submissionAspId === null}
+            onClick={importFromPci}
+          >
+            {importing ? "Importando…" : "⬇ Importar del PCI (alto impacto)"}
+          </button>
+          {importMsg && <span className="text-xs text-muted">{importMsg}</span>}
         </div>
       )}
 
