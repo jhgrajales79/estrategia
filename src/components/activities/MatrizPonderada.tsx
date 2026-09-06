@@ -327,7 +327,18 @@ function SimpleMatrix({
 
   return (
     <div className="space-y-4">
-      {presenter && <PresenterHint />}
+      {presenter && (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <PresenterHint />
+          <button
+            className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-black/5"
+            title="Ver el tablero en una pestaña nueva"
+            onClick={() => window.open(`/matriz/${activity.id}`, "_blank", "noopener,noreferrer")}
+          >
+            ⛶ Ver tablero
+          </button>
+        </div>
+      )}
 
       {perAspiration && aspirations.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
