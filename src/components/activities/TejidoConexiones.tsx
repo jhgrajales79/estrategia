@@ -5,6 +5,7 @@ import { useSubmission, effectiveAspirationId } from "@/lib/useSubmission";
 import { uploadMedia } from "@/lib/storage";
 import { isPresenter } from "@/lib/presenter";
 import ConnectionsWebView from "@/components/ConnectionsWebView";
+import WeaveGalleryViewer from "@/components/WeaveGalleryViewer";
 import { ActivityComponentProps, inputCls, btnPrimary, btnGhost, SaveIndicator, PresenterHint, uid } from "./shared";
 
 function isVideoUrl(url: string) {
@@ -36,6 +37,7 @@ export default function TejidoConexiones({ activity, session, participant }: Act
   const [showMedia, setShowMedia] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const [galleryOpen, setGalleryOpen] = useState(false);
 
   if (!loaded) return <p className="text-sm text-muted">Cargando…</p>;
 
@@ -100,6 +102,17 @@ export default function TejidoConexiones({ activity, session, participant }: Act
           <strong className="text-foreground">teje conexiones</strong> con el ser humano o la naturaleza.
         </p>
         <ConnectionsWebView threads={content.threads} />
+        {content.media.length > 0 && (
+          <div className="mt-4 flex justify-center">
+            <button
+              className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-brand-dark to-brand px-5 py-2.5 text-sm font-semibold text-white shadow-md transition-transform hover:scale-[1.03]"
+              onClick={() => setGalleryOpen(true)}
+            >
+              🧶🖼️ Ver el mural del tejido
+              <span className="rounded-full bg-white/25 px-2 py-0.5 text-xs">{content.media.length}</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {!presenter && (
@@ -134,8 +147,9 @@ export default function TejidoConexiones({ activity, session, participant }: Act
         <div className="rounded-lg border border-border bg-card p-3">
           <h4 className="mb-2 text-sm font-semibold text-foreground">Fotos, videos y panel visual</h4>
           <p className="mb-2 text-xs text-muted">
-            Solo tú, como facilitador, gestionas esto. Los participantes lo verán rotando en presentación en{" "}
-            <strong className="text-foreground">Panel en vivo</strong>, no aquí en la sesión.
+            Solo tú, como facilitador, subes y quitas fotos y videos aquí. En cuanto subas algo, todos los
+            participantes podrán abrirlo desde el botón <strong className="text-foreground">🧶🖼️ Ver el mural del tejido</strong>{" "}
+            encima del tejido, y también rotará en <strong className="text-foreground">Panel en vivo</strong>.
           </p>
           <div className="mb-3 flex flex-wrap gap-2">
             {content.media.map((url) => (
@@ -208,6 +222,8 @@ export default function TejidoConexiones({ activity, session, participant }: Act
           )}
         </div>
       )}
+
+      <WeaveGalleryViewer media={content.media} open={galleryOpen} onClose={() => setGalleryOpen(false)} />
     </div>
   );
 }
