@@ -1,0 +1,1525 @@
+{
+  "exported_at": "2026-09-03T15:49:31.198Z",
+  "scope": "actividad",
+  "rows": [
+    {
+      "activity_id": 2,
+      "activity_title": "Radar de contexto",
+      "aspiration_id": null,
+      "content": {
+        "votes": [
+          {
+            "points": 1,
+            "signal_id": "4ditg8ih",
+            "participant_id": "741e498d-2f49-4b92-9e1f-bf36f332401d"
+          },
+          {
+            "points": 1,
+            "signal_id": "4ditg8ih",
+            "participant_id": "24bb6f70-3429-459b-a3d6-00ffa152baa6"
+          },
+          {
+            "points": 1,
+            "signal_id": "3xrte5gc",
+            "participant_id": "001b870f-0db2-444c-8074-6adf9259a27e"
+          },
+          {
+            "points": 1,
+            "signal_id": "5yikv97g",
+            "participant_id": "24bb6f70-3429-459b-a3d6-00ffa152baa6"
+          },
+          {
+            "points": 1,
+            "signal_id": "5yikv97g",
+            "participant_id": "1d95ddca-2415-45cb-a275-6f489be1ae0c"
+          },
+          {
+            "points": 1,
+            "signal_id": "jd44h13z",
+            "participant_id": "8633207b-31f2-4d8b-b172-70be26a71641"
+          },
+          {
+            "points": 1,
+            "signal_id": "tvbm8srr",
+            "participant_id": "1a740aea-6f5d-4916-9054-4f01ac413dff"
+          },
+          {
+            "points": 1,
+            "signal_id": "6uzjj6eq",
+            "participant_id": "143fd43d-8dbf-4c65-9192-df4f4f0d1a1e"
+          },
+          {
+            "points": 1,
+            "signal_id": "20820dx9",
+            "participant_id": "001b870f-0db2-444c-8074-6adf9259a27e"
+          },
+          {
+            "points": 1,
+            "signal_id": "20820dx9",
+            "participant_id": "8633207b-31f2-4d8b-b172-70be26a71641"
+          },
+          {
+            "points": 1,
+            "signal_id": "20820dx9",
+            "participant_id": "a20b6261-b4d0-4e11-9ed6-5864eaebe62f"
+          },
+          {
+            "points": 1,
+            "signal_id": "6uzjj6eq",
+            "participant_id": "301fad8a-4fae-4764-9dc0-1ac7195a4562"
+          },
+          {
+            "points": 1,
+            "signal_id": "q6io5gzw",
+            "participant_id": "741e498d-2f49-4b92-9e1f-bf36f332401d"
+          },
+          {
+            "points": 1,
+            "signal_id": "hnvwluha",
+            "participant_id": "1d95ddca-2415-45cb-a275-6f489be1ae0c"
+          },
+          {
+            "points": 1,
+            "signal_id": "5yikv97g",
+            "participant_id": "301fad8a-4fae-4764-9dc0-1ac7195a4562"
+          },
+          {
+            "points": 1,
+            "signal_id": "hnvwluha",
+            "participant_id": "143fd43d-8dbf-4c65-9192-df4f4f0d1a1e"
+          },
+          {
+            "points": 1,
+            "signal_id": "l5h1qk4v",
+            "participant_id": "a20b6261-b4d0-4e11-9ed6-5864eaebe62f"
+          },
+          {
+            "points": 1,
+            "signal_id": "b0e09xdt",
+            "participant_id": "1a740aea-6f5d-4916-9054-4f01ac413dff"
+          },
+          {
+            "points": 1,
+            "signal_id": "3terzxsv",
+            "participant_id": "8633207b-31f2-4d8b-b172-70be26a71641"
+          },
+          {
+            "points": 1,
+            "signal_id": "3terzxsv",
+            "participant_id": "24bb6f70-3429-459b-a3d6-00ffa152baa6"
+          },
+          {
+            "points": 1,
+            "signal_id": "3terzxsv",
+            "participant_id": "1d95ddca-2415-45cb-a275-6f489be1ae0c"
+          },
+          {
+            "points": 1,
+            "signal_id": "9agjquoi",
+            "participant_id": "1a740aea-6f5d-4916-9054-4f01ac413dff"
+          },
+          {
+            "points": 1,
+            "signal_id": "3terzxsv",
+            "participant_id": "741e498d-2f49-4b92-9e1f-bf36f332401d"
+          },
+          {
+            "points": 1,
+            "signal_id": "bif4wbfw",
+            "participant_id": "1a740aea-6f5d-4916-9054-4f01ac413dff"
+          },
+          {
+            "points": 1,
+            "signal_id": "d4bzvzh0",
+            "participant_id": "24bb6f70-3429-459b-a3d6-00ffa152baa6"
+          },
+          {
+            "points": 1,
+            "signal_id": "fqv2ht8n",
+            "participant_id": "001b870f-0db2-444c-8074-6adf9259a27e"
+          },
+          {
+            "points": 1,
+            "signal_id": "cjt0fhg1",
+            "participant_id": "a20b6261-b4d0-4e11-9ed6-5864eaebe62f"
+          },
+          {
+            "points": 1,
+            "signal_id": "iqkc7bkh",
+            "participant_id": "8633207b-31f2-4d8b-b172-70be26a71641"
+          },
+          {
+            "points": 1,
+            "signal_id": "3terzxsv",
+            "participant_id": "143fd43d-8dbf-4c65-9192-df4f4f0d1a1e"
+          },
+          {
+            "points": 1,
+            "signal_id": "d4bzvzh0",
+            "participant_id": "741e498d-2f49-4b92-9e1f-bf36f332401d"
+          },
+          {
+            "points": 1,
+            "signal_id": "d4bzvzh0",
+            "participant_id": "301fad8a-4fae-4764-9dc0-1ac7195a4562"
+          },
+          {
+            "points": 1,
+            "signal_id": "bif4wbfw",
+            "participant_id": "1d95ddca-2415-45cb-a275-6f489be1ae0c"
+          },
+          {
+            "points": 1,
+            "signal_id": "bif4wbfw",
+            "participant_id": "143fd43d-8dbf-4c65-9192-df4f4f0d1a1e"
+          },
+          {
+            "points": 1,
+            "signal_id": "p3ulxlhn",
+            "participant_id": "301fad8a-4fae-4764-9dc0-1ac7195a4562"
+          },
+          {
+            "points": 1,
+            "signal_id": "xyy71nd3",
+            "participant_id": "24bb6f70-3429-459b-a3d6-00ffa152baa6"
+          },
+          {
+            "points": 1,
+            "signal_id": "gtvaf8v3",
+            "participant_id": "24bb6f70-3429-459b-a3d6-00ffa152baa6"
+          },
+          {
+            "points": 1,
+            "signal_id": "xyy71nd3",
+            "participant_id": "1d95ddca-2415-45cb-a275-6f489be1ae0c"
+          },
+          {
+            "points": 1,
+            "signal_id": "pcvl3srg",
+            "participant_id": "8633207b-31f2-4d8b-b172-70be26a71641"
+          },
+          {
+            "points": 1,
+            "signal_id": "xyy71nd3",
+            "participant_id": "741e498d-2f49-4b92-9e1f-bf36f332401d"
+          },
+          {
+            "points": 1,
+            "signal_id": "4fe4lz6g",
+            "participant_id": "001b870f-0db2-444c-8074-6adf9259a27e"
+          },
+          {
+            "points": 1,
+            "signal_id": "gtvaf8v3",
+            "participant_id": "741e498d-2f49-4b92-9e1f-bf36f332401d"
+          },
+          {
+            "points": 1,
+            "signal_id": "4fe4lz6g",
+            "participant_id": "143fd43d-8dbf-4c65-9192-df4f4f0d1a1e"
+          },
+          {
+            "points": 1,
+            "signal_id": "nqqg15x8",
+            "participant_id": "a20b6261-b4d0-4e11-9ed6-5864eaebe62f"
+          },
+          {
+            "points": 1,
+            "signal_id": "isad0qcr",
+            "participant_id": "001b870f-0db2-444c-8074-6adf9259a27e"
+          },
+          {
+            "points": 1,
+            "signal_id": "xyy71nd3",
+            "participant_id": "1a740aea-6f5d-4916-9054-4f01ac413dff"
+          },
+          {
+            "points": 1,
+            "signal_id": "gtvaf8v3",
+            "participant_id": "1a740aea-6f5d-4916-9054-4f01ac413dff"
+          },
+          {
+            "points": 1,
+            "signal_id": "gtvaf8v3",
+            "participant_id": "8633207b-31f2-4d8b-b172-70be26a71641"
+          },
+          {
+            "points": 1,
+            "signal_id": "r4y7irfq",
+            "participant_id": "1d95ddca-2415-45cb-a275-6f489be1ae0c"
+          },
+          {
+            "points": 1,
+            "signal_id": "r4y7irfq",
+            "participant_id": "301fad8a-4fae-4764-9dc0-1ac7195a4562"
+          },
+          {
+            "points": 1,
+            "signal_id": "wvmsxg2b",
+            "participant_id": "24bb6f70-3429-459b-a3d6-00ffa152baa6"
+          },
+          {
+            "points": 1,
+            "signal_id": "781kfdzq",
+            "participant_id": "301fad8a-4fae-4764-9dc0-1ac7195a4562"
+          },
+          {
+            "points": 1,
+            "signal_id": "dhps8nq8",
+            "participant_id": "001b870f-0db2-444c-8074-6adf9259a27e"
+          },
+          {
+            "points": 1,
+            "signal_id": "781kfdzq",
+            "participant_id": "a20b6261-b4d0-4e11-9ed6-5864eaebe62f"
+          },
+          {
+            "points": 1,
+            "signal_id": "781kfdzq",
+            "participant_id": "741e498d-2f49-4b92-9e1f-bf36f332401d"
+          },
+          {
+            "points": 1,
+            "signal_id": "o66jkc92",
+            "participant_id": "001b870f-0db2-444c-8074-6adf9259a27e"
+          },
+          {
+            "points": 1,
+            "signal_id": "781kfdzq",
+            "participant_id": "1d95ddca-2415-45cb-a275-6f489be1ae0c"
+          },
+          {
+            "points": 1,
+            "signal_id": "781kfdzq",
+            "participant_id": "8633207b-31f2-4d8b-b172-70be26a71641"
+          },
+          {
+            "points": 1,
+            "signal_id": "781kfdzq",
+            "participant_id": "1a740aea-6f5d-4916-9054-4f01ac413dff"
+          },
+          {
+            "points": 1,
+            "signal_id": "q8qlgvd9",
+            "participant_id": "24bb6f70-3429-459b-a3d6-00ffa152baa6"
+          },
+          {
+            "points": 1,
+            "signal_id": "5ifc36yd",
+            "participant_id": "a20b6261-b4d0-4e11-9ed6-5864eaebe62f"
+          },
+          {
+            "points": 1,
+            "signal_id": "q8qlgvd9",
+            "participant_id": "741e498d-2f49-4b92-9e1f-bf36f332401d"
+          },
+          {
+            "points": 1,
+            "signal_id": "n4m6q8cw",
+            "participant_id": "1d95ddca-2415-45cb-a275-6f489be1ae0c"
+          },
+          {
+            "points": 1,
+            "signal_id": "q8qlgvd9",
+            "participant_id": "143fd43d-8dbf-4c65-9192-df4f4f0d1a1e"
+          },
+          {
+            "points": 1,
+            "signal_id": "5ifc36yd",
+            "participant_id": "8633207b-31f2-4d8b-b172-70be26a71641"
+          },
+          {
+            "points": 1,
+            "signal_id": "n4m6q8cw",
+            "participant_id": "143fd43d-8dbf-4c65-9192-df4f4f0d1a1e"
+          },
+          {
+            "points": 1,
+            "signal_id": "n4m6q8cw",
+            "participant_id": "1a740aea-6f5d-4916-9054-4f01ac413dff"
+          },
+          {
+            "points": 1,
+            "signal_id": "2e1ymj1j",
+            "participant_id": "301fad8a-4fae-4764-9dc0-1ac7195a4562"
+          },
+          {
+            "points": 1,
+            "signal_id": "c7yjd1p7",
+            "participant_id": "1a740aea-6f5d-4916-9054-4f01ac413dff"
+          },
+          {
+            "points": 1,
+            "signal_id": "tu6x6k7q",
+            "participant_id": "8633207b-31f2-4d8b-b172-70be26a71641"
+          },
+          {
+            "points": 1,
+            "signal_id": "c7yjd1p7",
+            "participant_id": "24bb6f70-3429-459b-a3d6-00ffa152baa6"
+          },
+          {
+            "points": 1,
+            "signal_id": "vnugfzz2",
+            "participant_id": "741e498d-2f49-4b92-9e1f-bf36f332401d"
+          },
+          {
+            "points": 1,
+            "signal_id": "o1e01cas",
+            "participant_id": "001b870f-0db2-444c-8074-6adf9259a27e"
+          },
+          {
+            "points": 1,
+            "signal_id": "ryjxxs1e",
+            "participant_id": "a20b6261-b4d0-4e11-9ed6-5864eaebe62f"
+          },
+          {
+            "points": 1,
+            "signal_id": "gwehgz92",
+            "participant_id": "88477e78-444f-4b3c-81d0-5813327b0162"
+          },
+          {
+            "points": 1,
+            "signal_id": "8tvjgwwh",
+            "participant_id": "1a740aea-6f5d-4916-9054-4f01ac413dff"
+          },
+          {
+            "points": 1,
+            "signal_id": "vnugfzz2",
+            "participant_id": "a20b6261-b4d0-4e11-9ed6-5864eaebe62f"
+          },
+          {
+            "points": 1,
+            "signal_id": "8tvjgwwh",
+            "participant_id": "1d95ddca-2415-45cb-a275-6f489be1ae0c"
+          },
+          {
+            "points": 1,
+            "signal_id": "vnugfzz2",
+            "participant_id": "143fd43d-8dbf-4c65-9192-df4f4f0d1a1e"
+          },
+          {
+            "points": 1,
+            "signal_id": "7301leug",
+            "participant_id": "24bb6f70-3429-459b-a3d6-00ffa152baa6"
+          },
+          {
+            "points": 1,
+            "signal_id": "8tvjgwwh",
+            "participant_id": "143fd43d-8dbf-4c65-9192-df4f4f0d1a1e"
+          },
+          {
+            "points": 1,
+            "signal_id": "7301leug",
+            "participant_id": "1d95ddca-2415-45cb-a275-6f489be1ae0c"
+          },
+          {
+            "points": 1,
+            "signal_id": "8tvjgwwh",
+            "participant_id": "741e498d-2f49-4b92-9e1f-bf36f332401d"
+          },
+          {
+            "points": 1,
+            "signal_id": "rer9usfm",
+            "participant_id": "8633207b-31f2-4d8b-b172-70be26a71641"
+          },
+          {
+            "points": 1,
+            "signal_id": "8tvjgwwh",
+            "participant_id": "88477e78-444f-4b3c-81d0-5813327b0162"
+          }
+        ],
+        "signals": [
+          {
+            "id": "20820dx9",
+            "axis": "politico",
+            "ring": 2,
+            "text": "Cambios en administraciones municipales y departamentales",
+            "round": 1,
+            "author": "Lina",
+            "aspiration_id": null
+          },
+          {
+            "id": "6xcxofhs",
+            "axis": "politico",
+            "ring": 0,
+            "text": "Déficit Fiscal creciente por terremoto",
+            "round": 1,
+            "author": "VDV",
+            "aspiration_id": null
+          },
+          {
+            "id": "n88u31n2",
+            "axis": "politico",
+            "ring": 0,
+            "text": "Nuevos retos del gobierno Nacional",
+            "round": 1,
+            "author": "Lina",
+            "aspiration_id": null
+          },
+          {
+            "id": "b0e09xdt",
+            "axis": "politico",
+            "ring": 0,
+            "text": "Cambio en la mirada estatal frente a proyectos minero-energéticos",
+            "round": 1,
+            "author": "Santiago",
+            "aspiration_id": null
+          },
+          {
+            "id": "n31mw7qc",
+            "axis": "politico",
+            "ring": 0,
+            "text": "Transición política",
+            "round": 1,
+            "author": "Catalina Baena Ceballos",
+            "aspiration_id": null
+          },
+          {
+            "id": "4ditg8ih",
+            "axis": "politico",
+            "ring": 0,
+            "text": "Prioridades declaradas del nuevo gobierno: Orden institucional, seguridad, reactivación económica, modernización y adelgazamiento del Estado. En seguridad, el discurso es de recuperación de control territorial y lucha frontal contra el narcotráfico y la minería ilegal.",
+            "round": 1,
+            "author": "Mario Marulanda",
+            "aspiration_id": null
+          },
+          {
+            "id": "thepqd0k",
+            "axis": "politico",
+            "ring": 1,
+            "text": "Plan de Desarrollo Nacional",
+            "round": 1,
+            "author": "VDV",
+            "aspiration_id": null
+          },
+          {
+            "id": "5yikv97g",
+            "axis": "politico",
+            "ring": 2,
+            "text": "Cambio en la política sobre la minería: tanto para las grandes mineras como la formalización para minería informal (pequeños mineros)",
+            "round": 1,
+            "author": "Eliana Gaviria",
+            "aspiration_id": null
+          },
+          {
+            "id": "tvbm8srr",
+            "axis": "politico",
+            "ring": 0,
+            "text": "Orden público",
+            "round": 1,
+            "author": "Laura",
+            "aspiration_id": null
+          },
+          {
+            "id": "bdd9vb5y",
+            "axis": "politico",
+            "ring": 2,
+            "text": "Mayor aprobación de licencias ambientales",
+            "round": 1,
+            "author": "Lina",
+            "aspiration_id": null
+          },
+          {
+            "id": "iohe0c1r",
+            "axis": "politico",
+            "ring": 0,
+            "text": "Déficit fiscal del nuevo gobierno nacional",
+            "round": 1,
+            "author": "Carlos Salazar",
+            "aspiration_id": null
+          },
+          {
+            "id": "0301ffam",
+            "axis": "politico",
+            "ring": 1,
+            "text": "Licenciamiento ambiental",
+            "round": 1,
+            "author": "Laura",
+            "aspiration_id": null
+          },
+          {
+            "id": "h9cepyat",
+            "axis": "politico",
+            "ring": 1,
+            "text": "Políticas de protección a las empresas",
+            "round": 1,
+            "author": "VDV",
+            "aspiration_id": null
+          },
+          {
+            "id": "3ngwf2h1",
+            "axis": "politico",
+            "ring": 0,
+            "text": "Reconstrucción posterremoto",
+            "round": 1,
+            "author": "Laura",
+            "aspiration_id": null
+          },
+          {
+            "id": "yss4jpre",
+            "axis": "politico",
+            "ring": 2,
+            "text": "Mayor rigurosidad normativa",
+            "round": 1,
+            "author": "Catalina Baena Ceballos",
+            "aspiration_id": null
+          },
+          {
+            "id": "hnvwluha",
+            "axis": "politico",
+            "ring": 1,
+            "text": "confrontaciones entre grupos armados en los territorios en los que hacemos presencia",
+            "round": 1,
+            "author": "VDV",
+            "aspiration_id": null
+          },
+          {
+            "id": "ve40exsh",
+            "axis": "politico",
+            "ring": 0,
+            "text": "A raíz del terremoto el gobierno declaró desastre nacional y emergencia económica, y creó la Subcuenta Sismo 2026 y el Fondo Milagro para canalizar recursos nacionales e internacionales.",
+            "round": 1,
+            "author": "Mario Marulanda",
+            "aspiration_id": null
+          },
+          {
+            "id": "rn4b60mo",
+            "axis": "politico",
+            "ring": 1,
+            "text": "Cambios de gobiernos locales y departamentales. Año 2027 electoral y 2028 estructuraciones planes de gobierno.",
+            "round": 1,
+            "author": "Carlos Salazar",
+            "aspiration_id": null
+          },
+          {
+            "id": "gio5sggs",
+            "axis": "politico",
+            "ring": 0,
+            "text": "Cambio en la política de seguridad",
+            "round": 1,
+            "author": "Santiago",
+            "aspiration_id": null
+          },
+          {
+            "id": "iz3psd7v",
+            "axis": "politico",
+            "ring": 0,
+            "text": "Orden público",
+            "round": 1,
+            "author": "Lina",
+            "aspiration_id": null
+          },
+          {
+            "id": "v5fiplou",
+            "axis": "politico",
+            "ring": 0,
+            "text": "Transición de gobierno y prioridades",
+            "round": 1,
+            "author": "Yenny Giraldo",
+            "aspiration_id": null
+          },
+          {
+            "id": "u8a7r8b6",
+            "axis": "politico",
+            "ring": 1,
+            "text": "Elecciones locales y regionales",
+            "round": 1,
+            "author": "Santiago",
+            "aspiration_id": null
+          },
+          {
+            "id": "l5h1qk4v",
+            "axis": "politico",
+            "ring": 1,
+            "text": "promoción de la actividad minero energética ante crisis climática",
+            "round": 1,
+            "author": "VDV",
+            "aspiration_id": null
+          },
+          {
+            "id": "3xrte5gc",
+            "axis": "politico",
+            "ring": 2,
+            "text": "Hay una señal positiva de inversión en materia de reactivación de proyectos mineroenergeticos y de oil and gas",
+            "round": 1,
+            "author": "Carlos Salazar",
+            "aspiration_id": null
+          },
+          {
+            "id": "nhtzzs6a",
+            "axis": "politico",
+            "ring": 1,
+            "text": "elecciones territoriales",
+            "round": 1,
+            "author": "VDV",
+            "aspiration_id": null
+          },
+          {
+            "id": "jd44h13z",
+            "axis": "politico",
+            "ring": 1,
+            "text": "Si queremos contratación con entidades territoriales en 2027, hay que cerrarla en el primer semestre. Además, 2027 es el último año del periodo de mandatarios locales: la presión por ejecutar y mostrar resultados será alta al principio del año y la capacidad de decisión se desplomará al final.",
+            "round": 1,
+            "author": "Mario Marulanda",
+            "aspiration_id": null
+          },
+          {
+            "id": "6uzjj6eq",
+            "axis": "politico",
+            "ring": 1,
+            "text": "Disminución del gasto público para estabilizar finanzas del Estado",
+            "round": 1,
+            "author": "Santiago",
+            "aspiration_id": null
+          },
+          {
+            "id": "q6io5gzw",
+            "axis": "politico",
+            "ring": 1,
+            "text": "Será más crítica la seguridad pública",
+            "round": 1,
+            "author": "Catalina Baena Ceballos",
+            "aspiration_id": null
+          },
+          {
+            "id": "bjmsgruk",
+            "axis": "politico",
+            "ring": 2,
+            "text": "Cambios en el escenario político regional",
+            "round": 1,
+            "author": "Eliana Gaviria",
+            "aspiration_id": null
+          },
+          {
+            "id": "a3d2xqus",
+            "axis": "politico",
+            "ring": 1,
+            "text": "Relacion gobierno público privada",
+            "round": 1,
+            "author": "Yenny Giraldo",
+            "aspiration_id": null
+          },
+          {
+            "id": "ns0uhbuk",
+            "axis": "politico",
+            "ring": 0,
+            "text": "Seguridad en los territorios - recuperación del control por parte del Gobierno",
+            "round": 1,
+            "author": "Eliana Gaviria",
+            "aspiration_id": null
+          },
+          {
+            "id": "xnwamgso",
+            "axis": "politico",
+            "ring": 2,
+            "text": "Activación de mineros",
+            "round": 1,
+            "author": "Yenny Giraldo",
+            "aspiration_id": null
+          },
+          {
+            "id": "modz4t23",
+            "axis": "politico",
+            "ring": 2,
+            "text": "Cooperación internacional: la contracción es estructural, no coyuntural. Los datos de la Organización para la Cooperación y el Desarrollo Económicos son contundentes. La ayuda oficial al desarrollo neta cayó 8,5 por ciento en 2024, 23,3 por ciento en 2025, la mayor caída registrada en la historia de la serie, y se proyecta una caída adicional de 6,9 por ciento en 2026.",
+            "round": 1,
+            "author": "Mario Marulanda",
+            "aspiration_id": null
+          },
+          {
+            "id": "fdwfqr67",
+            "axis": "financiamiento",
+            "ring": 0,
+            "text": "Disminución de financiamiento a ONG a nivel mundial",
+            "round": 2,
+            "author": "Lina",
+            "aspiration_id": null
+          },
+          {
+            "id": "89k3btn0",
+            "axis": "financiamiento",
+            "ring": 0,
+            "text": "Alta competencia por los recursos internacionales",
+            "round": 2,
+            "author": "Carlos Salazar",
+            "aspiration_id": null
+          },
+          {
+            "id": "3terzxsv",
+            "axis": "financiamiento",
+            "ring": 0,
+            "text": "Climate Week y la oportunidad de relacionamiento internacional",
+            "round": 2,
+            "author": "VDV",
+            "aspiration_id": null
+          },
+          {
+            "id": "fqv2ht8n",
+            "axis": "financiamiento",
+            "ring": 0,
+            "text": "Climate Week",
+            "round": 2,
+            "author": "Laura",
+            "aspiration_id": null
+          },
+          {
+            "id": "cbb1ndve",
+            "axis": "financiamiento",
+            "ring": 0,
+            "text": "Visibilidad mundial con la climate week",
+            "round": 2,
+            "author": "Lina",
+            "aspiration_id": null
+          },
+          {
+            "id": "p3ulxlhn",
+            "axis": "financiamiento",
+            "ring": 1,
+            "text": "Mayor dependencia de financiación privada ante reducción del gasto público para estabilizar finanzas estatales",
+            "round": 2,
+            "author": "Santiago",
+            "aspiration_id": null
+          },
+          {
+            "id": "l6hz27o1",
+            "axis": "financiamiento",
+            "ring": 1,
+            "text": "Impactos ambientales",
+            "round": 2,
+            "author": "Yenny Giraldo",
+            "aspiration_id": null
+          },
+          {
+            "id": "9agjquoi",
+            "axis": "financiamiento",
+            "ring": 1,
+            "text": "Posicionamiento de Socya con Climate week",
+            "round": 2,
+            "author": "Eliana Gaviria",
+            "aspiration_id": null
+          },
+          {
+            "id": "yl9p9y4c",
+            "axis": "financiamiento",
+            "ring": 0,
+            "text": "Cooperación internacional: la contracción es estructural, no coyuntural. La ayuda oficial al desarrollo neta cayó 8,5 por ciento en 2024, 23,3 por ciento en 2025, la mayor caída registrada en la historia de la serie, y se proyecta una caída adicional de 6,9 por ciento en 2026. Es la segunda vez que se registran tres años consecutivos de descenso. La ayuda humanitaria cayó 35,8 por ciento y los recursos para gobierno y sociedad civil están entre los más golpeados.",
+            "round": 2,
+            "author": "Mario Marulanda",
+            "aspiration_id": null
+          },
+          {
+            "id": "xe9u8ppt",
+            "axis": "financiamiento",
+            "ring": 2,
+            "text": "Posiblemente incrementen recursos de cooperación por reactivación de (Plan Colombia) con recursos de USA.",
+            "round": 2,
+            "author": "Carlos Salazar",
+            "aspiration_id": null
+          },
+          {
+            "id": "4a7c9mav",
+            "axis": "financiamiento",
+            "ring": 0,
+            "text": "Climate Week como oportunidad de crecimiento y visibilidad",
+            "round": 2,
+            "author": "Catalina Baena Ceballos",
+            "aspiration_id": null
+          },
+          {
+            "id": "yrfzh9ps",
+            "axis": "financiamiento",
+            "ring": 0,
+            "text": "Disminución de la cooperación por parte de USA en temas no ligados a la lucha antidrogas",
+            "round": 2,
+            "author": "Santiago",
+            "aspiration_id": null
+          },
+          {
+            "id": "cjt0fhg1",
+            "axis": "financiamiento",
+            "ring": 0,
+            "text": "nueva visión de la cooperación con foco en temas de seguridad",
+            "round": 2,
+            "author": "VDV",
+            "aspiration_id": null
+          },
+          {
+            "id": "5kf7kfp3",
+            "axis": "financiamiento",
+            "ring": 1,
+            "text": "Nuevos ingresos internacionales para cierre de año",
+            "round": 2,
+            "author": "Carlos Salazar",
+            "aspiration_id": null
+          },
+          {
+            "id": "n6ju3rbw",
+            "axis": "financiamiento",
+            "ring": 1,
+            "text": "Reducción de presupuestos gubernamentales",
+            "round": 2,
+            "author": "Catalina Baena Ceballos",
+            "aspiration_id": null
+          },
+          {
+            "id": "d4bzvzh0",
+            "axis": "financiamiento",
+            "ring": 2,
+            "text": "Disminución de recursos internacionales para cooperación",
+            "round": 2,
+            "author": "Lina",
+            "aspiration_id": null
+          },
+          {
+            "id": "ndb89mb1",
+            "axis": "financiamiento",
+            "ring": 2,
+            "text": "Socya invest, como aliados con entidades que tambien generen impacto",
+            "round": 2,
+            "author": "Yenny Giraldo",
+            "aspiration_id": null
+          },
+          {
+            "id": "harlurvx",
+            "axis": "financiamiento",
+            "ring": 0,
+            "text": "contextos geopolíticos de conflicto",
+            "round": 2,
+            "author": "VDV",
+            "aspiration_id": null
+          },
+          {
+            "id": "bif4wbfw",
+            "axis": "financiamiento",
+            "ring": 0,
+            "text": "Disminución de recursos para ONG y financiar programas sociales por parte de USA y Europa",
+            "round": 2,
+            "author": "Eliana Gaviria",
+            "aspiration_id": null
+          },
+          {
+            "id": "iqkc7bkh",
+            "axis": "financiamiento",
+            "ring": 0,
+            "text": "Recursos de cooperación de Europa en temas que trabaja Socya: acción climática, economía circular, desarrollo de capacidades comunitarias, generación de empleo",
+            "round": 2,
+            "author": "Santiago",
+            "aspiration_id": null
+          },
+          {
+            "id": "gtvaf8v3",
+            "axis": "social",
+            "ring": 0,
+            "text": "Orden público en los territorios",
+            "round": 3,
+            "author": "Lina",
+            "aspiration_id": null
+          },
+          {
+            "id": "b01dogg5",
+            "axis": "social",
+            "ring": 1,
+            "text": "El Ministerio de Ambiente pasó de una agenda centrada en transición energética, conservación de la Amazonía y restricción a nuevos proyectos de hidrocarburos, a una orientación de compatibilizar desarrollo económico con sostenibilidad. El ministro Arjona confirmó que la Autoridad Nacional de Licencias Ambientales se mantiene, pero anunció una revisión integral del sistema de licenciamiento para agilizar trámites sin reducir el rigor técnico, un replanteamiento de la consulta previa y una revisión de la contratación del sector. También dio aval condicionado a la fracturación hidráulica bajo los mejores estándares disponibles.",
+            "round": 3,
+            "author": "Mario Marulanda",
+            "aspiration_id": null
+          },
+          {
+            "id": "4fe4lz6g",
+            "axis": "social",
+            "ring": 0,
+            "text": "Alta compentencia de operadores sociales y ambientales",
+            "round": 3,
+            "author": "Carlos Salazar",
+            "aspiration_id": null
+          },
+          {
+            "id": "wemoablo",
+            "axis": "social",
+            "ring": 0,
+            "text": "Gran dispersión de la ejecución de los proyectos",
+            "round": 3,
+            "author": "Lina",
+            "aspiration_id": null
+          },
+          {
+            "id": "xyy71nd3",
+            "axis": "social",
+            "ring": 1,
+            "text": "Reconstrucción posterior al terremoto",
+            "round": 3,
+            "author": "VDV",
+            "aspiration_id": null
+          },
+          {
+            "id": "woyzm08p",
+            "axis": "social",
+            "ring": 0,
+            "text": "Cambio en la política de seguridad",
+            "round": 3,
+            "author": "Eliana Gaviria",
+            "aspiration_id": null
+          },
+          {
+            "id": "nh5wtfrz",
+            "axis": "social",
+            "ring": 2,
+            "text": "Reactivación economica",
+            "round": 3,
+            "author": "Yenny Giraldo",
+            "aspiration_id": null
+          },
+          {
+            "id": "mqvj97sq",
+            "axis": "social",
+            "ring": 0,
+            "text": "Defícit habitacional (especialmenyte en cuanto a calidad de las viviendas)",
+            "round": 3,
+            "author": "Santiago",
+            "aspiration_id": null
+          },
+          {
+            "id": "ucdhdbvi",
+            "axis": "social",
+            "ring": 0,
+            "text": "Orden Público en los territorios, seguridad de los colaboradores",
+            "round": 3,
+            "author": "Catalina Baena Ceballos",
+            "aspiration_id": null
+          },
+          {
+            "id": "nqqg15x8",
+            "axis": "social",
+            "ring": 1,
+            "text": "Flexibilización normativa de licenciamiento",
+            "round": 3,
+            "author": "VDV",
+            "aspiration_id": null
+          },
+          {
+            "id": "zr7gb126",
+            "axis": "social",
+            "ring": 1,
+            "text": "Operación en entornos con altos índices de inseguridad física",
+            "round": 3,
+            "author": "Carlos Salazar",
+            "aspiration_id": null
+          },
+          {
+            "id": "pcvl3srg",
+            "axis": "social",
+            "ring": 1,
+            "text": "Presupuesto público muy enfocado a la reconstrucción y reactivación económica derivado del terremoto",
+            "round": 3,
+            "author": "Eliana Gaviria",
+            "aspiration_id": null
+          },
+          {
+            "id": "isad0qcr",
+            "axis": "social",
+            "ring": 0,
+            "text": "Orden publico",
+            "round": 3,
+            "author": "Yenny Giraldo",
+            "aspiration_id": null
+          },
+          {
+            "id": "h1oivtf7",
+            "axis": "social",
+            "ring": 1,
+            "text": "Reconstrucción posterior al terremoto",
+            "round": 3,
+            "author": "Lina",
+            "aspiration_id": null
+          },
+          {
+            "id": "z0zhoy7w",
+            "axis": "social",
+            "ring": 0,
+            "text": "Reconstrucción post-terremoto (implicaciones sociales y de infraestructura)",
+            "round": 3,
+            "author": "Santiago",
+            "aspiration_id": null
+          },
+          {
+            "id": "qqa6vdrz",
+            "axis": "social",
+            "ring": 2,
+            "text": "Aumento de oportunidades para proyectos sociales, ambientales y territoriales en sectores minero energéticos y de infraestructura.",
+            "round": 3,
+            "author": "Carlos Salazar",
+            "aspiration_id": null
+          },
+          {
+            "id": "s0ms2cez",
+            "axis": "social",
+            "ring": 2,
+            "text": "Cambios en licenciamientos ambientales",
+            "round": 3,
+            "author": "Eliana Gaviria",
+            "aspiration_id": null
+          },
+          {
+            "id": "t5t3bcwy",
+            "axis": "social",
+            "ring": 1,
+            "text": "Seguridad y territorio: Esto es riesgo operativo directo para los proyectos que ejecutamos en campo, acceso, seguridad de los equipos, continuidad de la ejecución y cláusulas contractuales de fuerza mayor.",
+            "round": 3,
+            "author": "Mario Marulanda",
+            "aspiration_id": null
+          },
+          {
+            "id": "rl2p9g2p",
+            "axis": "social",
+            "ring": 1,
+            "text": "Competividad de aliados y modelo operativo",
+            "round": 3,
+            "author": "Yenny Giraldo",
+            "aspiration_id": null
+          },
+          {
+            "id": "r4y7irfq",
+            "axis": "social",
+            "ring": 0,
+            "text": "Super Niño: gestión eficiente de los recursos, adaptación al cambio climático",
+            "round": 3,
+            "author": "Santiago",
+            "aspiration_id": null
+          },
+          {
+            "id": "pv9x2wrp",
+            "axis": "social",
+            "ring": 1,
+            "text": "Prioridades gubernamentales",
+            "round": 3,
+            "author": "Catalina Baena Ceballos",
+            "aspiration_id": null
+          },
+          {
+            "id": "wgp4gqe8",
+            "axis": "social",
+            "ring": 0,
+            "text": "Retos ASG para la competitividad y productividad de las empresas",
+            "round": 3,
+            "author": "Santiago",
+            "aspiration_id": null
+          },
+          {
+            "id": "mdhr5w6p",
+            "axis": "social",
+            "ring": 2,
+            "text": "Cambios políticas ambientales",
+            "round": 3,
+            "author": "Lina",
+            "aspiration_id": null
+          },
+          {
+            "id": "u8fl4vy4",
+            "axis": "social",
+            "ring": 0,
+            "text": "Nueva Hoja de Ruta Colombia Circular",
+            "round": 3,
+            "author": "Santiago",
+            "aspiration_id": null
+          },
+          {
+            "id": "fxbs1g6e",
+            "axis": "ambiental",
+            "ring": 0,
+            "text": "Implementación de IA en todos los procesos y niveles",
+            "round": 4,
+            "author": "Eliana Gaviria",
+            "aspiration_id": null
+          },
+          {
+            "id": "wvmsxg2b",
+            "axis": "ambiental",
+            "ring": 0,
+            "text": "Cambios acelerados",
+            "round": 4,
+            "author": "Yenny Giraldo",
+            "aspiration_id": null
+          },
+          {
+            "id": "3u172rt9",
+            "axis": "ambiental",
+            "ring": 0,
+            "text": "Capacidades o conocimiento que puede reemplazar la inteligencia artificial",
+            "round": 4,
+            "author": "Laura",
+            "aspiration_id": null
+          },
+          {
+            "id": "f5fhn3bl",
+            "axis": "ambiental",
+            "ring": 0,
+            "text": "Capacidad de adaptación de los equipos a adoptar tecnología más ágilmente",
+            "round": 4,
+            "author": "Carlos Salazar",
+            "aspiration_id": null
+          },
+          {
+            "id": "2e1ymj1j",
+            "axis": "ambiental",
+            "ring": 2,
+            "text": "Continuará la tendencia de cambios acelerados",
+            "round": 4,
+            "author": "Eliana Gaviria",
+            "aspiration_id": null
+          },
+          {
+            "id": "781kfdzq",
+            "axis": "ambiental",
+            "ring": 0,
+            "text": "IA como motor de la competitividad y productividad (eficiencia interna y generación de soluciones innovadoras a retos de territorios, industria y comunidades)",
+            "round": 4,
+            "author": "Santiago",
+            "aspiration_id": null
+          },
+          {
+            "id": "itxnj7ie",
+            "axis": "ambiental",
+            "ring": 0,
+            "text": "Incorporación de la IA como solución en todos los procesos",
+            "round": 4,
+            "author": "Catalina Baena Ceballos",
+            "aspiration_id": null
+          },
+          {
+            "id": "n4m6q8cw",
+            "axis": "ambiental",
+            "ring": 1,
+            "text": "Capacidad de adaptación - resistencia al cambio",
+            "round": 4,
+            "author": "Eliana Gaviria",
+            "aspiration_id": null
+          },
+          {
+            "id": "avj0bmi2",
+            "axis": "ambiental",
+            "ring": 1,
+            "text": "Falta de control de uso de IA",
+            "round": 4,
+            "author": "Carlos Salazar",
+            "aspiration_id": null
+          },
+          {
+            "id": "5ifc36yd",
+            "axis": "ambiental",
+            "ring": 0,
+            "text": "brechas en competencias de los colaboradores",
+            "round": 4,
+            "author": "VDV",
+            "aspiration_id": null
+          },
+          {
+            "id": "avei7bzf",
+            "axis": "ambiental",
+            "ring": 2,
+            "text": "Automatizaciones y mejora de capacidades",
+            "round": 4,
+            "author": "Yenny Giraldo",
+            "aspiration_id": null
+          },
+          {
+            "id": "6aiinnix",
+            "axis": "ambiental",
+            "ring": 0,
+            "text": "Tendencias en gestión de residuos y transformación de materiales",
+            "round": 4,
+            "author": "Laura",
+            "aspiration_id": null
+          },
+          {
+            "id": "q8qlgvd9",
+            "axis": "ambiental",
+            "ring": 1,
+            "text": "Conocimiento y la correcta adopción de la IA en los procesos",
+            "round": 4,
+            "author": "Catalina Baena Ceballos",
+            "aspiration_id": null
+          },
+          {
+            "id": "dhps8nq8",
+            "axis": "ambiental",
+            "ring": 1,
+            "text": "Velocidad en toma de decisiones",
+            "round": 4,
+            "author": "Yenny Giraldo",
+            "aspiration_id": null
+          },
+          {
+            "id": "ajrwnjvx",
+            "axis": "ambiental",
+            "ring": 1,
+            "text": "Agilidad en la ejecución",
+            "round": 4,
+            "author": "Lina",
+            "aspiration_id": null
+          },
+          {
+            "id": "o66jkc92",
+            "axis": "ambiental",
+            "ring": 2,
+            "text": "Tener la capacidad de operar con tecnologías IA y otras, pero a su vez, tener el respaldo de poder operar de manera análoga",
+            "round": 4,
+            "author": "Carlos Salazar",
+            "aspiration_id": null
+          },
+          {
+            "id": "0v30xi6k",
+            "axis": "ambiental",
+            "ring": 0,
+            "text": "Apropiación del conocimiento y uso estratégico y responsable de la IA",
+            "round": 4,
+            "author": "Santiago",
+            "aspiration_id": null
+          },
+          {
+            "id": "qf1499i4",
+            "axis": "ambiental",
+            "ring": 0,
+            "text": "El cumplimiento ambiental se está digitalizando y automatizando. Oportunidad: quien pueda demostrar trazabilidad y calidad de dato va a diferenciarse frente a competidores que siguen entregando informes descriptivos. Riesgo: cuando los reportes se cruzan automáticamente, cualquier inconsistencia en nuestros datos deja de ser un error interno y se convierte en un hallazgo de la autoridad ambiental o del cliente. Necesitamos una decisión explícita sobre capacidad de gestión de datos en 2027, no una intención genérica de digitalización.",
+            "round": 4,
+            "author": "Mario Marulanda",
+            "aspiration_id": null
+          },
+          {
+            "id": "aj2ney81",
+            "axis": "ambiental",
+            "ring": 0,
+            "text": "necesidad de transformación organizacional",
+            "round": 4,
+            "author": "VDV",
+            "aspiration_id": null
+          },
+          {
+            "id": "cvutb2yf",
+            "axis": "sector",
+            "ring": 0,
+            "text": "ausencia de información sobre competidores",
+            "round": 5,
+            "author": "VDV",
+            "aspiration_id": null
+          },
+          {
+            "id": "mzix35lz",
+            "axis": "sector",
+            "ring": 0,
+            "text": "Mayor competencia - competidores muy fuertes",
+            "round": 5,
+            "author": "Eliana Gaviria",
+            "aspiration_id": null
+          },
+          {
+            "id": "c7yjd1p7",
+            "axis": "sector",
+            "ring": 0,
+            "text": "Mayor competencia",
+            "round": 5,
+            "author": "Lina",
+            "aspiration_id": null
+          },
+          {
+            "id": "o1e01cas",
+            "axis": "sector",
+            "ring": 0,
+            "text": "Crecimiento de la competencia de servicios ambientales, territoriales y sociales",
+            "round": 5,
+            "author": "Carlos Salazar",
+            "aspiration_id": null
+          },
+          {
+            "id": "vnugfzz2",
+            "axis": "sector",
+            "ring": 0,
+            "text": "Competencia en el sector y desconocimiento de estos",
+            "round": 5,
+            "author": "Catalina Baena Ceballos",
+            "aspiration_id": null
+          },
+          {
+            "id": "roj4r35q",
+            "axis": "sector",
+            "ring": 0,
+            "text": "relacionamiento para el desarrollo de negocios",
+            "round": 5,
+            "author": "VDV",
+            "aspiration_id": null
+          },
+          {
+            "id": "rer9usfm",
+            "axis": "sector",
+            "ring": 1,
+            "text": "Nuestros aliados cada vez están buscando mayor eficiencia en sus costos",
+            "round": 5,
+            "author": "Lina",
+            "aspiration_id": null
+          },
+          {
+            "id": "8tvjgwwh",
+            "axis": "sector",
+            "ring": 0,
+            "text": "Modelos de negocio más livianos y ágiles",
+            "round": 5,
+            "author": "Laura",
+            "aspiration_id": null
+          },
+          {
+            "id": "tu6x6k7q",
+            "axis": "sector",
+            "ring": 0,
+            "text": "El nuevo gobierno plantea recuperar la exploración de petróleo y gas, impulsar recursos mineros estratégicos y dar seguridad jurídica a la inversión. Un sector que se reactiva atrae competencia: consultoras nacionales e internacionales, firmas de ingeniería con líneas sociales y operadores especializados van a ir por los mismos contratos. Nuestra ventaja histórica es el conocimiento territorial y la relación con comunidades; nuestra vulnerabilidad es que esa ventaja no siempre se traduce en propuestas técnicamente diferenciadas.",
+            "round": 5,
+            "author": "Mario Marulanda",
+            "aspiration_id": null
+          },
+          {
+            "id": "0nlil77v",
+            "axis": "sector",
+            "ring": 1,
+            "text": "Garantizar las relaciones de largo plazo con las políticas de compra de las empresas privadas.",
+            "round": 5,
+            "author": "Carlos Salazar",
+            "aspiration_id": null
+          },
+          {
+            "id": "jk2tb04r",
+            "axis": "sector",
+            "ring": 0,
+            "text": "entorno competitivo que exige mayores capacidades técnicas y precios competitivos",
+            "round": 5,
+            "author": "VDV",
+            "aspiration_id": null
+          },
+          {
+            "id": "wi3b7q2f",
+            "axis": "sector",
+            "ring": 2,
+            "text": "Empresas grandes gestionando sus propios procesos a través de sus propias empresas o fundaciones",
+            "round": 5,
+            "author": "Eliana Gaviria",
+            "aspiration_id": null
+          },
+          {
+            "id": "kbfjjaqy",
+            "axis": "sector",
+            "ring": 2,
+            "text": "Entrada de firmas consultoras al mercado de la sostenibilidad.",
+            "round": 5,
+            "author": "Catalina Baena Ceballos",
+            "aspiration_id": null
+          },
+          {
+            "id": "banolhvs",
+            "axis": "sector",
+            "ring": 0,
+            "text": "Papel del sector en la articulación de Estado, privados y comunidades",
+            "round": 5,
+            "author": "Laura",
+            "aspiration_id": null
+          },
+          {
+            "id": "ryjxxs1e",
+            "axis": "sector",
+            "ring": 1,
+            "text": "Propuesta de valor en economía circular: posibilidad de diferenciarnos desde el impacto social asociado a las acciones desde lo ambiental",
+            "round": 5,
+            "author": "Santiago",
+            "aspiration_id": null
+          },
+          {
+            "id": "xsm2aijb",
+            "axis": "sector",
+            "ring": 2,
+            "text": "Aumento de oportunidades de trabajo con el sector minero energético y de infraestructura",
+            "round": 5,
+            "author": "Carlos Salazar",
+            "aspiration_id": null
+          },
+          {
+            "id": "fe97euzh",
+            "axis": "sector",
+            "ring": 0,
+            "text": "Fuga de conocimiento especializada",
+            "round": 5,
+            "author": "Yenny Giraldo",
+            "aspiration_id": null
+          },
+          {
+            "id": "7301leug",
+            "axis": "sector",
+            "ring": 1,
+            "text": "Oportunidad de sinergias estratégicas con gremios, para liderar proyectos socioambientales integrales",
+            "round": 5,
+            "author": "Catalina Baena Ceballos",
+            "aspiration_id": null
+          },
+          {
+            "id": "gwehgz92",
+            "axis": "sector",
+            "ring": 0,
+            "text": "Competidores con mayor experiencia en gestión de recursos de cooperación internacional",
+            "round": 5,
+            "author": "Santiago",
+            "aspiration_id": null
+          },
+          {
+            "id": "obfna5nr",
+            "axis": "sector",
+            "ring": 2,
+            "text": "2.\tConcentración en el sector minero-energético. Si nuestros clientes principales son mineros y el sector se reactiva, la tentación es concentrarnos más. Concentrarse en un ciclo de precios altos de materias primas es cómodo hoy y peligroso en 2029. Hay que decidir conscientemente el nivel de concentración aceptable.",
+            "round": 5,
+            "author": "Mario Marulanda",
+            "aspiration_id": null
+          },
+          {
+            "id": "7992ddt9",
+            "axis": "sector",
+            "ring": 1,
+            "text": "Competencia mas liviana estructuralmente",
+            "round": 5,
+            "author": "Yenny Giraldo",
+            "aspiration_id": null
+          },
+          {
+            "id": "lqn07wi6",
+            "axis": "sector",
+            "ring": 2,
+            "text": "Aumento de oportunidades en sector minero",
+            "round": 5,
+            "author": "Lina",
+            "aspiration_id": null
+          },
+          {
+            "id": "36ajbdic",
+            "axis": "sector",
+            "ring": 1,
+            "text": "Reducción en la inversión por parte de los aliados",
+            "round": 5,
+            "author": "Eliana Gaviria",
+            "aspiration_id": null
+          },
+          {
+            "id": "lslwpu8r",
+            "axis": "sector",
+            "ring": 0,
+            "text": "Innovación como motor de diferenciación en competidores",
+            "round": 5,
+            "author": "Santiago",
+            "aspiration_id": null
+          }
+        ],
+        "roundStatus": {
+          "sector": "closed",
+          "social": "closed",
+          "politico": "closed",
+          "ambiental": "closed",
+          "financiamiento": "closed"
+        }
+      },
+      "updated_at": "2026-09-01T20:03:39.274+00:00"
+    }
+  ]
+}
