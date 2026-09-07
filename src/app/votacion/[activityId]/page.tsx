@@ -36,6 +36,43 @@ const IMPACT_META: Record<string, { label: string; dot: string; text: string }> 
 };
 const RANK_BADGE = ["bg-[#f4c542] text-dark", "bg-[#c7ccd1] text-dark", "bg-[#d99a5b] text-dark"];
 
+interface BreakdownRow {
+  key: string | number;
+  label: string;
+  value: number;
+  colorClass: string;
+}
+
+function BreakdownPanel({ title, rows, total }: { title: string; rows: BreakdownRow[]; total: number }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+      <p className="mb-4 text-xs font-semibold uppercase tracking-wide text-white/40">{title}</p>
+      {rows.length === 0 ? (
+        <p className="text-sm text-white/30">Sin datos suficientes todavía.</p>
+      ) : (
+        <div className="space-y-3">
+          {rows.map((r) => {
+            const pct = total > 0 ? Math.round((r.value / total) * 100) : 0;
+            return (
+              <div key={r.key}>
+                <div className="mb-1 flex items-center justify-between text-sm">
+                  <span className="text-white/70">{r.label}</span>
+                  <span className="font-semibold tabular-nums text-white">
+                    {r.value} pts <span className="text-white/40">· {pct}%</span>
+                  </span>
+                </div>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-white/10">
+                  <div className={`h-full rounded-full transition-all duration-500 ease-out ${r.colorClass}`} style={{ width: `${pct}%` }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function VotacionFullscreenPage({ params }: { params: Promise<{ activityId: string }> }) {
   const { activityId } = use(params);
   const participant = useRequireParticipant();
@@ -81,6 +118,45 @@ export default function VotacionFullscreenPage({ params }: { params: Promise<{ a
   const maxTotal = Math.max(1, ...ranked.map((r) => r.total));
   const pointsCast = content.votes.reduce((a, v) => a + v.points, 0);
   const votersCount = new Set(content.votes.map((v) => v.participant_id)).size;
+
+  // Puntos por candidata, para no recorrer votes una vez por aspiración y otra por impacto.
+  const pointsByCandidate = useMemo(() => {
+    const totals = new Map<string, number>();
+    for (const v of content.votes) totals.set(v.candidate_id, (totals.get(v.candidate_id) ?? 0) + v.points);
+    return totals;
+  }, [content.votes]);
+
+  const byAspiration = useMemo(() => {
+    const totals = new Map<number | "none", number>();
+    for (const c of content.candidates) {
+      const pts = pointsByCandidate.get(c.id) ?? 0;
+      if (pts === 0) continue;
+      const key = c.aspiration_id ?? "none";
+      totals.set(key, (totals.get(key) ?? 0) + pts);
+    }
+    const rows = aspirations
+      .map((a) => ({ key: a.id, label: `Aspiración ${a.number}`, value: totals.get(a.id) ?? 0, colorClass: aspClasses(a.number).bg }))
+      .filter((r) => r.value > 0);
+    const none = totals.get("none") ?? 0;
+    if (none > 0) rows.push({ key: -1, label: "Sin aspiración", value: none, colorClass: "bg-white/30" });
+    return rows.sort((a, b) => b.value - a.value);
+  }, [content.candidates, pointsByCandidate, aspirations]);
+
+  const byImpact = useMemo(() => {
+    const totals = new Map<string, number>();
+    for (const c of content.candidates) {
+      const pts = pointsByCandidate.get(c.id) ?? 0;
+      if (pts === 0) continue;
+      const key = c.impact ?? "none";
+      totals.set(key, (totals.get(key) ?? 0) + pts);
+    }
+    const rows: BreakdownRow[] = (["alto", "medio", "bajo"] as const)
+      .map((lvl) => ({ key: lvl, label: `Impacto ${IMPACT_META[lvl].label}`, value: totals.get(lvl) ?? 0, colorClass: IMPACT_META[lvl].dot }))
+      .filter((r) => r.value > 0);
+    const none = totals.get("none") ?? 0;
+    if (none > 0) rows.push({ key: "none", label: "Sin impacto registrado", value: none, colorClass: "bg-white/30" });
+    return rows;
+  }, [content.candidates, pointsByCandidate]);
 
   if (!participant || !activity || !session || !loaded) {
     return <div className="flex min-h-screen items-center justify-center bg-dark text-sm text-white/60">Cargando…</div>;
@@ -147,6 +223,13 @@ export default function VotacionFullscreenPage({ params }: { params: Promise<{ a
               </button>
             );
           })}
+        </div>
+      )}
+
+      {pointsCast > 0 && (
+        <div className="mx-auto mt-6 grid max-w-[1400px] gap-4 sm:grid-cols-2">
+          <BreakdownPanel title="Puntos por aspiración" rows={byAspiration} total={pointsCast} />
+          <BreakdownPanel title="Puntos por nivel de impacto" rows={byImpact} total={pointsCast} />
         </div>
       )}
 
