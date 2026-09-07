@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useSubmission, effectiveAspirationId } from "@/lib/useSubmission";
 import { aspClasses, findAspiration } from "@/lib/aspirationStyle";
 import { isPresenter } from "@/lib/presenter";
-import { ActivityComponentProps, textareaCls, btnPrimary, btnDanger, SaveIndicator, PostIt, PresenterHint, PinToggle, ToggleSwitch, uid } from "./shared";
+import { ActivityComponentProps, textareaCls, btnPrimary, SaveIndicator, PostIt, PresenterHint, PinToggle, ToggleSwitch, uid } from "./shared";
 
 interface Card {
   id: string;
@@ -12,6 +12,7 @@ interface Card {
   text: string;
   aspiration_id: number | null;
   author: string;
+  author_id?: string;
   star?: boolean;
   highlighted?: boolean;
 }
@@ -34,6 +35,7 @@ export default function MatrizCuadrantes({ activity, session, aspirations, parti
     { cards: [], showOnlyHighlighted: false }
   );
   const [draft, setDraft] = useState<Record<string, string>>({});
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   if (!loaded) return <p className="text-sm text-muted">Cargando…</p>;
 
@@ -46,6 +48,7 @@ export default function MatrizCuadrantes({ activity, session, aspirations, parti
       text,
       aspiration_id: participant.aspiration_id,
       author: participant.name,
+      author_id: participant.id,
     };
     save(
       { ...content, cards: [...content.cards, card] },
@@ -61,6 +64,17 @@ export default function MatrizCuadrantes({ activity, session, aspirations, parti
   }
   function removeCard(id: string) {
     save({ ...content, cards: content.cards.filter((c) => c.id !== id) });
+  }
+  // Igual que en el PCI: borrar una tarjeta es irreversible, así que exige un segundo clic
+  // dentro de los siguientes 3s en vez de borrar directo al primer clic.
+  function handleDeleteClick(id: string) {
+    if (confirmDeleteId === id) {
+      removeCard(id);
+      setConfirmDeleteId(null);
+      return;
+    }
+    setConfirmDeleteId(id);
+    setTimeout(() => setConfirmDeleteId((cur) => (cur === id ? null : cur)), 3000);
   }
 
   const cols = quadrants.length <= 3 ? quadrants.length : 2;
@@ -88,6 +102,8 @@ export default function MatrizCuadrantes({ activity, session, aspirations, parti
                 {cardsIn.map((c, i) => {
                   const asp = findAspiration(aspirations, c.aspiration_id);
                   const cls = aspClasses(asp?.number);
+                  const canDelete = c.author_id ? c.author_id === participant.id : c.author === participant.name;
+                  const confirming = confirmDeleteId === c.id;
                   return (
                     <PostIt key={c.id} bgClass={asp ? cls.bgSoft : undefined} index={i} highlighted={c.highlighted} className="w-32">
                       <p className="text-foreground">
@@ -95,17 +111,25 @@ export default function MatrizCuadrantes({ activity, session, aspirations, parti
                         {c.text}
                       </p>
                       <div className="mt-2 flex items-center justify-between text-[11px] text-muted">
-                        <span>{c.author}</span>
-                        <span className="flex items-center gap-1.5">
+                        <span className="truncate">{c.author}</span>
+                        <span className="flex shrink-0 items-center gap-0.5">
                           {presenter && <PinToggle pinned={Boolean(c.highlighted)} onClick={() => toggleHighlight(c.id)} />}
                           {allowStar && !presenter && (
-                            <button className="hover:underline" title={starLabel} onClick={() => toggleStar(c.id)}>
+                            <button
+                              className="rounded p-1 hover:bg-black/10"
+                              title={starLabel}
+                              onClick={() => toggleStar(c.id)}
+                            >
                               ⭐
                             </button>
                           )}
-                          {c.author === participant.name && (
-                            <button className={btnDanger} onClick={() => removeCard(c.id)}>
-                              ✕
+                          {canDelete && (
+                            <button
+                              className={`rounded p-1 text-xs ${confirming ? "font-semibold text-red-600" : "hover:bg-black/10 hover:text-red-600"}`}
+                              title={confirming ? "Clic de nuevo para confirmar" : "Eliminar"}
+                              onClick={() => handleDeleteClick(c.id)}
+                            >
+                              {confirming ? "¿Sí?" : "✕"}
                             </button>
                           )}
                         </span>
@@ -131,7 +155,7 @@ export default function MatrizCuadrantes({ activity, session, aspirations, parti
           );
         })}
       </div>
-      <SaveIndicator saving={saving} updatedAt={updatedAt} error={saveError} />
+      <SaveIndicator saving={saving} updatedAt={updatedAt} error={saveError} sticky />
     </div>
   );
 }

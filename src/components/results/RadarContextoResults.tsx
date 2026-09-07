@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import RadarChartView, { axisColor } from "@/components/RadarChartView";
-import HomologatedRadarView from "@/components/HomologatedRadarView";
+import HomologatedRadarView, { RING_COLORS } from "@/components/HomologatedRadarView";
 import type { HomologSignal } from "@/components/HomologatedRadarView";
 import AxisRingsView from "@/components/AxisRingsView";
 
@@ -75,26 +75,32 @@ export default function RadarContextoResults({
         <div className="flex flex-col items-center gap-4">
           <RadarChartView axes={axes} winnerByAxis={winnerByAxis} voteTotal={voteTotal} size={chartSize} />
           {hasVotedSignals && (
-            <div className="w-full space-y-2">
+            <div className="w-full max-w-xl space-y-3">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted">Señales votadas</p>
               {axes.map((a, i) => {
                 const inAxis = signals.filter((s) => s.axis === a.key && (voteTotal[s.id] ?? 0) > 0);
                 if (inAxis.length === 0) return null;
                 return (
                   <div key={a.key}>
-                    <p className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-muted">
+                    <p className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-muted">
                       <span className="inline-block h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: axisColor(i) }} />
                       {a.label}
                     </p>
-                    <ul className="space-y-1">
+                    <div className="space-y-1.5">
                       {inAxis
                         .sort((x, y) => (voteTotal[y.id] ?? 0) - (voteTotal[x.id] ?? 0))
                         .map((s) => (
-                          <li key={s.id} className="text-sm text-foreground">
-                            {s.text} <span className="text-xs text-muted">· {rings[s.ring] ?? ""} · {voteTotal[s.id] ?? 0} votos</span>
-                          </li>
+                          <div key={s.id} className="flex items-start gap-2 rounded-md border border-border bg-card px-2 py-1.5 text-xs">
+                            <span className="mt-0.5 h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: RING_COLORS[s.ring] ?? RING_COLORS[0] }} />
+                            <div className="min-w-0 flex-1">
+                              <p className="font-semibold text-foreground">
+                                {rings[s.ring] ?? ""} <span className="font-normal text-muted">· {voteTotal[s.id] ?? 0} votos</span>
+                              </p>
+                              <p className="text-foreground/90">{s.text}</p>
+                            </div>
+                          </div>
                         ))}
-                    </ul>
+                    </div>
                   </div>
                 );
               })}
