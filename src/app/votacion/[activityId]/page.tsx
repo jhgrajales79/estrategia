@@ -167,8 +167,8 @@ export default function VotacionFullscreenPage({ params }: { params: Promise<{ a
                 }`}
               >
                 <span
-                  className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-lg font-bold ${
-                    isTop ? RANK_BADGE[idx] : "bg-white/10 text-white/60"
+                  className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border text-lg font-bold ${
+                    isTop ? `border-transparent ${RANK_BADGE[idx]}` : "border-white/20 bg-white/[0.08] text-white/80"
                   }`}
                 >
                   {idx + 1}
