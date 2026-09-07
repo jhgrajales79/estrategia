@@ -151,6 +151,15 @@ export default function VotacionFichas({ activity, session, aspirations, partici
                 ⛶ Ampliar
               </button>
             )}
+            {presenter && (
+              <button
+                className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-black/5 transition-colors"
+                title="Ver el tablero de priorización en una pestaña nueva"
+                onClick={() => window.open(`/votacion/${activity.id}`, "_blank", "noopener,noreferrer")}
+              >
+                ⛶ Ver tablero
+              </button>
+            )}
           </div>
         </div>
       )}
