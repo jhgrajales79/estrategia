@@ -139,7 +139,7 @@ export default function VotacionFichas({ activity, session, aspirations, partici
           <div className="flex flex-wrap items-center gap-2">
             {importCandidatesFrom && (
               <button className={btnPrimary} disabled={importing} onClick={importFromSource}>
-                {importing ? "Importando…" : "⬇ Importar del PCI"}
+                {importing ? "Importando…" : "⬇ Importar de la EFI"}
               </button>
             )}
             {presenter && cloudView && (
