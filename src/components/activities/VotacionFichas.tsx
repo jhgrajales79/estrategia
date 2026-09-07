@@ -6,23 +6,23 @@ import { isPresenter } from "@/lib/presenter";
 import { supabase } from "@/lib/supabase";
 import { aspClasses, findAspiration } from "@/lib/aspirationStyle";
 import BarChart from "@/components/charts/BarChart";
-import { ActivityComponentProps, inputCls, btnPrimary, btnGhost, btnDanger, SaveIndicator, PresenterHint, uid } from "./shared";
+import { ActivityComponentProps, inputCls, btnPrimary, SaveIndicator, PresenterHint, DeleteButton, Stepper, uid } from "./shared";
 
 interface Candidate {
   id: string;
   text: string;
   author: string;
+  author_id?: string;
   owner?: string;
   target_date?: string;
   aspiration_id?: number | null;
   impact?: "alto" | "medio" | "bajo";
 }
-interface SourceNote {
+interface EfiRow {
   id: string;
-  text: string;
-  author: string;
-  category: string;
-  impact?: "alto" | "medio" | "bajo";
+  factor: string;
+  category?: "fortaleza" | "debilidad";
+  sourceAuthor?: string;
   aspiration_id: number | null;
 }
 const IMPACT_LABEL: Record<string, string> = { alto: "Alto", medio: "Medio", bajo: "Bajo" };
@@ -67,22 +67,20 @@ export default function VotacionFichas({ activity, session, aspirations, partici
     if (!importCandidatesFrom) return;
     setImporting(true);
     setImportMsg(null);
-    const { data, error } = await supabase
-      .from("submissions")
-      .select("content")
-      .eq("activity_id", importCandidatesFrom)
-      .is("aspiration_id", null)
-      .maybeSingle();
+    // La EFI guarda una submission por aspiración (no una sola combinada), así que hay
+    // que traerlas todas y aplanar sus filas para reunir las debilidades de las tres.
+    const { data, error } = await supabase.from("submissions").select("content").eq("activity_id", importCandidatesFrom);
     setImporting(false);
     if (error) {
       setImportMsg("No se pudo consultar la actividad de origen.");
       return;
     }
-    const notes = ((data?.content as { notes?: SourceNote[] } | null)?.notes ?? []).filter((n) => n.category === importCategory);
+    const rows = (data ?? []).flatMap((row) => ((row.content as { rows?: EfiRow[] } | null)?.rows ?? []));
+    const notes = rows.filter((r) => r.category === importCategory);
     const existing = new Set(content.candidates.map((c) => c.text.trim().toLowerCase()));
     const newCandidates: Candidate[] = notes
-      .filter((n) => !existing.has(n.text.trim().toLowerCase()))
-      .map((n) => ({ id: uid(), text: n.text.trim(), author: n.author, aspiration_id: n.aspiration_id, impact: n.impact }));
+      .filter((n) => n.factor.trim() && !existing.has(n.factor.trim().toLowerCase()))
+      .map((n) => ({ id: uid(), text: n.factor.trim(), author: n.sourceAuthor ?? "Equipo", aspiration_id: n.aspiration_id }));
     if (newCandidates.length === 0) {
       setImportMsg("No hay candidatas nuevas por importar.");
       return;
@@ -92,12 +90,19 @@ export default function VotacionFichas({ activity, session, aspirations, partici
   }
 
   const myVotes = content.votes.filter((v) => v.participant_id === participant.id);
-  const myUsed = myVotes.length;
+  const myUsed = myVotes.reduce((a, v) => a + v.points, 0);
   const myRemaining = pointsPerPerson - myUsed;
 
   function addCandidate() {
     if (!newText.trim()) return;
-    const c: Candidate = { id: uid(), text: newText.trim(), author: participant.name, owner: newOwner || undefined, target_date: newDate || undefined };
+    const c: Candidate = {
+      id: uid(),
+      text: newText.trim(),
+      author: participant.name,
+      author_id: participant.id,
+      owner: newOwner || undefined,
+      target_date: newDate || undefined,
+    };
     save(
       { ...content, candidates: [...content.candidates, c] },
       { eventType: "candidata", summary: `${participant.name} propuso "${newText.trim()}" en "${activity.title}"` }
@@ -109,12 +114,15 @@ export default function VotacionFichas({ activity, session, aspirations, partici
   function removeCandidate(id: string) {
     save({ candidates: content.candidates.filter((c) => c.id !== id), votes: content.votes.filter((v) => v.candidate_id !== id) });
   }
-  function toggleVote(candidateId: string) {
-    const already = content.votes.some((v) => v.participant_id === participant.id && v.candidate_id === candidateId);
-    if (!already && myRemaining <= 0) return;
-    const votes = already
-      ? content.votes.filter((v) => !(v.participant_id === participant.id && v.candidate_id === candidateId))
-      : [...content.votes, { participant_id: participant.id, participant_name: participant.name, candidate_id: candidateId, points: 1 }];
+  // Reparte puntos entre ideas (no un simple sí/no): un participante puede concentrar
+  // varios de sus puntos en una misma idea si eso refleja mejor su prioridad.
+  function setPoints(candidateId: string, requested: number) {
+    const current = myVotes.find((v) => v.candidate_id === candidateId)?.points ?? 0;
+    const maxAllowed = current + myRemaining;
+    const next = Math.max(0, Math.min(requested, maxAllowed));
+    if (next === current) return;
+    const others = content.votes.filter((v) => !(v.participant_id === participant.id && v.candidate_id === candidateId));
+    const votes = next > 0 ? [...others, { participant_id: participant.id, participant_name: participant.name, candidate_id: candidateId, points: next }] : others;
     save({ ...content, votes }, { eventType: "voto", summary: `${participant.name} votó en "${activity.title}"` });
   }
 
@@ -125,18 +133,18 @@ export default function VotacionFichas({ activity, session, aspirations, partici
 
   return (
     <div className="space-y-4">
-      {presenter && (
+      {(presenter || importCandidatesFrom) && (
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <PresenterHint />
+          {presenter && <PresenterHint />}
           <div className="flex flex-wrap items-center gap-2">
             {importCandidatesFrom && (
-              <button className={btnGhost} disabled={importing} onClick={importFromSource}>
+              <button className={btnPrimary} disabled={importing} onClick={importFromSource}>
                 {importing ? "Importando…" : "⬇ Importar del PCI"}
               </button>
             )}
-            {cloudView && (
+            {presenter && cloudView && (
               <button
-                className={btnGhost}
+                className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-black/5 transition-colors"
                 title="Ampliar como nube de ideas en una pestaña nueva"
                 onClick={() => window.open(`/ideas/${activity.id}`, "_blank", "noopener,noreferrer")}
               >
@@ -146,7 +154,7 @@ export default function VotacionFichas({ activity, session, aspirations, partici
           </div>
         </div>
       )}
-      {presenter && importMsg && <p className="text-xs text-muted">{importMsg}</p>}
+      {importMsg && <p className="text-xs text-muted">{importMsg}</p>}
       {hasVotes && (
         <div className="rounded-lg border border-border bg-card p-3">
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Resultados en vivo</p>
@@ -182,13 +190,15 @@ export default function VotacionFichas({ activity, session, aspirations, partici
 
       {!presenter && (
         <p className="text-sm text-muted">
-          Votos disponibles: <span className="font-semibold text-foreground">{myRemaining}</span> de {pointsPerPerson} (1 voto por idea)
+          Puntos disponibles: <span className="font-semibold text-foreground">{myRemaining}</span> de {pointsPerPerson} · puedes
+          concentrar varios en una misma idea
         </p>
       )}
 
       <div className="space-y-2">
         {totals.map(({ c, total }, idx) => {
-          const mine = myVotes.some((v) => v.candidate_id === c.id);
+          const myPoints = myVotes.find((v) => v.candidate_id === c.id)?.points ?? 0;
+          const canDeleteOwn = c.author_id ? c.author_id === participant.id : c.author === participant.name;
           return (
             <div key={c.id} className="flex flex-col gap-2 rounded-lg border border-border bg-card p-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
@@ -223,27 +233,20 @@ export default function VotacionFichas({ activity, session, aspirations, partici
               <div className="flex items-center gap-2">
                 <span className="text-sm font-semibold text-brand">{total} pts</span>
                 {!presenter && (
-                  <button
-                    className={`rounded-md border px-3 py-1.5 text-sm ${
-                      mine ? "border-brand bg-brand/10 text-brand-dark" : "border-border"
-                    } disabled:opacity-40`}
-                    disabled={!mine && myRemaining <= 0}
-                    onClick={() => toggleVote(c.id)}
-                  >
-                    {mine ? "✓ Votado" : "Votar"}
-                  </button>
+                  <Stepper
+                    value={myPoints}
+                    max={myPoints + myRemaining}
+                    onChange={(next) => setPoints(c.id, next)}
+                    ariaLabel={`puntos para "${c.text}"`}
+                  />
                 )}
-                {c.author === participant.name && total === 0 && (
-                  <button className={btnDanger} onClick={() => removeCandidate(c.id)}>
-                    eliminar
-                  </button>
-                )}
+                {canDeleteOwn && total === 0 && <DeleteButton onConfirm={() => removeCandidate(c.id)} />}
               </div>
             </div>
           );
         })}
       </div>
-      <SaveIndicator saving={saving} updatedAt={updatedAt} error={saveError} />
+      <SaveIndicator saving={saving} updatedAt={updatedAt} error={saveError} sticky />
     </div>
   );
 }

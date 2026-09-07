@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type { ReactNode } from "react";
 import type { ActivityRow, Aspiration, SessionRow } from "@/lib/types";
 import type { StoredParticipant } from "@/lib/participant";
@@ -30,25 +31,41 @@ export function SaveIndicator({
   saving,
   updatedAt,
   error,
+  sticky = false,
 }: {
   saving: boolean;
   updatedAt: string | null;
   error?: string | null;
+  /** Flota sobre el contenido en vez de quedar al final de la página — visible sin
+   * necesidad de scroll en celular, importante cuando falla el guardado por wifi débil. */
+  sticky?: boolean;
 }) {
-  if (saving) return <span className="text-xs text-muted">Guardando…</span>;
-  if (error)
-    return (
+  let inner: ReactNode;
+  if (saving) inner = <span className="text-xs text-muted">Guardando…</span>;
+  else if (error)
+    inner = (
       <span className="text-xs font-medium text-red-600" title={error}>
         ⚠ No se pudo guardar
       </span>
     );
-  if (updatedAt)
-    return (
+  else if (updatedAt)
+    inner = (
       <span className="text-xs text-muted">
         Guardado {new Date(updatedAt).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })}
       </span>
     );
-  return <span className="text-xs text-muted">Sin guardar</span>;
+  else inner = <span className="text-xs text-muted">Sin guardar</span>;
+
+  if (!sticky) return inner;
+  return (
+    <div
+      className={`sticky bottom-2 z-10 inline-flex items-center rounded-full border px-3 py-1.5 shadow-sm backdrop-blur ${
+        error ? "border-red-200 bg-red-50/95" : "border-border bg-card/95"
+      }`}
+    >
+      {inner}
+    </div>
+  );
 }
 
 export function initials(name: string) {
@@ -171,6 +188,87 @@ export function ToggleSwitch({
         />
       </button>
     </label>
+  );
+}
+
+export function DeleteButton({
+  onConfirm,
+  label = "eliminar",
+}: {
+  onConfirm: () => void;
+  label?: string;
+}) {
+  const [confirming, setConfirming] = useState(false);
+  if (confirming) {
+    return (
+      <span className="inline-flex items-center gap-1">
+        <button
+          type="button"
+          className="min-h-9 rounded-md px-2.5 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50"
+          onClick={onConfirm}
+        >
+          Sí, borrar
+        </button>
+        <button
+          type="button"
+          className="min-h-9 rounded-md px-2.5 py-1.5 text-xs text-muted hover:bg-black/5"
+          onClick={() => setConfirming(false)}
+        >
+          Cancelar
+        </button>
+      </span>
+    );
+  }
+  return (
+    <button
+      type="button"
+      className="min-h-9 rounded-md px-2.5 py-1.5 text-xs text-red-600 hover:bg-red-50 hover:text-red-800 transition-colors"
+      onClick={() => setConfirming(true)}
+    >
+      {label}
+    </button>
+  );
+}
+
+export function Stepper({
+  value,
+  min = 0,
+  max,
+  onChange,
+  ariaLabel,
+}: {
+  value: number;
+  min?: number;
+  max?: number;
+  onChange: (next: number) => void;
+  ariaLabel?: string;
+}) {
+  const canDec = value > min;
+  const canInc = max === undefined || value < max;
+  const btnCls =
+    "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-border text-lg font-semibold text-foreground hover:bg-black/5 transition-colors disabled:opacity-30 disabled:hover:bg-transparent";
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <button
+        type="button"
+        disabled={!canDec}
+        onClick={() => onChange(value - 1)}
+        className={btnCls}
+        aria-label={ariaLabel ? `Restar de ${ariaLabel}` : "Restar"}
+      >
+        −
+      </button>
+      <span className="w-6 text-center text-sm font-semibold tabular-nums">{value}</span>
+      <button
+        type="button"
+        disabled={!canInc}
+        onClick={() => onChange(value + 1)}
+        className={btnCls}
+        aria-label={ariaLabel ? `Sumar a ${ariaLabel}` : "Sumar"}
+      >
+        +
+      </button>
+    </span>
   );
 }
 

@@ -12,6 +12,7 @@ interface Note {
   category: string;
   aspiration_id: number | null;
   author: string;
+  author_id?: string;
   text: string;
   impact?: Impact;
 }
@@ -54,6 +55,7 @@ export default function NotasMatriz({ activity, session, aspirations, participan
   const [impactDraft, setImpactDraft] = useState<Record<string, Impact>>({});
   const [editing, setEditing] = useState<Record<string, string>>({});
   const [copied, setCopied] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   if (!loaded) return <p className="text-sm text-muted">Cargando…</p>;
 
@@ -63,7 +65,7 @@ export default function NotasMatriz({ activity, session, aspirations, participan
 
   function myNotesInCell(aspirationId: number, categoryKey: string) {
     return content.notes.filter(
-      (n) => n.aspiration_id === aspirationId && n.category === categoryKey && n.author === participant.name
+      (n) => n.aspiration_id === aspirationId && n.category === categoryKey && (n.author_id ? n.author_id === participant.id : n.author === participant.name)
     ).length;
   }
 
@@ -77,6 +79,7 @@ export default function NotasMatriz({ activity, session, aspirations, participan
       category: categoryKey,
       aspiration_id: aspirationId,
       author: participant.name,
+      author_id: participant.id,
       text,
       impact: impactLevels ? impactDraft[key] ?? "medio" : undefined,
     };
@@ -90,6 +93,19 @@ export default function NotasMatriz({ activity, session, aspirations, participan
 
   function removeNote(id: string) {
     save({ ...content, notes: content.notes.filter((n) => n.id !== id) });
+  }
+
+  // Borrar una nota es irreversible (lluvia de ideas silenciosa: el autor puede no
+  // notar de inmediato que perdió su aporte), así que exige un segundo clic dentro de
+  // los siguientes 3s en vez de borrar directo al primer clic.
+  function handleDeleteClick(id: string) {
+    if (confirmDeleteId === id) {
+      removeNote(id);
+      setConfirmDeleteId(null);
+      return;
+    }
+    setConfirmDeleteId(id);
+    setTimeout(() => setConfirmDeleteId((cur) => (cur === id ? null : cur)), 3000);
   }
 
   function startEdit(note: Note) {
@@ -251,7 +267,7 @@ export default function NotasMatriz({ activity, session, aspirations, participan
                   <div key={key} className="flex min-h-[110px] flex-col gap-1.5 rounded-lg border border-border bg-black/[0.015] p-2">
                     <div className="flex max-h-40 flex-col gap-1.5 overflow-y-auto">
                       {notes.map((n) => {
-                        const canEdit = presenter || n.author === participant.name;
+                        const canEdit = presenter || (n.author_id ? n.author_id === participant.id : n.author === participant.name);
                         if (editing[n.id] !== undefined) {
                           const editMaxLength = maxLengthFor(n.category);
                           return (
@@ -295,10 +311,15 @@ export default function NotasMatriz({ activity, session, aspirations, participan
                             </div>
                             {canEdit && (
                               <button
-                                className="shrink-0 text-muted opacity-0 transition-opacity hover:text-red-600 group-hover:opacity-100"
+                                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs transition-colors ${
+                                  confirmDeleteId === n.id
+                                    ? "bg-red-600 text-white opacity-100"
+                                    : "text-muted opacity-0 hover:bg-red-50 hover:text-red-600 group-hover:opacity-100"
+                                }`}
+                                title={confirmDeleteId === n.id ? "Clic de nuevo para confirmar" : "Eliminar"}
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  removeNote(n.id);
+                                  handleDeleteClick(n.id);
                                 }}
                               >
                                 ✕
@@ -347,9 +368,11 @@ export default function NotasMatriz({ activity, session, aspirations, participan
                         )}
                       </div>
                     ) : (
-                      maxNotesPerCell === 1 && (
-                        <p className="px-1 text-[10px] text-muted">Ya registraste tu aporte en este tema.</p>
-                      )
+                      <p className="px-1 text-[10px] text-muted">
+                        {maxNotesPerCell === 1
+                          ? "Ya registraste tu aporte en este tema."
+                          : `Ya registraste tus ${maxNotesPerCell} aportes en este tema.`}
+                      </p>
                     )}
                   </div>
                 );
@@ -359,7 +382,7 @@ export default function NotasMatriz({ activity, session, aspirations, participan
         </div>
       </div>
 
-      <SaveIndicator saving={saving} updatedAt={updatedAt} error={saveError} />
+      <SaveIndicator saving={saving} updatedAt={updatedAt} error={saveError} sticky />
     </div>
   );
 }

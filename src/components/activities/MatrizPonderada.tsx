@@ -6,11 +6,12 @@ import { aspClasses, ARCHETYPE_LABEL } from "@/lib/aspirationStyle";
 import { isPresenter } from "@/lib/presenter";
 import { supabase } from "@/lib/supabase";
 import BarChart from "@/components/charts/BarChart";
-import { ActivityComponentProps, inputCls, btnPrimary, btnDanger, SaveIndicator, PresenterHint, uid } from "./shared";
+import { ActivityComponentProps, inputCls, btnPrimary, btnDanger, SaveIndicator, PresenterHint, DeleteButton, uid } from "./shared";
 
 interface PciNote {
   id: string;
   text: string;
+  author: string;
   category: string;
   impact?: "alto" | "medio" | "bajo";
   aspiration_id: number | null;
@@ -22,6 +23,11 @@ interface SimpleRow {
   peso: number;
   calificacion: number;
   aspiration_id: number | null;
+  // Categoría de origen (fortaleza/debilidad) cuando la fila viene de un import de PCI —
+  // se conserva aunque el equipo edite factor/calificación, para que el Cierre pueda
+  // filtrar debilidades de forma confiable sin adivinar a partir de la calificación.
+  category?: "fortaleza" | "debilidad";
+  sourceAuthor?: string;
 }
 interface RatingLabel {
   value: number;
@@ -275,7 +281,6 @@ function SimpleMatrix({
     participant,
     { rows: [], strategies: [], factors: [], ratings: {} }
   );
-  const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
   // Factor y Peso se escriben en cada tecleo pero solo se guardan al salir del campo
   // (blur/Enter): guardar en cada tecla saturaba la red y afectaba el rendimiento.
   const [drafts, setDrafts] = useState<Record<string, { factor?: string; peso?: string }>>({});
@@ -319,6 +324,8 @@ function SimpleMatrix({
         peso: 0,
         calificacion: n.category === "fortaleza" ? fortalezaValue : debilidadValue,
         aspiration_id: submissionAspId,
+        category: n.category as "fortaleza" | "debilidad",
+        sourceAuthor: n.author,
       }));
     if (newRows.length === 0) {
       setImportMsg("No hay factores nuevos de alto impacto por importar desde el PCI para esta aspiración.");
@@ -332,19 +339,11 @@ function SimpleMatrix({
   }
   function removeRow(id: string) {
     save({ ...content, rows: rows.filter((r) => r.id !== id) });
-    setConfirmRemove(null);
     setDrafts((d) => {
       const next = { ...d };
       delete next[id];
       return next;
     });
-  }
-  function requestRemove(r: SimpleRow) {
-    if (!r.factor.trim()) {
-      removeRow(r.id);
-    } else {
-      setConfirmRemove(r.id);
-    }
   }
 
   function draftFactor(r: SimpleRow) {
@@ -416,6 +415,7 @@ function SimpleMatrix({
           <button
             className={btnPrimary}
             disabled={importing || submissionAspId === null}
+            title={submissionAspId === null ? "Elige primero una pestaña de aspiración arriba" : undefined}
             onClick={importFromPci}
           >
             {importing ? "Importando…" : "⬇ Importar del PCI (alto impacto)"}
@@ -529,21 +529,11 @@ function SimpleMatrix({
                 </td>
                 <td className="p-2 font-medium">{(draftPesoNum(r) * r.calificacion).toFixed(2)}</td>
                 <td className="p-2">
-                  {!presenter &&
-                    (confirmRemove === r.id ? (
-                      <div className="flex items-center gap-2 text-xs">
-                        <button className="font-medium text-red-600 hover:underline" onClick={() => removeRow(r.id)}>
-                          Confirmar
-                        </button>
-                        <button className="text-muted hover:underline" onClick={() => setConfirmRemove(null)}>
-                          Cancelar
-                        </button>
-                      </div>
-                    ) : (
-                      <button className={btnDanger} onClick={() => requestRemove(r)}>
-                        quitar
-                      </button>
-                    ))}
+                  {!presenter && (r.factor.trim() ? <DeleteButton label="quitar" onConfirm={() => removeRow(r.id)} /> : (
+                    <button className={btnDanger} onClick={() => removeRow(r.id)}>
+                      quitar
+                    </button>
+                  ))}
                 </td>
               </tr>
             ))}
@@ -562,7 +552,7 @@ function SimpleMatrix({
           + Factor
         </button>
       )}
-      <SaveIndicator saving={saving} updatedAt={updatedAt} error={saveError} />
+      <SaveIndicator saving={saving} updatedAt={updatedAt} error={saveError} sticky />
     </div>
   );
 }

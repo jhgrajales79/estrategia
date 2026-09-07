@@ -5,7 +5,7 @@ import { useSubmission } from "@/lib/useSubmission";
 import { isPresenter } from "@/lib/presenter";
 import { aspClasses, ARCHETYPE_LABEL } from "@/lib/aspirationStyle";
 import QuadrantPoint from "@/components/charts/QuadrantPoint";
-import { ActivityComponentProps, inputCls, textareaCls, btnPrimary, btnDanger, SaveIndicator, PresenterHint, uid } from "./shared";
+import { ActivityComponentProps, inputCls, textareaCls, btnPrimary, SaveIndicator, PresenterHint, DeleteButton, uid } from "./shared";
 
 interface Item {
   id: string;
@@ -129,14 +129,13 @@ export default function RuedaEvaluacion({ activity, session, aspirations, partic
           })}
         </div>
       )}
-      {presenter && content.items.length === 0 && (
-        <p className="text-sm text-muted">Aún no hay capacidades registradas. El equipo de esta aspiración las agrega desde su propia sesión.</p>
-      )}
-      {!presenter && content.items.length === 0 && (
+      {content.items.length === 0 && (
         <p className="text-sm text-muted">
-          {perAspiration
-            ? "Este equipo aún no ha registrado capacidades. Agrega la primera abajo."
-            : "Aún no hay capacidades registradas. Agrega la primera abajo."}
+          {presenter
+            ? "Aún no hay capacidades registradas. El equipo de esta aspiración las agrega desde su propia sesión."
+            : perAspiration
+              ? "Este equipo aún no ha registrado capacidades. Agrega la primera abajo."
+              : "Aún no hay capacidades registradas. Agrega la primera abajo."}
         </p>
       )}
       <div className="space-y-2">
@@ -164,7 +163,7 @@ export default function RuedaEvaluacion({ activity, session, aspirations, partic
               {canEdit && (
                 <button
                   type="button"
-                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border text-sm hover:bg-black/5 disabled:opacity-40"
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-border text-base font-semibold hover:bg-black/5 disabled:opacity-30 disabled:hover:bg-transparent"
                   disabled={item.score <= 0}
                   onClick={() => step(item, -1)}
                   aria-label="Bajar calificación"
@@ -181,7 +180,7 @@ export default function RuedaEvaluacion({ activity, session, aspirations, partic
               {canEdit && (
                 <button
                   type="button"
-                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border text-sm hover:bg-black/5 disabled:opacity-40"
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-border text-base font-semibold hover:bg-black/5 disabled:opacity-30 disabled:hover:bg-transparent"
                   disabled={item.score >= scaleMax}
                   onClick={() => step(item, 1)}
                   aria-label="Subir calificación"
@@ -192,11 +191,7 @@ export default function RuedaEvaluacion({ activity, session, aspirations, partic
               <span className="w-10 shrink-0 text-center text-sm font-semibold text-foreground">
                 {item.score}/{scaleMax}
               </span>
-              {dynamicItems && canEdit && (
-                <button className={btnDanger} onClick={() => removeItem(item.id)}>
-                  quitar
-                </button>
-              )}
+              {dynamicItems && canEdit && <DeleteButton label="quitar" onConfirm={() => removeItem(item.id)} />}
             </div>
           </div>
         ))}
@@ -223,7 +218,7 @@ export default function RuedaEvaluacion({ activity, session, aspirations, partic
           </p>
         </div>
       )}
-      <SaveIndicator saving={saving} updatedAt={updatedAt} error={saveError} />
+      <SaveIndicator saving={saving} updatedAt={updatedAt} error={saveError} sticky />
     </div>
   );
 }
