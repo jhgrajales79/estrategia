@@ -84,11 +84,20 @@ export default function MatrizCuadrantes({ activity, session, aspirations, parti
       {presenter && (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-card p-3">
           <PresenterHint />
-          <ToggleSwitch
-            checked={content.showOnlyHighlighted}
-            onChange={(next) => save({ ...content, showOnlyHighlighted: next })}
-            label="Mostrar solo destacadas"
-          />
+          <div className="flex flex-wrap items-center gap-2">
+            <ToggleSwitch
+              checked={content.showOnlyHighlighted}
+              onChange={(next) => save({ ...content, showOnlyHighlighted: next })}
+              label="Mostrar solo destacadas"
+            />
+            <button
+              className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-black/5 transition-colors"
+              title="Ver el tablero consolidado en una pestaña nueva"
+              onClick={() => window.open(`/aliados/${activity.id}`, "_blank", "noopener,noreferrer")}
+            >
+              ⛶ Ver tablero
+            </button>
+          </div>
         </div>
       )}
       <div className={`grid gap-3`} style={{ gridTemplateColumns: `repeat(${cols}, minmax(0,1fr))` }}>
