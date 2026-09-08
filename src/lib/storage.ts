@@ -1,6 +1,8 @@
 import { supabase } from "./supabase";
 
 const BUCKET = "activity-media";
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 
 // Fotos de celular modernas salen en 12+ MP (varios MB cada una). Mostrar varias así de
 // pesadas a la vez como miniaturas de 80-140px (el mural, el panel de fotos del facilitador)
@@ -76,12 +78,50 @@ async function toUploadableFile(file: File): Promise<File> {
   return resizeImage(jpeg);
 }
 
-export async function uploadMedia(file: File, scope: string): Promise<string> {
+// El cliente de supabase-js sube por debajo con fetch(), que no expone progreso de subida
+// (fetch solo permite leer progreso de descarga, no de envío). Para mostrar el % real mientras
+// sube un video pesado en la wifi del evento, se arma a mano la misma petición que haría
+// supabase-js (mismo endpoint, mismos headers, mismo FormData) pero con XMLHttpRequest, que sí
+// dispara progreso de envío vía xhr.upload.onprogress.
+function uploadWithProgress(path: string, file: File, onProgress?: (fraction: number) => void): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const form = new FormData();
+    form.append("cacheControl", "3600");
+    form.append("", file);
+
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `${SUPABASE_URL}/storage/v1/object/${BUCKET}/${path}`);
+    xhr.setRequestHeader("apikey", SUPABASE_ANON_KEY);
+    xhr.setRequestHeader("Authorization", `Bearer ${SUPABASE_ANON_KEY}`);
+    xhr.setRequestHeader("x-upsert", "false");
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) onProgress?.(e.loaded / e.total);
+    };
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        onProgress?.(1);
+        resolve();
+        return;
+      }
+      let message = `Error ${xhr.status} al subir el archivo`;
+      try {
+        const body = JSON.parse(xhr.responseText) as { message?: string; error?: string };
+        message = body.message || body.error || message;
+      } catch {
+        // La respuesta no era JSON; se conserva el mensaje genérico.
+      }
+      reject(new Error(message));
+    };
+    xhr.onerror = () => reject(new Error("Error de red al subir el archivo"));
+    xhr.send(form);
+  });
+}
+
+export async function uploadMedia(file: File, scope: string, onProgress?: (fraction: number) => void): Promise<string> {
   const uploadable = await toUploadableFile(file);
   const ext = uploadable.name.split(".").pop() ?? "jpg";
   const path = `${scope}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-  const { error } = await supabase.storage.from(BUCKET).upload(path, uploadable, { upsert: false });
-  if (error) throw error;
+  await uploadWithProgress(path, uploadable, onProgress);
   const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
   return data.publicUrl;
 }

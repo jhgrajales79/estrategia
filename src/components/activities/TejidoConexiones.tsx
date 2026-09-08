@@ -19,6 +19,12 @@ interface Content extends Record<string, unknown> {
   media: string[];
   external_link: string;
 }
+interface UploadItem {
+  name: string;
+  progress: number;
+  status: "pending" | "uploading" | "done" | "error";
+  error?: string;
+}
 
 export default function TejidoConexiones({ activity, session, participant }: ActivityComponentProps) {
   const presenter = isPresenter(participant);
@@ -33,7 +39,7 @@ export default function TejidoConexiones({ activity, session, participant }: Act
   const [draft, setDraft] = useState("");
   const [showMedia, setShowMedia] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(null);
+  const [uploadItems, setUploadItems] = useState<UploadItem[] | null>(null);
   const [uploadMsg, setUploadMsg] = useState<{ text: string; isError: boolean } | null>(null);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [galleryOpen, setGalleryOpen] = useState(false);
@@ -72,11 +78,12 @@ export default function TejidoConexiones({ activity, session, participant }: Act
   // usaba Promise.all, que es todo-o-nada — si una sola foto/video fallaba, la tanda entera se
   // perdía en silencio y el facilitador no se enteraba de nada. Ahora cada archivo se resuelve
   // de forma independiente y se guardan los que sí lograron subir.
-  async function uploadWithRetry(file: File, scope: string, attempts = 3): Promise<string> {
+  async function uploadWithRetry(file: File, scope: string, onProgress: (fraction: number) => void, attempts = 3): Promise<string> {
     let lastErr: unknown;
     for (let i = 0; i < attempts; i++) {
       try {
-        return await uploadMedia(file, scope);
+        onProgress(0);
+        return await uploadMedia(file, scope, onProgress);
       } catch (err) {
         lastErr = err;
       }
@@ -88,18 +95,26 @@ export default function TejidoConexiones({ activity, session, participant }: Act
     const fileList = Array.from(files);
     setUploading(true);
     setUploadMsg(null);
-    setUploadProgress({ done: 0, total: fileList.length });
+    setUploadItems(fileList.map((f) => ({ name: f.name, progress: 0, status: "pending" })));
+
+    function updateItem(index: number, patch: Partial<UploadItem>) {
+      setUploadItems((items) => items?.map((it, i) => (i === index ? { ...it, ...patch } : it)) ?? items);
+    }
+
     const succeeded: string[] = [];
     const failed: { name: string; reason: string }[] = [];
-    for (const f of fileList) {
+    for (let i = 0; i < fileList.length; i++) {
+      const f = fileList[i];
+      updateItem(i, { status: "uploading" });
       try {
-        const url = await uploadWithRetry(f, `activity-${activity.id}`);
+        const url = await uploadWithRetry(f, `activity-${activity.id}`, (fraction) => updateItem(i, { progress: fraction }));
+        updateItem(i, { status: "done", progress: 1 });
         succeeded.push(url);
       } catch (err) {
         console.error(err);
-        failed.push({ name: f.name, reason: err instanceof Error ? err.message : "error desconocido" });
-      } finally {
-        setUploadProgress((p) => (p ? { ...p, done: p.done + 1 } : p));
+        const reason = err instanceof Error ? err.message : "error desconocido";
+        updateItem(i, { status: "error", error: reason });
+        failed.push({ name: f.name, reason });
       }
     }
     if (succeeded.length > 0) {
@@ -122,7 +137,7 @@ export default function TejidoConexiones({ activity, session, participant }: Act
       });
     }
     setUploading(false);
-    setUploadProgress(null);
+    setUploadItems(null);
   }
   function removeMedia(url: string) {
     save({ ...content, media: content.media.filter((m) => m !== url) });
@@ -233,7 +248,11 @@ export default function TejidoConexiones({ activity, session, participant }: Act
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <label className={btnGhost + " cursor-pointer"}>
-              {uploading ? `Subiendo… ${uploadProgress ? `${uploadProgress.done}/${uploadProgress.total}` : ""}` : "📷 Subir fotos o videos"}
+              {uploading
+                ? `Subiendo… ${
+                    uploadItems ? Math.round((uploadItems.reduce((a, it) => a + it.progress, 0) / uploadItems.length) * 100) : 0
+                  }%`
+                : "📷 Subir fotos o videos"}
               <input
                 type="file"
                 accept="image/*,video/*"
@@ -251,6 +270,30 @@ export default function TejidoConexiones({ activity, session, participant }: Act
               <p className={`text-xs ${uploadMsg.isError ? "text-red-600" : "text-brand-dark"}`}>{uploadMsg.text}</p>
             )}
           </div>
+          {uploadItems && (
+            <div className="mt-2 max-w-sm space-y-1.5 rounded-md border border-border bg-black/[0.02] p-2">
+              {uploadItems.map((it, i) => (
+                <div key={i} className="flex items-center gap-2 text-[11px]">
+                  <span
+                    className={`w-8 shrink-0 text-right font-semibold tabular-nums ${
+                      it.status === "done" ? "text-brand-dark" : it.status === "error" ? "text-red-600" : "text-muted"
+                    }`}
+                  >
+                    {it.status === "done" ? "✓" : it.status === "error" ? "✕" : `${Math.round(it.progress * 100)}%`}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-muted" title={it.error ?? it.name}>
+                    {it.name}
+                  </span>
+                  <span className="h-1 w-16 shrink-0 overflow-hidden rounded-full bg-black/10">
+                    <span
+                      className={`block h-full rounded-full transition-all ${it.status === "error" ? "bg-red-400" : "bg-brand"}`}
+                      style={{ width: `${it.status === "error" ? 100 : Math.round(it.progress * 100)}%` }}
+                    />
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
           <div className="mt-3">
             <label className="mb-1 block text-xs font-medium text-muted">Panel visual (Obsidian u otro tablero)</label>
             <input
