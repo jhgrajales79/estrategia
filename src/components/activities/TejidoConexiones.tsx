@@ -3,14 +3,11 @@
 import { useState } from "react";
 import { useSubmission, effectiveAspirationId } from "@/lib/useSubmission";
 import { uploadMedia } from "@/lib/storage";
+import { isVideoUrl, isHeicUrl } from "@/lib/media";
 import { isPresenter } from "@/lib/presenter";
 import ConnectionsWebView from "@/components/ConnectionsWebView";
 import WeaveGalleryViewer from "@/components/WeaveGalleryViewer";
 import { ActivityComponentProps, inputCls, btnPrimary, btnGhost, SaveIndicator, PresenterHint, uid } from "./shared";
-
-function isVideoUrl(url: string) {
-  return /\.(mp4|webm|ogg|mov|m4v)(\?|$)/i.test(url);
-}
 
 interface Thread {
   id: string;
@@ -193,12 +190,17 @@ export default function TejidoConexiones({ activity, session, participant }: Act
           <div className="mb-3 flex flex-wrap gap-2">
             {content.media.map((url) => (
               <div key={url} className="group relative h-20 w-20 overflow-hidden rounded-md border border-border bg-black/5">
-                <button className="relative h-full w-full cursor-zoom-in" title="Ampliar" onClick={() => setLightboxUrl(url)}>
+                <button className="relative h-full w-full cursor-zoom-in" title={isHeicUrl(url) ? "Formato no compatible — clic para abrir el original" : "Ampliar"} onClick={() => (isHeicUrl(url) ? window.open(url, "_blank", "noopener,noreferrer") : setLightboxUrl(url))}>
                   {isVideoUrl(url) ? (
                     <>
                       <video src={url} className="h-full w-full object-cover" muted />
                       <span className="absolute inset-0 flex items-center justify-center text-lg text-white drop-shadow">▶</span>
                     </>
+                  ) : isHeicUrl(url) ? (
+                    <span className="flex h-full w-full flex-col items-center justify-center gap-0.5 bg-amber-50 px-1 text-center text-[10px] text-amber-700">
+                      <span className="text-lg">⚠️</span>
+                      Sin vista previa
+                    </span>
                   ) : (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={url} alt="Foto de la actividad" className="h-full w-full object-cover" />

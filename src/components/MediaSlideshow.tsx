@@ -1,14 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { isVideoUrl } from "@/lib/media";
 
 interface Slide {
   url: string;
   caption?: string;
-}
-
-function isVideoUrl(url: string) {
-  return /\.(mp4|webm|ogg|mov|m4v)(\?|$)/i.test(url);
 }
 
 const IMAGE_DURATION_MS = 6000;

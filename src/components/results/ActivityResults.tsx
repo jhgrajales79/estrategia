@@ -8,6 +8,7 @@ import PriorityLevelChart from "@/components/PriorityLevelChart";
 import ConnectionsWebView from "@/components/ConnectionsWebView";
 import RadarContextoResults from "@/components/results/RadarContextoResults";
 import { axisColor } from "@/components/RadarChartView";
+import { isHeicUrl } from "@/lib/media";
 import { Avatar } from "@/components/activities/shared";
 import { aspAbbrev, aspClasses, findAspiration } from "@/lib/aspirationStyle";
 import type { ActivityRow, Aspiration } from "@/lib/types";
@@ -109,11 +110,18 @@ function MediaGrid({
           <button
             key={url}
             className={`overflow-hidden rounded-md border border-border ${large ? "h-24 w-24" : "h-16 w-16"}`}
-            title="Ampliar foto"
-            onClick={() => setLightboxUrl(url)}
+            title={isHeicUrl(url) ? "Formato no compatible — clic para abrir el original" : "Ampliar foto"}
+            onClick={() => (isHeicUrl(url) ? window.open(url, "_blank", "noopener,noreferrer") : setLightboxUrl(url))}
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={url} alt="Foto de la actividad" className="h-full w-full object-cover" />
+            {isHeicUrl(url) ? (
+              <span className="flex h-full w-full flex-col items-center justify-center gap-0.5 bg-amber-50 px-1 text-center text-[10px] text-amber-700">
+                <span className="text-lg">⚠️</span>
+                Sin vista previa
+              </span>
+            ) : (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={url} alt="Foto de la actividad" className="h-full w-full object-cover" />
+            )}
           </button>
         ))}
         {externalLink && (

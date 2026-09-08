@@ -1,10 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-
-function isVideoUrl(url: string) {
-  return /\.(mp4|webm|ogg|mov|m4v)(\?|$)/i.test(url);
-}
+import { isVideoUrl, isHeicUrl } from "@/lib/media";
 
 // Tamaños alternados tipo telar: un patrón fijo (no aleatorio) para que el mosaico se vea
 // igual para todos y no salte al recargar. Se repite cada 7 azulejos.
@@ -111,6 +108,19 @@ export default function WeaveGalleryViewer({ media, open, onClose }: { media: st
               className="max-h-full max-w-full rounded-lg shadow-2xl"
               onEnded={() => autoplay && setFocusIndex((i) => (i === null ? i : (i + 1) % media.length))}
             />
+          ) : isHeicUrl(current) ? (
+            <div className="flex flex-col items-center gap-3 rounded-lg bg-white/5 px-8 py-12 text-center text-white/70">
+              <span className="text-3xl">⚠️</span>
+              <p>Este archivo no se puede previsualizar en el navegador.</p>
+              <a
+                href={current}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-full border border-white/20 px-4 py-1.5 text-sm font-semibold hover:bg-white/10"
+              >
+                Abrir original
+              </a>
+            </div>
           ) : (
             // eslint-disable-next-line @next/next/no-img-element
             <img key={current} src={current} alt="Momento del tejido" className="max-h-full max-w-full rounded-lg object-contain shadow-2xl" />
@@ -146,6 +156,11 @@ export default function WeaveGalleryViewer({ media, open, onClose }: { media: st
                         ▶
                       </span>
                     </>
+                  ) : isHeicUrl(url) ? (
+                    <span className="flex h-full w-full flex-col items-center justify-center gap-1 bg-white/[0.04] text-center text-[11px] text-white/50">
+                      <span className="text-xl">⚠️</span>
+                      Sin vista previa
+                    </span>
                   ) : (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={url} alt="Momento del tejido" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />

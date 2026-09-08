@@ -5,6 +5,7 @@ import { useRequireParticipant } from "@/lib/useRequireParticipant";
 import { fetchAspirations, fetchOutputs, fetchSessionMedia, fetchSessions, fetchTrackingBoard } from "@/lib/data";
 import type { SessionMedia } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
+import { isHeicUrl } from "@/lib/media";
 import { logActivity } from "@/lib/feed";
 import { isPresenter } from "@/lib/presenter";
 import type { Aspiration, OutputRow, SessionRow, TrackingBoardRow } from "@/lib/types";
@@ -57,7 +58,10 @@ export default function PanelPage() {
   }, []);
 
   const slides = useMemo(
-    () => media.flatMap((m) => m.media.map((url) => ({ url, caption: m.activity_title }))),
+    // Fotos HEIC (iPhone) que quedaron de antes de convertirlas a JPEG al subir: ningún
+    // navegador de escritorio las puede mostrar, así que se saltan aquí en vez de dejar un
+    // espacio en blanco rotando en la pantalla grande sin ninguna explicación.
+    () => media.flatMap((m) => m.media.filter((url) => !isHeicUrl(url)).map((url) => ({ url, caption: m.activity_title }))),
     [media]
   );
 

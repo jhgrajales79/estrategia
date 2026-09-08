@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useSubmission, effectiveAspirationId } from "@/lib/useSubmission";
 import { aspAbbrev, aspClasses, findAspiration } from "@/lib/aspirationStyle";
 import { uploadMedia } from "@/lib/storage";
+import { isHeicUrl } from "@/lib/media";
 import { isPresenter } from "@/lib/presenter";
 import {
   ActivityComponentProps,
@@ -136,9 +137,20 @@ export default function NotasColectivas({ activity, session, aspirations, partic
           <div className="mb-3 flex flex-wrap gap-2">
             {content.media.map((url) => (
               <div key={url} className="group relative h-20 w-20 overflow-hidden rounded-md border border-border">
-                <button className="h-full w-full cursor-zoom-in" title="Ampliar foto" onClick={() => setLightboxUrl(url)}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={url} alt="Foto de la actividad" className="h-full w-full object-cover" />
+                <button
+                  className="h-full w-full cursor-zoom-in"
+                  title={isHeicUrl(url) ? "Formato no compatible — clic para abrir el original" : "Ampliar foto"}
+                  onClick={() => (isHeicUrl(url) ? window.open(url, "_blank", "noopener,noreferrer") : setLightboxUrl(url))}
+                >
+                  {isHeicUrl(url) ? (
+                    <span className="flex h-full w-full flex-col items-center justify-center gap-0.5 bg-amber-50 px-1 text-center text-[10px] text-amber-700">
+                      <span className="text-lg">⚠️</span>
+                      Sin vista previa
+                    </span>
+                  ) : (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={url} alt="Foto de la actividad" className="h-full w-full object-cover" />
+                  )}
                 </button>
                 <button
                   className="absolute right-0.5 top-0.5 rounded-full bg-black/60 px-1 text-xs text-white opacity-0 group-hover:opacity-100"
