@@ -37,6 +37,13 @@ export default function TejidoConexiones({ activity, session, participant }: Act
   const [uploadMsg, setUploadMsg] = useState<{ text: string; isError: boolean } | null>(null);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [galleryOpen, setGalleryOpen] = useState(false);
+  // Un video con códec no soportado (típicamente HEVC de iPhone en modo "Alta eficiencia")
+  // no sube con error — solo falla al intentar reproducirlo en el navegador. Se detecta con
+  // el evento onError y se trata igual que un HEIC: aviso en vez de un recuadro vacío.
+  const [failedVideos, setFailedVideos] = useState<Set<string>>(new Set());
+  function markVideoFailed(url: string) {
+    setFailedVideos((s) => new Set(s).add(url));
+  }
 
   if (!loaded) return <p className="text-sm text-muted">Cargando…</p>;
 
@@ -190,22 +197,31 @@ export default function TejidoConexiones({ activity, session, participant }: Act
           <div className="mb-3 flex flex-wrap gap-2">
             {content.media.map((url) => (
               <div key={url} className="group relative h-20 w-20 overflow-hidden rounded-md border border-border bg-black/5">
-                <button className="relative h-full w-full cursor-zoom-in" title={isHeicUrl(url) ? "Formato no compatible — clic para abrir el original" : "Ampliar"} onClick={() => (isHeicUrl(url) ? window.open(url, "_blank", "noopener,noreferrer") : setLightboxUrl(url))}>
-                  {isVideoUrl(url) ? (
-                    <>
-                      <video src={url} className="h-full w-full object-cover" muted />
-                      <span className="absolute inset-0 flex items-center justify-center text-lg text-white drop-shadow">▶</span>
-                    </>
-                  ) : isHeicUrl(url) ? (
-                    <span className="flex h-full w-full flex-col items-center justify-center gap-0.5 bg-amber-50 px-1 text-center text-[10px] text-amber-700">
-                      <span className="text-lg">⚠️</span>
-                      Sin vista previa
-                    </span>
-                  ) : (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={url} alt="Foto de la actividad" className="h-full w-full object-cover" />
-                  )}
-                </button>
+                {(() => {
+                  const unsupported = isHeicUrl(url) || (isVideoUrl(url) && failedVideos.has(url));
+                  return (
+                    <button
+                      className="relative h-full w-full cursor-zoom-in"
+                      title={unsupported ? "Formato no compatible — clic para abrir el original" : "Ampliar"}
+                      onClick={() => (unsupported ? window.open(url, "_blank", "noopener,noreferrer") : setLightboxUrl(url))}
+                    >
+                      {unsupported ? (
+                        <span className="flex h-full w-full flex-col items-center justify-center gap-0.5 bg-amber-50 px-1 text-center text-[10px] text-amber-700">
+                          <span className="text-lg">⚠️</span>
+                          Sin vista previa
+                        </span>
+                      ) : isVideoUrl(url) ? (
+                        <>
+                          <video src={url} className="h-full w-full object-cover" muted onError={() => markVideoFailed(url)} />
+                          <span className="absolute inset-0 flex items-center justify-center text-lg text-white drop-shadow">▶</span>
+                        </>
+                      ) : (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={url} alt="Foto de la actividad" className="h-full w-full object-cover" />
+                      )}
+                    </button>
+                  );
+                })()}
                 <button
                   className="absolute right-0.5 top-0.5 rounded-full bg-black/60 px-1 text-xs text-white opacity-0 group-hover:opacity-100"
                   onClick={() => removeMedia(url)}
@@ -261,6 +277,10 @@ export default function TejidoConexiones({ activity, session, participant }: Act
               autoPlay
               className="max-h-full max-w-full rounded-lg"
               onClick={(e) => e.stopPropagation()}
+              onError={() => {
+                markVideoFailed(lightboxUrl);
+                setLightboxUrl(null);
+              }}
             />
           ) : (
             // eslint-disable-next-line @next/next/no-img-element

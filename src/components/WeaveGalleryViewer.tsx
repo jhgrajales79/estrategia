@@ -20,6 +20,16 @@ const AUTOPLAY_IMAGE_MS = 4000;
 export default function WeaveGalleryViewer({ media, open, onClose }: { media: string[]; open: boolean; onClose: () => void }) {
   const [focusIndex, setFocusIndex] = useState<number | null>(null);
   const [autoplay, setAutoplay] = useState(false);
+  // Un video con códec no soportado (HEVC de iPhone en "Alta eficiencia", típicamente) no
+  // falla al subir — solo al intentar reproducirlo. Se detecta con onError y se trata igual
+  // que un HEIC: aviso en vez de un recuadro vacío.
+  const [failedVideos, setFailedVideos] = useState<Set<string>>(new Set());
+  function markVideoFailed(url: string) {
+    setFailedVideos((s) => new Set(s).add(url));
+  }
+  function isUnsupported(url: string) {
+    return isHeicUrl(url) || (isVideoUrl(url) && failedVideos.has(url));
+  }
 
   // Se resetea al abrir/cerrar para no reabrir directo en el lightbox de la vez anterior.
   useEffect(() => {
@@ -48,13 +58,16 @@ export default function WeaveGalleryViewer({ media, open, onClose }: { media: st
 
   const current = focusIndex !== null ? media[focusIndex] : null;
 
-  // Reproducir el tejido completo: las fotos avanzan solas por tiempo, los videos al terminar.
+  // Reproducir el tejido completo: las fotos (y los archivos sin vista previa, para no
+  // quedarse trabado esperando un "onEnded" que nunca llega) avanzan solas por tiempo; los
+  // videos reproducibles avanzan al terminar.
   useEffect(() => {
     if (!autoplay || focusIndex === null || !current) return;
-    if (isVideoUrl(current)) return;
+    if (isVideoUrl(current) && !isUnsupported(current)) return;
     const t = setTimeout(() => setFocusIndex((i) => (i === null ? i : (i + 1) % media.length)), AUTOPLAY_IMAGE_MS);
     return () => clearTimeout(t);
-  }, [autoplay, focusIndex, current, media.length]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoplay, focusIndex, current, media.length, failedVideos]);
 
   if (!open) return null;
 
@@ -99,16 +112,7 @@ export default function WeaveGalleryViewer({ media, open, onClose }: { media: st
           >
             ‹
           </button>
-          {isVideoUrl(current) ? (
-            <video
-              key={current}
-              src={current}
-              controls
-              autoPlay
-              className="max-h-full max-w-full rounded-lg shadow-2xl"
-              onEnded={() => autoplay && setFocusIndex((i) => (i === null ? i : (i + 1) % media.length))}
-            />
-          ) : isHeicUrl(current) ? (
+          {isUnsupported(current) ? (
             <div className="flex flex-col items-center gap-3 rounded-lg bg-white/5 px-8 py-12 text-center text-white/70">
               <span className="text-3xl">⚠️</span>
               <p>Este archivo no se puede previsualizar en el navegador.</p>
@@ -121,6 +125,16 @@ export default function WeaveGalleryViewer({ media, open, onClose }: { media: st
                 Abrir original
               </a>
             </div>
+          ) : isVideoUrl(current) ? (
+            <video
+              key={current}
+              src={current}
+              controls
+              autoPlay
+              className="max-h-full max-w-full rounded-lg shadow-2xl"
+              onEnded={() => autoplay && setFocusIndex((i) => (i === null ? i : (i + 1) % media.length))}
+              onError={() => markVideoFailed(current)}
+            />
           ) : (
             // eslint-disable-next-line @next/next/no-img-element
             <img key={current} src={current} alt="Momento del tejido" className="max-h-full max-w-full rounded-lg object-contain shadow-2xl" />
@@ -149,18 +163,18 @@ export default function WeaveGalleryViewer({ media, open, onClose }: { media: st
                   onClick={() => setFocusIndex(i)}
                   title="Ampliar"
                 >
-                  {isVideoUrl(url) ? (
-                    <>
-                      <video src={url} className="h-full w-full object-cover" muted />
-                      <span className="absolute inset-0 flex items-center justify-center bg-black/20 text-2xl text-white opacity-90 transition-opacity group-hover:opacity-100">
-                        ▶
-                      </span>
-                    </>
-                  ) : isHeicUrl(url) ? (
+                  {isUnsupported(url) ? (
                     <span className="flex h-full w-full flex-col items-center justify-center gap-1 bg-white/[0.04] text-center text-[11px] text-white/50">
                       <span className="text-xl">⚠️</span>
                       Sin vista previa
                     </span>
+                  ) : isVideoUrl(url) ? (
+                    <>
+                      <video src={url} className="h-full w-full object-cover" muted onError={() => markVideoFailed(url)} />
+                      <span className="absolute inset-0 flex items-center justify-center bg-black/20 text-2xl text-white opacity-90 transition-opacity group-hover:opacity-100">
+                        ▶
+                      </span>
+                    </>
                   ) : (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={url} alt="Momento del tejido" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
