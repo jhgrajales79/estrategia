@@ -8,7 +8,8 @@ import PriorityLevelChart from "@/components/PriorityLevelChart";
 import ConnectionsWebView from "@/components/ConnectionsWebView";
 import RadarContextoResults from "@/components/results/RadarContextoResults";
 import { axisColor } from "@/components/RadarChartView";
-import { isHeicUrl } from "@/lib/media";
+import { isHeicUrl, isVideoUrl } from "@/lib/media";
+import WeaveGalleryViewer from "@/components/WeaveGalleryViewer";
 import { Avatar } from "@/components/activities/shared";
 import { aspAbbrev, aspClasses, findAspiration } from "@/lib/aspirationStyle";
 import type { ActivityRow, Aspiration } from "@/lib/types";
@@ -101,55 +102,61 @@ function MediaGrid({
   externalLinkLabel?: string;
   large?: boolean;
 }) {
-  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const [galleryIndex, setGalleryIndex] = useState<number | null>(null);
+  // Un video con códec no soportado no falla al subir, solo al reproducirse — se detecta
+  // con onError igual que en el mural del tejido.
+  const [failedVideos, setFailedVideos] = useState<Set<string>>(new Set());
+  function markVideoFailed(url: string) {
+    setFailedVideos((s) => new Set(s).add(url));
+  }
   if (media.length === 0 && !externalLink) return null;
   return (
     <div className="mt-3 border-t border-border pt-3">
       <div className="flex flex-wrap items-center gap-2">
-        {media.map((url) => (
-          <button
-            key={url}
-            className={`overflow-hidden rounded-md border border-border ${large ? "h-24 w-24" : "h-16 w-16"}`}
-            title={isHeicUrl(url) ? "Formato no compatible — clic para abrir el original" : "Ampliar foto"}
-            onClick={() => (isHeicUrl(url) ? window.open(url, "_blank", "noopener,noreferrer") : setLightboxUrl(url))}
-          >
-            {isHeicUrl(url) ? (
-              <span className="flex h-full w-full flex-col items-center justify-center gap-0.5 bg-amber-50 px-1 text-center text-[10px] text-amber-700">
-                <span className="text-lg">⚠️</span>
-                Sin vista previa
-              </span>
-            ) : (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={url} alt="Foto de la actividad" className="h-full w-full object-cover" />
-            )}
-          </button>
-        ))}
+        {media.map((url, i) => {
+          const unsupported = isHeicUrl(url) || (isVideoUrl(url) && failedVideos.has(url));
+          return (
+            <button
+              key={url}
+              className={`group relative overflow-hidden rounded-md border border-border ${large ? "h-24 w-24" : "h-16 w-16"}`}
+              title={unsupported ? "Formato no compatible — clic para abrir el original" : "Ver en el mural"}
+              onClick={() => (unsupported ? window.open(url, "_blank", "noopener,noreferrer") : setGalleryIndex(i))}
+            >
+              {unsupported ? (
+                <span className="flex h-full w-full flex-col items-center justify-center gap-0.5 bg-amber-50 px-1 text-center text-[10px] text-amber-700">
+                  <span className="text-lg">⚠️</span>
+                  Sin vista previa
+                </span>
+              ) : isVideoUrl(url) ? (
+                <>
+                  <video src={url} className="h-full w-full object-cover" muted onError={() => markVideoFailed(url)} />
+                  <span className="absolute inset-0 flex items-center justify-center bg-black/20 text-lg text-white opacity-90 transition-opacity group-hover:opacity-100">
+                    ▶
+                  </span>
+                </>
+              ) : (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={url} alt="Foto de la actividad" className="h-full w-full object-cover" />
+              )}
+            </button>
+          );
+        })}
         {externalLink && (
           <a href={externalLink} target="_blank" rel="noopener noreferrer" className="text-xs text-brand hover:underline">
             🔗 {externalLinkLabel || "Enlace externo"}
           </a>
         )}
       </div>
-      {lightboxUrl && (
-        <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 p-6"
-          onClick={() => setLightboxUrl(null)}
-        >
-          <button
-            className="absolute right-4 top-4 rounded-md bg-white/10 px-3 py-1.5 text-sm text-white hover:bg-white/20"
-            onClick={() => setLightboxUrl(null)}
-          >
-            ✕ Cerrar
-          </button>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={lightboxUrl}
-            alt="Foto ampliada"
-            className="max-h-full max-w-full rounded-lg object-contain"
-            onClick={(e) => e.stopPropagation()}
-          />
-        </div>
-      )}
+      <WeaveGalleryViewer
+        media={media}
+        open={galleryIndex !== null}
+        onClose={() => setGalleryIndex(null)}
+        initialIndex={galleryIndex}
+        title="Fotos y videos"
+        icon="🖼️"
+        itemLabelSingular="archivo"
+        itemLabelPlural="archivos"
+      />
     </div>
   );
 }

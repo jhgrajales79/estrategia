@@ -17,7 +17,25 @@ const LOOM_SPANS = [
 
 const AUTOPLAY_IMAGE_MS = 4000;
 
-export default function WeaveGalleryViewer({ media, open, onClose }: { media: string[]; open: boolean; onClose: () => void }) {
+export default function WeaveGalleryViewer({
+  media,
+  open,
+  onClose,
+  initialIndex = null,
+  title = "Mural del tejido",
+  icon = "🧶",
+  itemLabelSingular = "momento",
+  itemLabelPlural = "momentos capturados",
+}: {
+  media: string[];
+  open: boolean;
+  onClose: () => void;
+  initialIndex?: number | null;
+  title?: string;
+  icon?: string;
+  itemLabelSingular?: string;
+  itemLabelPlural?: string;
+}) {
   const [focusIndex, setFocusIndex] = useState<number | null>(null);
   const [autoplay, setAutoplay] = useState(false);
   // Un video con códec no soportado (HEVC de iPhone en "Alta eficiencia", típicamente) no
@@ -31,13 +49,17 @@ export default function WeaveGalleryViewer({ media, open, onClose }: { media: st
     return isHeicUrl(url) || (isVideoUrl(url) && failedVideos.has(url));
   }
 
-  // Se resetea al abrir/cerrar para no reabrir directo en el lightbox de la vez anterior.
+  // Al abrir, enfoca el elemento indicado (si viene de un clic sobre una miniatura puntual);
+  // al cerrar se resetea para no reabrir directo en el lightbox de la vez anterior.
   useEffect(() => {
-    if (!open) {
+    if (open) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
+      setFocusIndex(initialIndex);
+    } else {
       setFocusIndex(null);
       setAutoplay(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   useEffect(() => {
@@ -75,11 +97,11 @@ export default function WeaveGalleryViewer({ media, open, onClose }: { media: st
     <div className="fixed inset-0 z-[70] flex flex-col bg-dark/98 backdrop-blur-sm">
       <div className="flex shrink-0 items-center justify-between gap-3 px-5 py-4">
         <div className="flex items-center gap-2 text-white">
-          <span className="text-xl">🧶</span>
+          <span className="text-xl">{icon}</span>
           <div>
-            <p className="text-sm font-semibold">Mural del tejido</p>
+            <p className="text-sm font-semibold">{title}</p>
             <p className="text-xs text-white/50">
-              {media.length} {media.length === 1 ? "momento" : "momentos"} capturados
+              {media.length} {media.length === 1 ? itemLabelSingular : itemLabelPlural}
             </p>
           </div>
         </div>
