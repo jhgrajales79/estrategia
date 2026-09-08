@@ -36,6 +36,8 @@ export default function TejidoConexiones({ activity, session, participant }: Act
   const [draft, setDraft] = useState("");
   const [showMedia, setShowMedia] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(null);
+  const [uploadMsg, setUploadMsg] = useState<{ text: string; isError: boolean } | null>(null);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [galleryOpen, setGalleryOpen] = useState(false);
 
@@ -61,25 +63,62 @@ export default function TejidoConexiones({ activity, session, participant }: Act
     removeThread(myThread.id);
   }
 
+  // Sube cada archivo con hasta 2 reintentos (la wifi de un taller presencial es poco
+  // confiable) y nunca deja que un solo archivo problemático descarte a los demás: antes se
+  // usaba Promise.all, que es todo-o-nada — si una sola foto/video fallaba, la tanda entera se
+  // perdía en silencio y el facilitador no se enteraba de nada. Ahora cada archivo se resuelve
+  // de forma independiente y se guardan los que sí lograron subir.
+  async function uploadWithRetry(file: File, scope: string, attempts = 3): Promise<string> {
+    let lastErr: unknown;
+    for (let i = 0; i < attempts; i++) {
+      try {
+        return await uploadMedia(file, scope);
+      } catch (err) {
+        lastErr = err;
+      }
+    }
+    throw lastErr;
+  }
+
   async function handleUpload(files: FileList) {
+    const fileList = Array.from(files);
     setUploading(true);
-    try {
-      // Se suben todos los archivos primero y se guardan juntos en un solo save: si cada uno
-      // guardara por separado, cada llamada partiría del mismo content.media desactualizado
-      // (closure) y las subidas se pisarían entre sí en vez de acumularse.
-      const urls = await Promise.all(Array.from(files).map((f) => uploadMedia(f, `activity-${activity.id}`)));
+    setUploadMsg(null);
+    setUploadProgress({ done: 0, total: fileList.length });
+    const succeeded: string[] = [];
+    const failed: { name: string; reason: string }[] = [];
+    for (const f of fileList) {
+      try {
+        const url = await uploadWithRetry(f, `activity-${activity.id}`);
+        succeeded.push(url);
+      } catch (err) {
+        console.error(err);
+        failed.push({ name: f.name, reason: err instanceof Error ? err.message : "error desconocido" });
+      } finally {
+        setUploadProgress((p) => (p ? { ...p, done: p.done + 1 } : p));
+      }
+    }
+    if (succeeded.length > 0) {
       save(
-        { ...content, media: [...content.media, ...urls] },
+        { ...content, media: [...content.media, ...succeeded] },
         {
           eventType: "foto",
-          summary: `${participant.name} subió ${urls.length > 1 ? `${urls.length} fotos/videos` : "una foto"} en "${activity.title}"`,
+          summary: `${participant.name} subió ${succeeded.length > 1 ? `${succeeded.length} fotos/videos` : "una foto"} en "${activity.title}"`,
         }
       );
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setUploading(false);
     }
+    if (failed.length === 0) {
+      setUploadMsg({ text: `✓ Se subieron ${succeeded.length} ${succeeded.length === 1 ? "archivo" : "archivos"}.`, isError: false });
+    } else {
+      setUploadMsg({
+        text: `${succeeded.length > 0 ? `Se subieron ${succeeded.length} de ${fileList.length}. ` : "No se pudo subir ningún archivo. "}Fallaron: ${failed
+          .map((f) => `${f.name} (${f.reason})`)
+          .join(", ")}`,
+        isError: true,
+      });
+    }
+    setUploading(false);
+    setUploadProgress(null);
   }
   function removeMedia(url: string) {
     save({ ...content, media: content.media.filter((m) => m !== url) });
@@ -174,21 +213,26 @@ export default function TejidoConexiones({ activity, session, participant }: Act
               </div>
             ))}
           </div>
-          <label className={btnGhost + " cursor-pointer"}>
-            {uploading ? "Subiendo…" : "📷 Subir fotos o videos"}
-            <input
-              type="file"
-              accept="image/*,video/*"
-              multiple
-              className="hidden"
-              disabled={uploading}
-              onChange={(e) => {
-                const files = e.target.files;
-                if (files && files.length > 0) handleUpload(files);
-                e.target.value = "";
-              }}
-            />
-          </label>
+          <div className="flex flex-wrap items-center gap-2">
+            <label className={btnGhost + " cursor-pointer"}>
+              {uploading ? `Subiendo… ${uploadProgress ? `${uploadProgress.done}/${uploadProgress.total}` : ""}` : "📷 Subir fotos o videos"}
+              <input
+                type="file"
+                accept="image/*,video/*"
+                multiple
+                className="hidden"
+                disabled={uploading}
+                onChange={(e) => {
+                  const files = e.target.files;
+                  if (files && files.length > 0) handleUpload(files);
+                  e.target.value = "";
+                }}
+              />
+            </label>
+            {uploadMsg && (
+              <p className={`text-xs ${uploadMsg.isError ? "text-red-600" : "text-brand-dark"}`}>{uploadMsg.text}</p>
+            )}
+          </div>
           <div className="mt-3">
             <label className="mb-1 block text-xs font-medium text-muted">Panel visual (Obsidian u otro tablero)</label>
             <input
