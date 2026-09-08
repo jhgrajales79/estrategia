@@ -24,12 +24,20 @@ export default function HomePage() {
         <p className="mt-1.5 max-w-xl text-balance text-sm text-muted">
           &ldquo;Tejemos conexiones para incidir en el cuidado del ser humano y la naturaleza&rdquo;
         </p>
-        <Link
-          href="/ingresar"
-          className="mt-4 inline-flex items-center gap-2 rounded-md bg-brand px-5 py-2.5 text-sm font-semibold text-dark hover:bg-brand-hover"
-        >
-          Ingresar a la sesión
-        </Link>
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
+          <Link
+            href="/ingresar"
+            className="inline-flex items-center gap-2 rounded-md bg-brand px-5 py-2.5 text-sm font-semibold text-dark hover:bg-brand-hover"
+          >
+            Ingresar a la sesión
+          </Link>
+          <Link
+            href="/nuestro-trabajo"
+            className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-5 py-2.5 text-sm font-semibold text-foreground hover:bg-black/5"
+          >
+            🗂️ Ver nuestro trabajo
+          </Link>
+        </div>
       </div>
 
       <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_1fr] lg:items-start">

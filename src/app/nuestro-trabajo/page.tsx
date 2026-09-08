@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRequireParticipant } from "@/lib/useRequireParticipant";
+import { getStoredParticipant, StoredParticipant } from "@/lib/participant";
 import { fetchActivities, fetchAspirations, fetchSessions, fetchSubmissionsByActivityIds } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
 import { isPresenter } from "@/lib/presenter";
@@ -9,8 +9,16 @@ import type { ActivityRow, Aspiration, SessionRow } from "@/lib/types";
 import ActivityResults from "@/components/results/ActivityResults";
 import { LockBadge } from "@/components/activities/shared";
 
+// Página pública: no requiere haber ingresado con nombre/rol. Cualquier visitante puede ver
+// los resultados de las sesiones que el facilitador ya haya habilitado; las que no, siguen
+// ocultas igual que antes (isPresenter(null) da false, así que un visitante anónimo nunca ve
+// sesiones bloqueadas).
 export default function NuestroTrabajoPage() {
-  const participant = useRequireParticipant();
+  const [participant, setParticipant] = useState<StoredParticipant | null>(null);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setParticipant(getStoredParticipant());
+  }, []);
   const presenter = isPresenter(participant);
   const [sessions, setSessions] = useState<SessionRow[]>([]);
   const [aspirations, setAspirations] = useState<Aspiration[]>([]);
@@ -60,8 +68,6 @@ export default function NuestroTrabajoPage() {
 
   const activityIdsWithData = useMemo(() => new Set(submissions.map((s) => s.activity_id)), [submissions]);
   const withDataCount = activities.filter((a) => activityIdsWithData.has(a.id)).length;
-
-  if (!participant) return null;
 
   const activeSession = sessions.find((s) => s.id === activeTab);
 
