@@ -15,7 +15,7 @@ import { isPresenter } from "@/lib/presenter";
 import type { ActivityRow, Aspiration, SessionRow } from "@/lib/types";
 import ActivityResults from "@/components/results/ActivityResults";
 import { LockBadge } from "@/components/activities/shared";
-import WeaveGalleryViewer from "@/components/WeaveGalleryViewer";
+import WeaveGalleryViewer, { MediaGroup } from "@/components/WeaveGalleryViewer";
 
 // Página pública: no requiere haber ingresado con nombre/rol. Cualquier visitante puede ver
 // los resultados de las sesiones que el facilitador ya haya habilitado; las que no, siguen
@@ -87,14 +87,18 @@ export default function NuestroTrabajoPage() {
 
   // El collage general solo mezcla fotos de sesiones ya habilitadas por el facilitador (o
   // todas, si quien mira es el propio facilitador) — mismo criterio de visibilidad que las
-  // pestañas de abajo, para no filtrar fotos de una sesión que aún no se ha compartido.
-  const allTejidoMedia = useMemo(
+  // pestañas de abajo, para no filtrar fotos de una sesión que aún no se ha compartido. Se
+  // agrupan por sesión (S0, S1, S2...) en vez de mezclarlas todas en una sola grilla, para que
+  // se distinga de dónde viene cada foto.
+  const tejidoGroups: MediaGroup[] = useMemo(
     () =>
-      tejidoMedia
-        .filter((t) => presenter || sessions.find((s) => s.id === t.session_id)?.is_enabled)
-        .flatMap((t) => t.media),
-    [tejidoMedia, sessions, presenter]
+      sessions
+        .filter((s) => presenter || s.is_enabled)
+        .map((s) => ({ label: s.code, media: tejidoMedia.find((t) => t.session_id === s.id)?.media ?? [] }))
+        .filter((g) => g.media.length > 0),
+    [sessions, tejidoMedia, presenter]
   );
+  const allTejidoMedia = useMemo(() => tejidoGroups.flatMap((g) => g.media), [tejidoGroups]);
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
@@ -191,6 +195,7 @@ export default function NuestroTrabajoPage() {
 
       <WeaveGalleryViewer
         media={allTejidoMedia}
+        groups={tejidoGroups}
         open={generalGalleryOpen}
         onClose={() => setGeneralGalleryOpen(false)}
         title="Mural general"

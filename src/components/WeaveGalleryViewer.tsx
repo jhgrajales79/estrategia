@@ -17,6 +17,11 @@ const LOOM_SPANS = [
 
 const AUTOPLAY_IMAGE_MS = 4000;
 
+export interface MediaGroup {
+  label: string;
+  media: string[];
+}
+
 export default function WeaveGalleryViewer({
   media,
   open,
@@ -26,6 +31,7 @@ export default function WeaveGalleryViewer({
   icon = "🧶",
   itemLabelSingular = "momento",
   itemLabelPlural = "momentos capturados",
+  groups,
 }: {
   media: string[];
   open: boolean;
@@ -35,6 +41,10 @@ export default function WeaveGalleryViewer({
   icon?: string;
   itemLabelSingular?: string;
   itemLabelPlural?: string;
+  // Si viene, el mosaico se muestra por secciones (una por sesión) en vez de una sola grilla
+  // mezclada. Debe cubrir exactamente los mismos elementos que `media`, en el mismo orden
+  // (concatenar groups[].media == media) — la navegación con flechas usa `media` tal cual.
+  groups?: MediaGroup[];
 }) {
   const [focusIndex, setFocusIndex] = useState<number | null>(null);
   const [autoplay, setAutoplay] = useState(false);
@@ -80,6 +90,17 @@ export default function WeaveGalleryViewer({
 
   const current = focusIndex !== null ? media[focusIndex] : null;
 
+  function groupLabelForIndex(i: number): string | null {
+    if (!groups) return null;
+    let offset = 0;
+    for (const g of groups) {
+      if (i < offset + g.media.length) return g.label;
+      offset += g.media.length;
+    }
+    return null;
+  }
+  const currentGroupLabel = focusIndex !== null ? groupLabelForIndex(focusIndex) : null;
+
   // Reproducir el tejido completo: las fotos (y los archivos sin vista previa, para no
   // quedarse trabado esperando un "onEnded" que nunca llega) avanzan solas por tiempo; los
   // videos reproducibles avanzan al terminar.
@@ -90,6 +111,33 @@ export default function WeaveGalleryViewer({
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoplay, focusIndex, current, media.length, failedVideos]);
+
+  function Tile({ url, spanClass, onClick }: { url: string; spanClass: string; onClick: () => void }) {
+    return (
+      <button
+        className={`group relative overflow-hidden rounded-lg border border-white/10 bg-white/[0.03] ${spanClass}`}
+        onClick={onClick}
+        title="Ampliar"
+      >
+        {isUnsupported(url) ? (
+          <span className="flex h-full w-full flex-col items-center justify-center gap-1 bg-white/[0.04] text-center text-[11px] text-white/50">
+            <span className="text-xl">⚠️</span>
+            Sin vista previa
+          </span>
+        ) : isVideoUrl(url) ? (
+          <>
+            <video src={url} className="h-full w-full object-cover" muted onError={() => markVideoFailed(url)} />
+            <span className="absolute inset-0 flex items-center justify-center bg-black/20 text-2xl text-white opacity-90 transition-opacity group-hover:opacity-100">
+              ▶
+            </span>
+          </>
+        ) : (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={url} alt="Momento del tejido" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
+        )}
+      </button>
+    );
+  }
 
   if (!open) return null;
 
@@ -169,39 +217,42 @@ export default function WeaveGalleryViewer({
             ›
           </button>
           <span className="absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-black/40 px-3 py-1 text-xs text-white/70">
-            {focusIndex! + 1} / {media.length}
+            {currentGroupLabel && <strong className="text-white/90">{currentGroupLabel}</strong>} {currentGroupLabel && "·"} {focusIndex! + 1} / {media.length}
           </span>
         </div>
       ) : (
         <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-6">
           {media.length === 0 ? (
             <p className="py-16 text-center text-sm text-white/40">Aún no se han subido fotos ni videos.</p>
+          ) : groups ? (
+            <div className="mx-auto max-w-5xl space-y-6">
+              {(() => {
+                let offset = 0;
+                return groups
+                  .filter((g) => g.media.length > 0)
+                  .map((g) => {
+                    const groupOffset = offset;
+                    offset += g.media.length;
+                    return (
+                      <div key={g.label}>
+                        <h3 className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-white/50">
+                          {g.label}
+                          <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-semibold text-white/60">{g.media.length}</span>
+                        </h3>
+                        <div className="grid auto-rows-[110px] grid-cols-4 gap-2 sm:auto-rows-[140px]">
+                          {g.media.map((url, i) => (
+                            <Tile key={url} url={url} spanClass={LOOM_SPANS[i % LOOM_SPANS.length]} onClick={() => setFocusIndex(groupOffset + i)} />
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  });
+              })()}
+            </div>
           ) : (
             <div className="mx-auto grid max-w-5xl auto-rows-[110px] grid-cols-4 gap-2 sm:auto-rows-[140px]">
               {media.map((url, i) => (
-                <button
-                  key={url}
-                  className={`group relative overflow-hidden rounded-lg border border-white/10 bg-white/[0.03] ${LOOM_SPANS[i % LOOM_SPANS.length]}`}
-                  onClick={() => setFocusIndex(i)}
-                  title="Ampliar"
-                >
-                  {isUnsupported(url) ? (
-                    <span className="flex h-full w-full flex-col items-center justify-center gap-1 bg-white/[0.04] text-center text-[11px] text-white/50">
-                      <span className="text-xl">⚠️</span>
-                      Sin vista previa
-                    </span>
-                  ) : isVideoUrl(url) ? (
-                    <>
-                      <video src={url} className="h-full w-full object-cover" muted onError={() => markVideoFailed(url)} />
-                      <span className="absolute inset-0 flex items-center justify-center bg-black/20 text-2xl text-white opacity-90 transition-opacity group-hover:opacity-100">
-                        ▶
-                      </span>
-                    </>
-                  ) : (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={url} alt="Momento del tejido" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
-                  )}
-                </button>
+                <Tile key={url} url={url} spanClass={LOOM_SPANS[i % LOOM_SPANS.length]} onClick={() => setFocusIndex(i)} />
               ))}
             </div>
           )}
