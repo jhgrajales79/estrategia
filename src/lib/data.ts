@@ -83,6 +83,33 @@ export async function resetSessionActivitiesData(sessionId: number): Promise<voi
   if (error) throw error;
 }
 
+export interface TejidoActivityMedia {
+  session_id: number;
+  media: string[];
+}
+
+// A diferencia de fetchSessionMedia (que solo mira actividades con config.allowMedia, usado
+// por NotasColectivas), el tejido de conexiones no usa ese flag — es un tipo de actividad
+// propio. Se consulta aparte para poder armar el mosaico general de "Nuestro trabajo".
+export async function fetchTejidoMediaByActivity(): Promise<TejidoActivityMedia[]> {
+  const { data: acts, error: actsError } = await supabase
+    .from("activities")
+    .select("id, session_id")
+    .eq("activity_type", "tejido_conexiones");
+  if (actsError) throw actsError;
+  if (!acts || acts.length === 0) return [];
+
+  const ids = acts.map((a) => a.id);
+  const { data: subs, error: subsError } = await supabase.from("submissions").select("activity_id, content").in("activity_id", ids);
+  if (subsError) throw subsError;
+
+  return acts.map((a) => {
+    const sub = subs?.find((s) => s.activity_id === a.id);
+    const media = ((sub?.content ?? {}) as { media?: string[] }).media ?? [];
+    return { session_id: a.session_id, media };
+  });
+}
+
 export interface SessionMedia {
   session_id: number;
   activity_title: string;
