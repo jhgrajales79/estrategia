@@ -52,7 +52,6 @@ export default function NotasMatriz({ activity, session, aspirations, participan
     { notes: [], external_link: defaultLink }
   );
   const [draft, setDraft] = useState<Record<string, string>>({});
-  const [impactDraft, setImpactDraft] = useState<Record<string, Impact>>({});
   const [editing, setEditing] = useState<Record<string, string>>({});
   const [copied, setCopied] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -81,18 +80,24 @@ export default function NotasMatriz({ activity, session, aspirations, participan
       author: participant.name,
       author_id: participant.id,
       text,
-      impact: impactLevels ? impactDraft[key] ?? "medio" : undefined,
+      // El impacto se marca después, sobre la nota ya registrada (ver setImpact) — no se
+      // preselecciona "medio" al escribir para no sugerir una calificación antes de que la
+      // persona haya decidido una.
+      impact: undefined,
     };
     save(
       { ...content, notes: [...content.notes, note] },
       { eventType: "nota", summary: `${participant.name} agregó una nota en "${activity.title}"` }
     );
     setDraft((d) => ({ ...d, [key]: "" }));
-    setImpactDraft((d) => ({ ...d, [key]: "medio" }));
   }
 
   function removeNote(id: string) {
     save({ ...content, notes: content.notes.filter((n) => n.id !== id) });
+  }
+
+  function setImpact(id: string, impact: Impact) {
+    save({ ...content, notes: content.notes.map((n) => (n.id === id ? { ...n, impact } : n)) });
   }
 
   // Borrar una nota es irreversible (lluvia de ideas silenciosa: el autor puede no
@@ -301,13 +306,37 @@ export default function NotasMatriz({ activity, session, aspirations, participan
                             title={canEdit ? "Clic para editar" : undefined}
                           >
                             <div className="min-w-0">
-                              {impactMeta && (
-                                <span className={`mb-0.5 inline-flex items-center gap-1 text-[10px] font-semibold ${impactMeta.text}`}>
-                                  <span className={`h-1.5 w-1.5 rounded-full ${impactMeta.dot}`} />
-                                  {impactMeta.label}
-                                </span>
-                              )}
                               <p className="text-foreground">{n.text}</p>
+                              {impactLevels &&
+                                (canEdit ? (
+                                  <div className="mt-1 flex flex-wrap items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                                    {!n.impact && <span className="text-[10px] italic text-muted">Impacto: </span>}
+                                    {IMPACT_ORDER.map((lvl) => {
+                                      const meta = IMPACT_META[lvl];
+                                      const active = n.impact === lvl;
+                                      return (
+                                        <button
+                                          key={lvl}
+                                          type="button"
+                                          className={`flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-medium transition-colors ${
+                                            active ? `border-current ${meta.text} bg-card` : "border-dashed border-border text-muted hover:border-current"
+                                          }`}
+                                          onClick={() => setImpact(n.id, lvl)}
+                                        >
+                                          <span className={`h-1.5 w-1.5 rounded-full ${active ? meta.dot : "bg-black/15"}`} />
+                                          {meta.label}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                ) : (
+                                  impactMeta && (
+                                    <span className={`mt-1 inline-flex items-center gap-1 text-[10px] font-semibold ${impactMeta.text}`}>
+                                      <span className={`h-1.5 w-1.5 rounded-full ${impactMeta.dot}`} />
+                                      {impactMeta.label}
+                                    </span>
+                                  )
+                                ))}
                             </div>
                             {canEdit && (
                               <button
@@ -329,27 +358,6 @@ export default function NotasMatriz({ activity, session, aspirations, participan
                         );
                       })}
                     </div>
-                    {impactLevels && (
-                      <div className="flex gap-1">
-                        {IMPACT_ORDER.map((lvl) => {
-                          const active = (impactDraft[key] ?? "medio") === lvl;
-                          const meta = IMPACT_META[lvl];
-                          return (
-                            <button
-                              key={lvl}
-                              type="button"
-                              className={`flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-medium transition-colors ${
-                                active ? `border-current ${meta.text} bg-card` : "border-border text-muted"
-                              }`}
-                              onClick={() => setImpactDraft((d) => ({ ...d, [key]: lvl }))}
-                            >
-                              <span className={`h-1.5 w-1.5 rounded-full ${active ? meta.dot : "bg-black/20"}`} />
-                              {meta.label}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
                     {myNotesInCell(a.id, c.key) < maxNotesPerCell ? (
                       <div>
                         <input
