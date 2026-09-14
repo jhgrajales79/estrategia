@@ -1,9 +1,9 @@
 "use client";
 
-import { Fragment, useState } from "react";
+import { useEffect, useState } from "react";
 import { useSubmission, effectiveAspirationId } from "@/lib/useSubmission";
 import { isPresenter } from "@/lib/presenter";
-import AspirationBadge from "@/components/AspirationBadge";
+import { aspClasses, ARCHETYPE_LABEL } from "@/lib/aspirationStyle";
 import { ActivityComponentProps, inputCls, btnGhost, SaveIndicator, uid } from "./shared";
 
 type Impact = "alto" | "medio" | "bajo";
@@ -55,6 +55,17 @@ export default function NotasMatriz({ activity, session, aspirations, participan
   const [editing, setEditing] = useState<Record<string, string>>({});
   const [copied, setCopied] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  // Una pestaña por aspiración en vez de las tres apiladas como filas: cada categoría gana
+  // mucho más ancho para leer y escribir notas largas, a costa de no ver las tres aspiraciones
+  // a la vez (para eso sigue estando "Ver post-its", que sí las muestra todas juntas).
+  const [activeAspId, setActiveAspId] = useState<number | null>(() => aspirations[0]?.id ?? null);
+  useEffect(() => {
+    if (activeAspId === null && aspirations.length > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setActiveAspId(aspirations[0].id);
+    }
+  }, [aspirations, activeAspId]);
+  const activeAsp = aspirations.find((a) => a.id === activeAspId) ?? null;
 
   if (!loaded) return <p className="text-sm text-muted">Cargando…</p>;
 
@@ -240,30 +251,46 @@ export default function NotasMatriz({ activity, session, aspirations, participan
         </button>
       </div>
 
-      <div className="overflow-x-auto">
-        <div
-          className="grid min-w-[640px] gap-2"
-          style={{ gridTemplateColumns: `160px repeat(${categories.length}, minmax(200px, 1fr))` }}
-        >
-          <div />
-          {categories.map((c) => {
-            const total = content.notes.filter((n) => n.category === c.key).length;
+      {aspirations.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {aspirations.map((a) => {
+            const cls = aspClasses(a.number);
+            const active = activeAspId === a.id;
+            const asCount = content.notes.filter((n) => n.aspiration_id === a.id).length;
             return (
-              <div key={c.key} className="flex items-baseline gap-1.5 px-1 text-xs font-semibold uppercase tracking-wide text-muted">
-                {c.label}
-                {total > 0 && <span className="font-normal normal-case text-muted/80">({total})</span>}
-              </div>
+              <button
+                key={a.id}
+                type="button"
+                onClick={() => setActiveAspId(a.id)}
+                className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                  active ? `border-transparent ${cls.bg} text-dark` : `${cls.border} ${cls.text} bg-card hover:bg-black/5`
+                }`}
+              >
+                Aspiración {a.number} · {ARCHETYPE_LABEL[a.number]}
+                {asCount > 0 && <span className="ml-1 font-normal opacity-70">({asCount})</span>}
+              </button>
             );
           })}
-          {aspirations.map((a) => (
-            <Fragment key={a.id}>
-              <div className="flex items-start pt-1">
-                <AspirationBadge number={a.number} />
-              </div>
-              {categories.map((c) => {
-                const key = cellKey(a.id, c.key);
-                const notes = content.notes.filter((n) => n.aspiration_id === a.id && n.category === c.key);
-                return (
+        </div>
+      )}
+
+      {activeAsp && (
+        <div className="overflow-x-auto">
+          <div className="grid min-w-[480px] gap-2" style={{ gridTemplateColumns: `repeat(${categories.length}, minmax(260px, 1fr))` }}>
+            {categories.map((c) => {
+              const total = content.notes.filter((n) => n.aspiration_id === activeAsp.id && n.category === c.key).length;
+              return (
+                <div key={c.key} className="flex items-baseline gap-1.5 px-1 text-xs font-semibold uppercase tracking-wide text-muted">
+                  {c.label}
+                  {total > 0 && <span className="font-normal normal-case text-muted/80">({total})</span>}
+                </div>
+              );
+            })}
+            {categories.map((c) => {
+              const a = activeAsp;
+              const key = cellKey(a.id, c.key);
+              const notes = content.notes.filter((n) => n.aspiration_id === a.id && n.category === c.key);
+              return (
                   <div key={key} className="flex min-h-[110px] flex-col gap-1.5 rounded-lg border border-border bg-black/[0.015] p-2">
                     <div className="flex max-h-40 flex-col gap-1.5 overflow-y-auto">
                       {notes.map((n) => {
@@ -399,10 +426,9 @@ export default function NotasMatriz({ activity, session, aspirations, participan
                   </div>
                 );
               })}
-            </Fragment>
-          ))}
+          </div>
         </div>
-      </div>
+      )}
 
       <SaveIndicator saving={saving} updatedAt={updatedAt} error={saveError} sticky />
     </div>
