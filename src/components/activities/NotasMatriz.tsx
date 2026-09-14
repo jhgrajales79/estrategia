@@ -100,17 +100,12 @@ export default function NotasMatriz({ activity, session, aspirations, participan
     save({ ...content, notes: content.notes.map((n) => (n.id === id ? { ...n, impact } : n)) });
   }
 
-  // Borrar una nota es irreversible (lluvia de ideas silenciosa: el autor puede no
-  // notar de inmediato que perdió su aporte), así que exige un segundo clic dentro de
-  // los siguientes 3s en vez de borrar directo al primer clic.
-  function handleDeleteClick(id: string) {
-    if (confirmDeleteId === id) {
-      removeNote(id);
-      setConfirmDeleteId(null);
-      return;
-    }
+  // Borrar una nota es irreversible (lluvia de ideas silenciosa: el autor puede no notar
+  // de inmediato que perdió su aporte), así que el "✕" no borra directo: cambia por botones
+  // explícitos "Eliminar"/"Cancelar" que se ocultan solos tras unos segundos de inactividad.
+  function armDelete(id: string) {
     setConfirmDeleteId(id);
-    setTimeout(() => setConfirmDeleteId((cur) => (cur === id ? null : cur)), 3000);
+    setTimeout(() => setConfirmDeleteId((cur) => (cur === id ? null : cur)), 4000);
   }
 
   function startEdit(note: Note) {
@@ -338,22 +333,41 @@ export default function NotasMatriz({ activity, session, aspirations, participan
                                   )
                                 ))}
                             </div>
-                            {canEdit && (
-                              <button
-                                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs transition-colors ${
-                                  confirmDeleteId === n.id
-                                    ? "bg-red-600 text-white opacity-100"
-                                    : "text-muted opacity-0 hover:bg-red-50 hover:text-red-600 group-hover:opacity-100"
-                                }`}
-                                title={confirmDeleteId === n.id ? "Clic de nuevo para confirmar" : "Eliminar"}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDeleteClick(n.id);
-                                }}
-                              >
-                                ✕
-                              </button>
-                            )}
+                            {canEdit &&
+                              (confirmDeleteId === n.id ? (
+                                <span className="flex shrink-0 items-center gap-1">
+                                  <button
+                                    className="rounded-full bg-red-600 px-2 py-1 text-[10px] font-semibold text-white hover:bg-red-700"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      removeNote(n.id);
+                                      setConfirmDeleteId(null);
+                                    }}
+                                  >
+                                    Eliminar
+                                  </button>
+                                  <button
+                                    className="rounded-full border border-border px-2 py-1 text-[10px] font-medium text-muted hover:bg-black/5"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setConfirmDeleteId(null);
+                                    }}
+                                  >
+                                    Cancelar
+                                  </button>
+                                </span>
+                              ) : (
+                                <button
+                                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs text-muted opacity-40 transition-opacity hover:bg-red-50 hover:text-red-600 hover:opacity-100 group-hover:opacity-100"
+                                  title="Eliminar"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    armDelete(n.id);
+                                  }}
+                                >
+                                  ✕
+                                </button>
+                              ))}
                           </div>
                         );
                       })}

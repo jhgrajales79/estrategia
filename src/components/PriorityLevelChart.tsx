@@ -18,7 +18,9 @@ const SEMAPHORE: Record<"positive" | "negative", Record<string, string>> = {
 };
 
 // Resumen aparte de las tarjetas: no reorganiza el tablero de post-its, solo cuenta cuántas
-// hay en cada nivel de impacto por categoría, con el color de semáforo correspondiente.
+// hay en cada nivel de impacto por categoría, con el color de semáforo correspondiente. Las
+// notas sin clasificar se cuentan aparte (antes cambia y "medio" a los ojos del facilitador
+// notas que nadie clasificó, escondiendo que faltaba ese paso).
 export default function PriorityLevelChart({
   categories,
   notes,
@@ -28,10 +30,9 @@ export default function PriorityLevelChart({
   notes: NoteLike[];
   dark?: boolean;
 }) {
-  const counts = categories.map((cat) =>
-    LEVELS.map((lvl) => notes.filter((n) => n.category === cat.key && (n.impact ?? "medio") === lvl).length)
-  );
-  const max = Math.max(1, ...counts.flat());
+  const counts = categories.map((cat) => LEVELS.map((lvl) => notes.filter((n) => n.category === cat.key && n.impact === lvl).length));
+  const unclassified = categories.map((cat) => notes.filter((n) => n.category === cat.key && !n.impact).length);
+  const max = Math.max(1, ...counts.flat(), ...unclassified);
 
   return (
     <div className={`mb-6 grid gap-3`} style={{ gridTemplateColumns: `repeat(${Math.min(categories.length, 4)}, minmax(180px, 1fr))` }}>
@@ -65,6 +66,21 @@ export default function PriorityLevelChart({
                   </div>
                 );
               })}
+              {unclassified[ci] > 0 && (
+                <div className="flex items-center gap-2 text-xs">
+                  <span className={`w-12 shrink-0 font-medium italic ${dark ? "text-white/40" : "text-muted"}`}>Sin clasif.</span>
+                  <div
+                    className="h-3 flex-1 overflow-hidden rounded-full"
+                    style={{ backgroundColor: dark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)" }}
+                  >
+                    <div
+                      className={`h-full rounded-full border border-dashed transition-all duration-300 ease-out ${dark ? "border-white/30" : "border-black/20"}`}
+                      style={{ width: `${(unclassified[ci] / max) * 100}%` }}
+                    />
+                  </div>
+                  <span className={`w-5 shrink-0 text-right font-bold ${dark ? "text-white/50" : "text-muted"}`}>{unclassified[ci]}</span>
+                </div>
+              )}
             </div>
           </div>
         );
