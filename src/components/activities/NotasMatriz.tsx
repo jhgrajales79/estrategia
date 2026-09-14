@@ -52,6 +52,7 @@ export default function NotasMatriz({ activity, session, aspirations, participan
     { notes: [], external_link: defaultLink }
   );
   const [draft, setDraft] = useState<Record<string, string>>({});
+  const [draftImpact, setDraftImpact] = useState<Record<string, Impact>>({});
   const [editing, setEditing] = useState<Record<string, string>>({});
   const [copied, setCopied] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -91,16 +92,22 @@ export default function NotasMatriz({ activity, session, aspirations, participan
       author: participant.name,
       author_id: participant.id,
       text,
-      // El impacto se marca después, sobre la nota ya registrada (ver setImpact) — no se
-      // preselecciona "medio" al escribir para no sugerir una calificación antes de que la
-      // persona haya decidido una.
-      impact: undefined,
+      // El nivel de impacto se elige junto al campo de texto, en el mismo gesto de
+      // registrar la nota — pero nunca queda preseleccionado en "medio": si la persona no
+      // tocó ningún nivel, la nota se guarda sin clasificar (igual se puede calificar
+      // después con setImpact).
+      impact: draftImpact[key],
     };
     save(
       { ...content, notes: [...content.notes, note] },
       { eventType: "nota", summary: `${participant.name} agregó una nota en "${activity.title}"` }
     );
     setDraft((d) => ({ ...d, [key]: "" }));
+    setDraftImpact((d) => {
+      const next = { ...d };
+      delete next[key];
+      return next;
+    });
   }
 
   function removeNote(id: string) {
@@ -291,8 +298,9 @@ export default function NotasMatriz({ activity, session, aspirations, participan
               const key = cellKey(a.id, c.key);
               const notes = content.notes.filter((n) => n.aspiration_id === a.id && n.category === c.key);
               return (
-                  <div key={key} className="flex min-h-[110px] flex-col gap-1.5 rounded-lg border border-border bg-black/[0.015] p-2">
-                    <div className="flex max-h-40 flex-col gap-1.5 overflow-y-auto">
+                  <div key={key} className="flex min-h-[110px] flex-col gap-2">
+                    {notes.length > 0 && (
+                    <div className="flex max-h-40 flex-col gap-1.5 overflow-y-auto rounded-lg border border-border bg-black/[0.015] p-2">
                       {notes.map((n) => {
                         const canEdit = presenter || (n.author_id ? n.author_id === participant.id : n.author === participant.name);
                         if (editing[n.id] !== undefined) {
@@ -399,10 +407,14 @@ export default function NotasMatriz({ activity, session, aspirations, participan
                         );
                       })}
                     </div>
+                    )}
+                    {/* El campo para escribir y su nivel de impacto viven fuera de la caja de
+                        notas ya registradas (arriba) — así el registro de una idea nueva no
+                        compite por espacio con la lista, que además puede tener scroll. */}
                     {myNotesInCell(a.id, c.key) < maxNotesPerCell ? (
-                      <div>
+                      <div className="rounded-lg border border-dashed border-border p-2">
                         <input
-                          className="w-full rounded-md border border-dashed border-border bg-transparent px-2 py-1 text-xs placeholder:text-muted focus:border-solid focus:border-brand/50 focus:outline-none"
+                          className="w-full rounded-md border border-border bg-card px-2 py-1.5 text-xs placeholder:text-muted focus:border-brand/50 focus:outline-none"
                           placeholder={c.maxLength ?? maxTextLength ? `+ Agregar… (máx. ${c.maxLength ?? maxTextLength} caracteres)` : "+ Agregar…"}
                           value={draft[key] ?? ""}
                           maxLength={c.maxLength ?? maxTextLength}
@@ -414,6 +426,32 @@ export default function NotasMatriz({ activity, session, aspirations, participan
                           <p className="mt-0.5 text-right text-[10px] text-muted">
                             {(draft[key] ?? "").length}/{c.maxLength ?? maxTextLength}
                           </p>
+                        )}
+                        {impactLevels && (
+                          <div className="mt-1.5 flex flex-wrap items-center gap-1">
+                            <span className="text-[10px] italic text-muted">Impacto: </span>
+                            {IMPACT_ORDER.map((lvl) => {
+                              const meta = IMPACT_META[lvl];
+                              const active = draftImpact[key] === lvl;
+                              return (
+                                <button
+                                  key={lvl}
+                                  type="button"
+                                  className={`flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-medium transition-colors ${
+                                    active ? `border-current ${meta.text} bg-card` : "border-dashed border-border text-muted hover:border-current"
+                                  }`}
+                                  // El input de texto se guarda en su onBlur — sin esto, el clic en el
+                                  // nivel le quitaría el foco al input primero y dispararía ese guardado
+                                  // (con el nivel todavía sin marcar) antes de que este onClick corriera.
+                                  onMouseDown={(e) => e.preventDefault()}
+                                  onClick={() => setDraftImpact((d) => ({ ...d, [key]: lvl }))}
+                                >
+                                  <span className={`h-1.5 w-1.5 rounded-full ${active ? meta.dot : "bg-black/15"}`} />
+                                  {meta.label}
+                                </button>
+                              );
+                            })}
+                          </div>
                         )}
                       </div>
                     ) : (
