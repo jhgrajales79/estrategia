@@ -6,6 +6,7 @@ import IdeaCloudView from "@/components/IdeaCloudView";
 import NotesBoardView from "@/components/NotesBoardView";
 import PriorityLevelChart from "@/components/PriorityLevelChart";
 import ConnectionsWebView from "@/components/ConnectionsWebView";
+import CapabilityWheelView from "@/components/CapabilityWheelView";
 import RadarContextoResults from "@/components/results/RadarContextoResults";
 import { axisColor } from "@/components/RadarChartView";
 import { isHeicUrl, isVideoUrl } from "@/lib/media";
@@ -178,6 +179,17 @@ function FieldGrid({ fields, values }: { fields: { key: string; label: string }[
   );
 }
 
+const WEIGHT_TARGET = 1;
+const WEIGHT_TOLERANCE = 0.02;
+function parseThreshold(hint?: string): number | null {
+  if (!hint) return null;
+  const m = hint.match(/([\d.]+)/);
+  return m ? Number(m[1]) : null;
+}
+function ratingLabelFor(ratingLabels: { value: number; label: string }[] | undefined, value: number): string | null {
+  return ratingLabels?.find((rl) => rl.value === value)?.label ?? null;
+}
+
 function asArray<T = unknown>(v: unknown): T[] {
   return Array.isArray(v) ? (v as T[]) : [];
 }
@@ -319,7 +331,7 @@ function renderContent(activity: ActivityRow, content: Record<string, unknown>, 
         });
         return <BarChart bars={totals.sort((a, b) => b.value - a.value).map((t) => ({ ...t, colorClass: "bg-brand" }))} />;
       }
-      const rows = asArray<Record<string, unknown>>(content.rows);
+      const rows = asArray<Record<string, unknown>>(content.rows).filter((r) => str(r.factor).trim() !== "");
       if (rows.length === 0) return <Empty />;
       const withScore = rows.map((r) => {
         const peso = Number(r.peso ?? 0);
@@ -332,32 +344,100 @@ function renderContent(activity: ActivityRow, content: Record<string, unknown>, 
           contrib: peso * calificacion,
         };
       });
+      const pesoTotal = withScore.reduce((a, r) => a + r.peso, 0);
       const total = withScore.reduce((a, r) => a + r.contrib, 0);
+      const pesoOk = Math.abs(pesoTotal - WEIGHT_TARGET) <= WEIGHT_TOLERANCE;
       const maxContrib = Math.max(0.0001, ...withScore.map((r) => r.contrib));
       const interpretHint = str(config.interpretHint);
+      const threshold = parseThreshold(interpretHint);
+      const isStrong = threshold !== null ? total > threshold : null;
+      const ratingLabels = config.ratingLabels as { value: number; label: string }[] | undefined;
+      const ranked = [...withScore].sort((a, b) => b.contrib - a.contrib);
+      // Mismo tablero (pesos, puntaje ponderado, ranking y tabla completa) que ve el
+      // facilitador en /matriz — antes esta vista solo mostraba una lista simplificada.
       return (
-        <div className="space-y-3">
-          <div className="space-y-2">
-            {[...withScore]
-              .sort((a, b) => b.contrib - a.contrib)
-              .map((r, i) => (
+        <div className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-lg border border-border bg-black/[0.015] p-3">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-semibold uppercase tracking-wide text-muted">Peso total</span>
+                <span className={`font-bold ${pesoOk ? "text-brand-dark" : "text-red-600"}`}>
+                  {pesoTotal.toFixed(2)} / {WEIGHT_TARGET.toFixed(2)}
+                </span>
+              </div>
+              <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-black/10">
+                <div
+                  className={`h-full rounded-full transition-all ${pesoOk ? "bg-brand" : "bg-amber-500"}`}
+                  style={{ width: `${Math.min((pesoTotal / WEIGHT_TARGET) * 100, 100)}%` }}
+                />
+              </div>
+            </div>
+            <div className="rounded-lg border border-border bg-black/[0.015] p-3">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-semibold uppercase tracking-wide text-muted">Puntaje ponderado total</span>
+                <span className="text-sm font-bold text-foreground">{total.toFixed(2)}</span>
+              </div>
+              {isStrong !== null ? (
+                <p className={`mt-1.5 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${isStrong ? "bg-brand/10 text-brand-dark" : "bg-amber-50 text-amber-700"}`}>
+                  {isStrong ? "🟢 Posición relativamente fuerte" : "🟠 Posición relativamente débil"}
+                </p>
+              ) : (
+                <p className="mt-1.5 text-[11px] text-muted">Sin factores suficientes para interpretar.</p>
+              )}
+              {interpretHint && <p className="mt-1 text-[11px] text-muted">{interpretHint}</p>}
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-border bg-black/[0.015] p-3">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Puntaje ponderado por factor</p>
+            <div className="space-y-1.5">
+              {ranked.map((r, i) => (
                 <div key={i} className="flex items-center gap-2 text-sm">
-                  <span className="flex min-w-0 flex-1 items-center gap-1 truncate">
+                  <span className="flex w-40 min-w-0 shrink-0 items-center gap-1 truncate" title={r.factor}>
                     <AspTag aspirations={aspirations} id={r.aspiration_id} />
                     {r.factor}
                   </span>
-                  <div className="h-1.5 w-20 shrink-0 overflow-hidden rounded-full bg-black/5">
-                    <div className="h-full rounded-full bg-brand" style={{ width: `${(r.contrib / maxContrib) * 100}%` }} />
+                  <div className="h-3 flex-1 overflow-hidden rounded bg-black/5">
+                    <div className="h-full rounded transition-all" style={{ width: `${(r.contrib / maxContrib) * 100}%`, backgroundColor: axisColor(i) }} />
                   </div>
-                  <span className="w-28 shrink-0 text-right text-xs text-muted">
-                    {r.peso} × {r.calificacion} = {r.contrib.toFixed(2)}
-                  </span>
+                  <span className="w-14 shrink-0 text-right text-xs font-semibold text-foreground">{r.contrib.toFixed(2)}</span>
                 </div>
               ))}
+            </div>
           </div>
-          <div className="rounded-md bg-brand/5 px-3 py-2">
-            <p className="text-sm font-bold text-brand-dark">Total: {total.toFixed(2)}</p>
-            {interpretHint && <p className="mt-0.5 text-xs text-muted">{interpretHint}</p>}
+
+          <div className="overflow-x-auto rounded-lg border border-border">
+            <table className="min-w-full text-sm">
+              <thead className="bg-black/[0.03] text-muted">
+                <tr>
+                  <th className="p-2 text-left font-medium">Factor</th>
+                  <th className="p-2 text-left font-medium">Peso</th>
+                  <th className="p-2 text-left font-medium">Calificación</th>
+                  <th className="p-2 text-left font-medium">Ponderado</th>
+                </tr>
+              </thead>
+              <tbody>
+                {withScore.map((r, i) => (
+                  <tr key={i} className="border-t border-border">
+                    <td className="p-2 text-foreground">{r.factor}</td>
+                    <td className="p-2 text-foreground">{r.peso.toFixed(2)}</td>
+                    <td className="p-2 text-foreground">
+                      {r.calificacion}
+                      {ratingLabelFor(ratingLabels, r.calificacion) && (
+                        <span className="ml-1 text-xs text-muted">— {ratingLabelFor(ratingLabels, r.calificacion)}</span>
+                      )}
+                    </td>
+                    <td className="p-2 font-semibold text-foreground">{r.contrib.toFixed(2)}</td>
+                  </tr>
+                ))}
+                <tr className="border-t border-border bg-black/[0.03] font-semibold text-foreground">
+                  <td className="p-2">Totales</td>
+                  <td className="p-2">{pesoTotal.toFixed(2)}</td>
+                  <td className="p-2" />
+                  <td className="p-2">{total.toFixed(2)}</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
       );
@@ -396,14 +476,41 @@ function renderContent(activity: ActivityRow, content: Record<string, unknown>, 
     }
 
     case "rueda_evaluacion": {
-      const items = asArray<Record<string, unknown>>(content.items);
-      if (items.length === 0) return <Empty />;
+      const rawItems = asArray<Record<string, unknown>>(content.items);
+      if (rawItems.length === 0) return <Empty />;
       const scaleMax = Number(config.scaleMax ?? 5);
+      const items = rawItems.map((it) => ({ id: str(it.id), label: str(it.label), score: Number(it.score ?? 0), note: str(it.note) || undefined }));
+      const average = items.reduce((a, it) => a + it.score, 0) / items.length;
+      // Misma rueda de capacidades que ve el facilitador en /rueda, en vez del bar chart
+      // genérico — el nombre "rueda" es literal: un radar, no una lista de barras.
       return (
-        <BarChart
-          bars={items.map((it) => ({ label: str(it.label), value: Number(it.score ?? 0), colorClass: "bg-brand" }))}
-          unit={`/${scaleMax}`}
-        />
+        <div className="flex flex-col items-center gap-6 md:flex-row md:items-start md:justify-center">
+          <CapabilityWheelView items={items} scaleMax={scaleMax} size={large ? 340 : 240} />
+          <div className="w-full max-w-md shrink-0 space-y-2">
+            <p className="text-xs text-muted">
+              Promedio {average.toFixed(1)}/{scaleMax} · {items.length} {items.length === 1 ? "capacidad" : "capacidades"}
+            </p>
+            {items.map((it, i) => (
+              <div key={it.id} className="flex items-start gap-3 rounded-lg border border-border bg-black/[0.015] p-2.5">
+                <span
+                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
+                  style={{ backgroundColor: axisColor(i) }}
+                >
+                  {i + 1}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-semibold text-foreground">{it.label}</p>
+                    <span className="shrink-0 text-sm font-bold text-brand-dark">
+                      {it.score}/{scaleMax}
+                    </span>
+                  </div>
+                  {it.note && <p className="mt-0.5 text-xs text-muted">{it.note}</p>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       );
     }
 
