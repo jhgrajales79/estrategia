@@ -410,7 +410,10 @@ function SimpleMatrix({
         </div>
       )}
 
-      {canEdit && importFactorsFrom && perAspiration && (
+      {importFactorsFrom && perAspiration && (
+        // Visible tanto para participantes como para el facilitador: si el facilitador lo
+        // ejecuta, importa a la aspiración de la pestaña activa (misma submission
+        // compartida), y los participantes ven de inmediato las filas importadas.
         <div className="flex flex-wrap items-center gap-2">
           <button
             className={btnPrimary}
