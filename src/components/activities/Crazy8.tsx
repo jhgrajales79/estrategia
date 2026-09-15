@@ -35,7 +35,7 @@ const PHASE_META: Record<Phase, { label: string; icon: string; badge: string }> 
 
 const MEDALS = ["🥇", "🥈", "🥉"];
 const SLOTS = [1, 2, 3, 4, 5, 6, 7, 8];
-const MAX_STARS = 3;
+const MAX_STARS = 2;
 
 export default function Crazy8({ activity, session, participant }: ActivityComponentProps) {
   const pointsPerPerson = (activity.config.pointsPerPerson as number) ?? 3;
