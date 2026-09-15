@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useSubmission, effectiveAspirationId } from "@/lib/useSubmission";
 import { isPresenter } from "@/lib/presenter";
+import { supabase } from "@/lib/supabase";
 import BarChart from "@/components/charts/BarChart";
 import { ActivityComponentProps, btnPrimary, btnGhost, SaveIndicator, PresenterHint, uid } from "./shared";
 
@@ -34,6 +35,7 @@ const PHASE_META: Record<Phase, { label: string; icon: string; badge: string }> 
 
 const MEDALS = ["🥇", "🥈", "🥉"];
 const SLOTS = [1, 2, 3, 4, 5, 6, 7, 8];
+const MAX_STARS = 3;
 
 export default function Crazy8({ activity, session, participant }: ActivityComponentProps) {
   const pointsPerPerson = (activity.config.pointsPerPerson as number) ?? 3;
@@ -48,13 +50,14 @@ export default function Crazy8({ activity, session, participant }: ActivityCompo
     { candidates: [], votes: [], phase: "sketch" }
   );
   const [drafts, setDrafts] = useState<Record<number, string>>({});
+  const [starLimitMsg, setStarLimitMsg] = useState<string | null>(null);
 
   if (!loaded) return <p className="text-sm text-muted">Cargando…</p>;
 
   const phase = content.phase ?? "sketch";
   const myIdeas = content.candidates.filter((c) => c.author === participant.name);
   const myFilled = myIdeas.filter((c) => c.text.trim()).length;
-  const myStarred = myIdeas.find((c) => c.starred);
+  const myStarredList = myIdeas.filter((c) => c.starred);
   const myVotes = content.votes.filter((v) => v.participant_id === participant.id);
   const myRemaining = pointsPerPerson - myVotes.reduce((a, v) => a + v.points, 0);
 
@@ -71,20 +74,41 @@ export default function Crazy8({ activity, session, participant }: ActivityCompo
     save({ ...content, phase: next });
   }
 
-  function commitSlot(slot: number, rawText: string) {
+  // Todos los participantes comparten una sola submission (no hay una fila por persona), así
+  // que dos personas escribiendo/marcando/votando casi a la vez pueden pisarse: el `content`
+  // local de React solo se refresca cuando llega el eco de tiempo real, así que construir el
+  // cambio sobre ese `content` puede partir de datos ya desactualizados y borrar en silencio lo
+  // que la otra persona acababa de guardar. Para evitar eso, cada mutación relee la fila más
+  // reciente directo de Supabase justo antes de aplicar su propio cambio y guardar.
+  async function withLatestContent(
+    mutate: (latest: Content) => Content | null,
+    opts?: { eventType?: string; summary?: string }
+  ) {
+    const { data } = await supabase
+      .from("submissions")
+      .select("content")
+      .eq("activity_id", activity.id)
+      .is("aspiration_id", null)
+      .maybeSingle();
+    const latest: Content = { candidates: [], votes: [], phase: "sketch", ...(data?.content as Partial<Content> | undefined) };
+    const next = mutate(latest);
+    if (next) await save(next, opts);
+  }
+
+  async function commitSlot(slot: number, rawText: string) {
     const text = rawText.trim();
-    const existing = content.candidates.find((c) => c.author === participant.name && c.slot === slot);
-    let candidates: Candidate[];
-    if (!text) {
-      candidates = existing ? content.candidates.filter((c) => c !== existing) : content.candidates;
-      if (!existing) return;
-    } else if (existing) {
-      if (existing.text === text) return;
-      candidates = content.candidates.map((c) => (c === existing ? { ...c, text } : c));
-    } else {
-      candidates = [...content.candidates, { id: uid(), text, author: participant.name, slot, starred: false }];
-    }
-    save({ ...content, candidates });
+    await withLatestContent((latest) => {
+      const existing = latest.candidates.find((c) => c.author === participant.name && c.slot === slot);
+      if (!text) {
+        if (!existing) return null;
+        return { ...latest, candidates: latest.candidates.filter((c) => c !== existing) };
+      }
+      if (existing) {
+        if (existing.text === text) return null;
+        return { ...latest, candidates: latest.candidates.map((c) => (c === existing ? { ...c, text } : c)) };
+      }
+      return { ...latest, candidates: [...latest.candidates, { id: uid(), text, author: participant.name, slot, starred: false }] };
+    });
     setDrafts((d) => {
       const next = { ...d };
       delete next[slot];
@@ -92,37 +116,72 @@ export default function Crazy8({ activity, session, participant }: ActivityCompo
     });
   }
 
-  function toggleStar(slot: number) {
-    const target = myIdeas.find((c) => c.slot === slot);
-    if (!target || !target.text.trim()) return;
-    const nextStarred = !target.starred;
-    const candidates = content.candidates.map((c) =>
-      c.author === participant.name ? { ...c, starred: c.slot === slot ? nextStarred : false } : c
-    );
-    save({ ...content, candidates });
+  async function toggleStar(slot: number) {
+    // El texto puede no estar guardado todavía (la persona marcó la estrella antes de salir
+    // del campo): se usa el borrador local para poder crear/estrellar la idea en un solo paso.
+    const draftText = drafts[slot];
+    setStarLimitMsg(null);
+    await withLatestContent((latest) => {
+      const existing = latest.candidates.find((c) => c.author === participant.name && c.slot === slot);
+      const text = (draftText ?? existing?.text ?? "").trim();
+      if (!text) return null;
+      const isStarred = existing?.starred ?? false;
+      if (!isStarred) {
+        const myStarredCount = latest.candidates.filter((c) => c.author === participant.name && c.starred).length;
+        if (myStarredCount >= MAX_STARS) {
+          setStarLimitMsg(`Ya marcaste ${MAX_STARS} favoritas — quita una para elegir otra.`);
+          return null;
+        }
+      }
+      if (existing) {
+        return {
+          ...latest,
+          candidates: latest.candidates.map((c) => (c === existing ? { ...c, text, starred: !isStarred } : c)),
+        };
+      }
+      return { ...latest, candidates: [...latest.candidates, { id: uid(), text, author: participant.name, slot, starred: true }] };
+    });
+    if (draftText !== undefined) {
+      setDrafts((d) => {
+        const next = { ...d };
+        delete next[slot];
+        return next;
+      });
+    }
   }
 
   function myPointsOn(candidateId: string) {
     return content.votes.find((v) => v.participant_id === participant.id && v.candidate_id === candidateId)?.points ?? 0;
   }
 
-  function addPoint(candidateId: string) {
+  async function addPoint(candidateId: string) {
     if (myRemaining <= 0) return;
-    const existing = content.votes.find((v) => v.participant_id === participant.id && v.candidate_id === candidateId);
-    const votes = existing
-      ? content.votes.map((v) => (v === existing ? { ...v, points: v.points + 1 } : v))
-      : [...content.votes, { participant_id: participant.id, participant_name: participant.name, candidate_id: candidateId, points: 1 }];
-    save({ ...content, votes }, { eventType: "voto", summary: `${participant.name} votó en "${activity.title}"` });
+    await withLatestContent(
+      (latest) => {
+        const used = latest.votes
+          .filter((v) => v.participant_id === participant.id)
+          .reduce((a, v) => a + v.points, 0);
+        if (used >= pointsPerPerson) return null;
+        const existing = latest.votes.find((v) => v.participant_id === participant.id && v.candidate_id === candidateId);
+        const votes = existing
+          ? latest.votes.map((v) => (v === existing ? { ...v, points: v.points + 1 } : v))
+          : [...latest.votes, { participant_id: participant.id, participant_name: participant.name, candidate_id: candidateId, points: 1 }];
+        return { ...latest, votes };
+      },
+      { eventType: "voto", summary: `${participant.name} votó en "${activity.title}"` }
+    );
   }
 
-  function removePoint(candidateId: string) {
-    const existing = content.votes.find((v) => v.participant_id === participant.id && v.candidate_id === candidateId);
-    if (!existing) return;
-    const votes =
-      existing.points <= 1
-        ? content.votes.filter((v) => v !== existing)
-        : content.votes.map((v) => (v === existing ? { ...v, points: v.points - 1 } : v));
-    save({ ...content, votes });
+  async function removePoint(candidateId: string) {
+    await withLatestContent((latest) => {
+      const existing = latest.votes.find((v) => v.participant_id === participant.id && v.candidate_id === candidateId);
+      if (!existing) return null;
+      const votes =
+        existing.points <= 1
+          ? latest.votes.filter((v) => v !== existing)
+          : latest.votes.map((v) => (v === existing ? { ...v, points: v.points - 1 } : v));
+      return { ...latest, votes };
+    });
   }
 
   const meta = PHASE_META[phase];
@@ -172,13 +231,16 @@ export default function Crazy8({ activity, session, participant }: ActivityCompo
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <p className="text-sm text-muted">
               <strong className="text-foreground">{myFilled}/8</strong> ideas ·{" "}
-              {myStarred ? (
-                <span className="text-brand-dark">⭐ favorita marcada</span>
+              {myStarredList.length > 0 ? (
+                <span className="text-brand-dark">
+                  ⭐ {myStarredList.length}/{MAX_STARS} favoritas marcadas
+                </span>
               ) : (
-                <span>marca tu favorita ⭐ antes de la galería</span>
+                <span>marca hasta {MAX_STARS} favoritas ⭐ antes de la galería</span>
               )}
             </p>
           </div>
+          {starLimitMsg && <p className="mb-3 text-xs text-amber-700">{starLimitMsg}</p>}
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             {SLOTS.map((slot) => {
               const mine = myIdeas.find((c) => c.slot === slot);
@@ -193,7 +255,11 @@ export default function Crazy8({ activity, session, participant }: ActivityCompo
                     {text.trim() && (
                       <button
                         className={`text-sm leading-none ${mine?.starred ? "" : "opacity-40 hover:opacity-100"}`}
-                        title="Marcar como mi favorita"
+                        title="Marcar como favorita"
+                        // Evita que el clic le quite el foco al input de texto primero: si eso
+                        // pasara, dispararía su guardado (onBlur) justo antes de que esto
+                        // corriera, compitiendo por escribir la misma idea al mismo tiempo.
+                        onMouseDown={(e) => e.preventDefault()}
                         onClick={() => toggleStar(slot)}
                       >
                         {mine?.starred ? "⭐" : "☆"}
@@ -218,7 +284,7 @@ export default function Crazy8({ activity, session, participant }: ActivityCompo
           </div>
           {presenter && (
             <p className="mt-4 text-xs text-muted">
-              {authorsStarted} personas ya escribieron ideas · {authorsStarred} ya marcaron su favorita. Cuando el
+              {authorsStarted} personas ya escribieron ideas · {authorsStarred} ya marcaron alguna favorita. Cuando el
               grupo esté listo, abre la galería (solo se vota lo marcado con ⭐).
             </p>
           )}
