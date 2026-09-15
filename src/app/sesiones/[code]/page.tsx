@@ -8,6 +8,7 @@ import { logActivity } from "@/lib/feed";
 import { isPresenter } from "@/lib/presenter";
 import type { ActivityRow, Aspiration, OutputRow, SessionRow } from "@/lib/types";
 import ActivityCard from "@/components/ActivityCard";
+import SessionBackupPanel from "@/components/SessionBackupPanel";
 import { aspClasses, findAspiration } from "@/lib/aspirationStyle";
 import { ToggleSwitch, LockBadge } from "@/components/activities/shared";
 
@@ -168,6 +169,12 @@ export default function SessionDetailPage({ params }: { params: Promise<{ code: 
           </div>
         </div>
         {session.objective && <p className="mt-2 text-sm text-foreground">{session.objective}</p>}
+
+        {presenter && (
+          <div className="mt-3 border-t border-border pt-3">
+            <SessionBackupPanel session={session} />
+          </div>
+        )}
 
         {presenter && confirmReset && (
           <div className="mt-4 flex flex-wrap items-center gap-3 rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-800">

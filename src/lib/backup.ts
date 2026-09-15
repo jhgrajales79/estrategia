@@ -11,7 +11,9 @@ export interface BackupRow {
 
 export interface BackupFile {
   exported_at: string;
-  scope: "actividad" | "sistema";
+  scope: "actividad" | "sesion" | "sistema";
+  session_id?: number;
+  session_code?: string;
   rows: BackupRow[];
 }
 
@@ -23,6 +25,27 @@ export async function exportActivityBackup(activity: { id: number; title: string
     rows: subs.map((s) => ({
       activity_id: s.activity_id,
       activity_title: activity.title,
+      aspiration_id: s.aspiration_id,
+      content: s.content,
+      updated_at: s.updated_at,
+    })),
+  };
+}
+
+export async function exportSessionBackup(session: { id: number; code: string }): Promise<BackupFile> {
+  const { data: activities, error: actError } = await supabase.from("activities").select("id, title").eq("session_id", session.id);
+  if (actError) throw actError;
+  const ids = (activities ?? []).map((a) => a.id as number);
+  const subs = await fetchSubmissionsByActivityIds(ids);
+  const titleById = new Map((activities ?? []).map((a) => [a.id as number, a.title as string]));
+  return {
+    exported_at: new Date().toISOString(),
+    scope: "sesion",
+    session_id: session.id,
+    session_code: session.code,
+    rows: subs.map((s) => ({
+      activity_id: s.activity_id,
+      activity_title: titleById.get(s.activity_id),
       aspiration_id: s.aspiration_id,
       content: s.content,
       updated_at: s.updated_at,
@@ -87,7 +110,13 @@ export function parseBackupFile(text: string): BackupFile {
       throw new Error("Archivo inválido: cada fila necesita 'activity_id' y 'content'.");
     }
   }
-  return { exported_at: obj.exported_at ?? new Date().toISOString(), scope: obj.scope ?? "sistema", rows: obj.rows as BackupRow[] };
+  return {
+    exported_at: obj.exported_at ?? new Date().toISOString(),
+    scope: obj.scope ?? "sistema",
+    session_id: obj.session_id,
+    session_code: obj.session_code,
+    rows: obj.rows as BackupRow[],
+  };
 }
 
 // No se usa upsert con onConflict: la tabla tiene dos índices únicos parciales
