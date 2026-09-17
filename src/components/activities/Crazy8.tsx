@@ -195,13 +195,6 @@ export default function Crazy8({ activity, session, participant }: ActivityCompo
             >
               ⛶ Ampliar
             </button>
-            <button
-              className={btnGhost}
-              title="Agrupar ideas parecidas y ver el escalafón de posibles ganadoras"
-              onClick={() => window.open(`/homologado/${activity.id}`, "_blank", "noopener,noreferrer")}
-            >
-              🧩 Tablero homologado
-            </button>
             {phase === "sketch" && (
               <button className={btnPrimary} onClick={() => setPhase("gallery")}>
                 🗳️ Abrir galería y votación
