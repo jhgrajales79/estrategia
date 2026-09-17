@@ -8,7 +8,8 @@ import { fetchActivityById, fetchSessionById } from "@/lib/data";
 import { useSubmission, fetchLatestContent } from "@/lib/useSubmission";
 import { axisColor } from "@/components/RadarChartView";
 import BarChart from "@/components/charts/BarChart";
-import { inputCls, DeleteButton, uid } from "@/components/activities/shared";
+import { inputCls, btnPrimary, DeleteButton, uid } from "@/components/activities/shared";
+import { clusterBySimilarity } from "@/lib/textSimilarity";
 import type { ActivityRow, SessionRow } from "@/lib/types";
 
 interface Candidate {
@@ -47,6 +48,8 @@ export default function HomologadoFullscreenPage({ params }: { params: Promise<{
   const presenter = isPresenter(participant);
   const [activity, setActivity] = useState<ActivityRow | null>(null);
   const [session, setSession] = useState<SessionRow | null>(null);
+  const [autoRunning, setAutoRunning] = useState(false);
+  const [autoMsg, setAutoMsg] = useState<string | null>(null);
 
   useEffect(() => {
     fetchActivityById(Number(activityId)).then((a) => {
@@ -82,6 +85,42 @@ export default function HomologadoFullscreenPage({ params }: { params: Promise<{
     const latest = await fetchLatestContent<Content>(activity!.id, null, EMPTY);
     const next = mutate(latest);
     if (next) await save(next);
+  }
+
+  // Homologación automática: agrupa por parecido de palabras (sin IA, heurística local) las
+  // ideas que sigan sueltas — nunca toca grupos que el facilitador ya armó a mano. Es un punto
+  // de partida: cada grupo sugerido queda con la etiqueta editable de la idea más votada, para
+  // revisar y ajustar después.
+  async function runAutoHomologation() {
+    setAutoRunning(true);
+    setAutoMsg(null);
+    await withLatestContent((latest) => {
+      const latestIdeas = latest.candidates.filter((c) => c.text.trim());
+      const latestGroups = latest.homologatedGroups ?? [];
+      const latestGroupedIds = new Set(latestGroups.flatMap((g) => g.memberIds));
+      const latestUngrouped = latestIdeas.filter((c) => !latestGroupedIds.has(c.id));
+      if (latestUngrouped.length < 2) {
+        setAutoMsg("No hay suficientes ideas sin agrupar para homologar.");
+        return null;
+      }
+      const clusters = clusterBySimilarity(latestUngrouped.map((c) => ({ id: c.id, text: c.text })));
+      if (clusters.length === 0) {
+        setAutoMsg("No se encontraron ideas lo bastante parecidas para agrupar automáticamente.");
+        return null;
+      }
+      const voteTotal = (id: string) => latest.votes.filter((v) => v.candidate_id === id).reduce((a, v) => a + v.points, 0);
+      const newGroups: HomologGroup[] = clusters.map((memberIds) => {
+        const members = memberIds.map((id) => latestUngrouped.find((c) => c.id === id)!).filter(Boolean);
+        const representative = [...members].sort((a, b) => voteTotal(b.id) - voteTotal(a.id) || b.text.length - a.text.length)[0];
+        return { id: uid(), label: representative.text, memberIds };
+      });
+      const groupedCount = newGroups.reduce((a, g) => a + g.memberIds.length, 0);
+      setAutoMsg(
+        `Se ${newGroups.length === 1 ? "creó 1 grupo" : `crearon ${newGroups.length} grupos`} automáticamente a partir de ${groupedCount} ideas parecidas. Revísalos abajo.`
+      );
+      return { ...latest, homologatedGroups: [...latestGroups, ...newGroups] };
+    });
+    setAutoRunning(false);
   }
 
   const ideas = content.candidates.filter((c) => c.text.trim());
@@ -204,8 +243,14 @@ export default function HomologadoFullscreenPage({ params }: { params: Promise<{
 
       <div className="mx-auto mt-6 grid max-w-[1400px] gap-4 lg:grid-cols-2">
         <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
-          <h2 className="mb-1 text-sm font-bold uppercase tracking-wide text-muted">Ideas sin agrupar</h2>
+          <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-sm font-bold uppercase tracking-wide text-muted">Ideas sin agrupar</h2>
+            <button className={btnPrimary} disabled={autoRunning || ungrouped.length < 2} onClick={runAutoHomologation}>
+              {autoRunning ? "Homologando…" : "🤖 Homologar automáticamente"}
+            </button>
+          </div>
           <p className="mb-3 text-xs text-muted">Todas las ideas que escribió el equipo, tal como llegaron.</p>
+          {autoMsg && <p className="mb-3 rounded-md bg-brand/5 px-3 py-2 text-xs text-brand-dark">{autoMsg}</p>}
           {ungrouped.length === 0 ? (
             <p className="text-sm text-muted">
               {ideas.length === 0 ? "Aún no hay ideas registradas." : "Todas las ideas ya quedaron homologadas 🎉"}
