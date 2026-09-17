@@ -15,6 +15,22 @@ export function effectiveAspirationId(
   return participant?.aspiration_id ?? null;
 }
 
+// Para actividades donde varios participantes editan la misma submission compartida
+// (aspiration_id null) casi al mismo tiempo — Crazy 8, PCI, etc. — el `content` que trae el
+// hook puede estar desactualizado en el momento de guardar (solo se refresca con el eco de
+// tiempo real). Releer la fila justo antes de aplicar un cambio puntual evita pisar en
+// silencio lo que otra persona acababa de guardar.
+export async function fetchLatestContent<T extends Record<string, unknown>>(
+  activityId: number,
+  aspirationId: number | null,
+  emptyContent: T
+): Promise<T> {
+  let query = supabase.from("submissions").select("content").eq("activity_id", activityId);
+  query = aspirationId === null ? query.is("aspiration_id", null) : query.eq("aspiration_id", aspirationId);
+  const { data } = await query.maybeSingle();
+  return { ...emptyContent, ...(data?.content as Partial<T> | undefined) };
+}
+
 interface UseSubmissionResult<T> {
   content: T;
   setContent: (next: T) => void;

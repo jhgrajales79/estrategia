@@ -1,9 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useSubmission, effectiveAspirationId } from "@/lib/useSubmission";
+import { useSubmission, effectiveAspirationId, fetchLatestContent } from "@/lib/useSubmission";
 import { isPresenter } from "@/lib/presenter";
-import { supabase } from "@/lib/supabase";
 import BarChart from "@/components/charts/BarChart";
 import { ActivityComponentProps, btnPrimary, btnGhost, SaveIndicator, PresenterHint, uid } from "./shared";
 
@@ -84,13 +83,7 @@ export default function Crazy8({ activity, session, participant }: ActivityCompo
     mutate: (latest: Content) => Content | null,
     opts?: { eventType?: string; summary?: string }
   ) {
-    const { data } = await supabase
-      .from("submissions")
-      .select("content")
-      .eq("activity_id", activity.id)
-      .is("aspiration_id", null)
-      .maybeSingle();
-    const latest: Content = { candidates: [], votes: [], phase: "sketch", ...(data?.content as Partial<Content> | undefined) };
+    const latest = await fetchLatestContent<Content>(activity.id, null, { candidates: [], votes: [], phase: "sketch" });
     const next = mutate(latest);
     if (next) await save(next, opts);
   }
@@ -201,6 +194,13 @@ export default function Crazy8({ activity, session, participant }: ActivityCompo
               onClick={() => window.open(`/ideas/${activity.id}`, "_blank", "noopener,noreferrer")}
             >
               ⛶ Ampliar
+            </button>
+            <button
+              className={btnGhost}
+              title="Agrupar ideas parecidas y ver el escalafón de posibles ganadoras"
+              onClick={() => window.open(`/homologado/${activity.id}`, "_blank", "noopener,noreferrer")}
+            >
+              🧩 Tablero homologado
             </button>
             {phase === "sketch" && (
               <button className={btnPrimary} onClick={() => setPhase("gallery")}>
