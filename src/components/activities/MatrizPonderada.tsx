@@ -23,10 +23,12 @@ interface SimpleRow {
   peso: number;
   calificacion: number;
   aspiration_id: number | null;
-  // Categoría de origen (fortaleza/debilidad) cuando la fila viene de un import de PCI —
-  // se conserva aunque el equipo edite factor/calificación, para que el Cierre pueda
-  // filtrar debilidades de forma confiable sin adivinar a partir de la calificación.
-  category?: "fortaleza" | "debilidad";
+  // Categoría de origen (p. ej. fortaleza/debilidad desde el PCI, u oportunidad/amenaza desde
+  // el POAM) cuando la fila viene de una importación — se conserva aunque el equipo edite
+  // factor/calificación, para que un cierre posterior pueda filtrar por ella de forma
+  // confiable sin adivinar a partir de la calificación. La categoría "positiva" y "negativa"
+  // concretas las define `importCategories` en el config de cada actividad (ver abajo).
+  category?: string;
   sourceAuthor?: string;
 }
 interface RatingLabel {
@@ -262,6 +264,14 @@ function SimpleMatrix({
   const ratingLabels = activity.config.ratingLabels as RatingLabel[] | undefined;
   const perAspiration = Boolean(activity.config.perAspiration);
   const importFactorsFrom = activity.config.importFactorsFrom as number | undefined;
+  // Qué par de categorías de la actividad de origen se importan como factor "fuerte" vs.
+  // "débil" — por defecto fortaleza/debilidad (PCI → EFI), pero una actividad como Matriz EFE
+  // puede apuntar en cambio a oportunidad/amenaza (POAM → EFE) sin tocar este componente.
+  const importCategories = (activity.config.importCategories as { positive: string; negative: string } | undefined) ?? {
+    positive: "fortaleza",
+    negative: "debilidad",
+  };
+  const importLabel = (activity.config.importLabel as string | undefined) ?? "PCI";
   // No hay (todavía) una asignación real de aspiración por participante — todos
   // se registran con aspiration_id null — así que las pestañas son de libre elección:
   // cada equipo se ubica en la que le corresponde y trabaja ahí, sin restricción por identidad.
@@ -311,28 +321,31 @@ function SimpleMatrix({
       return;
     }
     const notes = ((data?.content as { notes?: PciNote[] } | null)?.notes ?? []).filter(
-      (n) => n.impact === "alto" && (n.category === "fortaleza" || n.category === "debilidad") && n.aspiration_id === submissionAspId
+      (n) =>
+        n.impact === "alto" &&
+        (n.category === importCategories.positive || n.category === importCategories.negative) &&
+        n.aspiration_id === submissionAspId
     );
     const existing = new Set(rows.map((r) => r.factor.trim().toLowerCase()));
-    const fortalezaValue = ratingLabels?.find((rl) => rl.label.toLowerCase().includes("fortaleza mayor"))?.value ?? scaleMax;
-    const debilidadValue = ratingLabels?.find((rl) => rl.label.toLowerCase().includes("debilidad mayor"))?.value ?? 1;
+    const positiveValue = ratingLabels?.find((rl) => rl.label.toLowerCase().includes(`${importCategories.positive} mayor`))?.value ?? scaleMax;
+    const negativeValue = ratingLabels?.find((rl) => rl.label.toLowerCase().includes(`${importCategories.negative} mayor`))?.value ?? 1;
     const newRows: SimpleRow[] = notes
       .filter((n) => !existing.has(n.text.trim().toLowerCase()))
       .map((n) => ({
         id: uid(),
         factor: n.text.trim(),
         peso: 0,
-        calificacion: n.category === "fortaleza" ? fortalezaValue : debilidadValue,
+        calificacion: n.category === importCategories.positive ? positiveValue : negativeValue,
         aspiration_id: submissionAspId,
-        category: n.category as "fortaleza" | "debilidad",
+        category: n.category,
         sourceAuthor: n.author,
       }));
     if (newRows.length === 0) {
-      setImportMsg("No hay factores nuevos de alto impacto por importar desde el PCI para esta aspiración.");
+      setImportMsg(`No hay factores nuevos de alto impacto por importar desde el ${importLabel} para esta aspiración.`);
       return;
     }
     save({ ...content, rows: [...rows, ...newRows] });
-    setImportMsg(`Se importaron ${newRows.length} ${newRows.length === 1 ? "factor" : "factores"} desde el PCI.`);
+    setImportMsg(`Se importaron ${newRows.length} ${newRows.length === 1 ? "factor" : "factores"} desde el ${importLabel}.`);
   }
   function setRow(id: string, patch: Partial<SimpleRow>) {
     save({ ...content, rows: rows.map((r) => (r.id === id ? { ...r, ...patch } : r)) });
@@ -421,7 +434,7 @@ function SimpleMatrix({
             title={submissionAspId === null ? "Elige primero una pestaña de aspiración arriba" : undefined}
             onClick={importFromPci}
           >
-            {importing ? "Importando…" : "⬇ Importar del PCI (alto impacto)"}
+            {importing ? "Importando…" : `⬇ Importar del ${importLabel} (alto impacto)`}
           </button>
           {importMsg && <span className="text-xs text-muted">{importMsg}</span>}
         </div>

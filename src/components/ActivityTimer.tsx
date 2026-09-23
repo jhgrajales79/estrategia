@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState, type MouseEvent } from "react";
+import { useEffect, useRef, type MouseEvent } from "react";
 import { supabase } from "@/lib/supabase";
+import { useServerNow, serverNow } from "@/lib/useServerClock";
 import type { ActivityRow } from "@/lib/types";
 
 function formatTime(totalSeconds: number) {
@@ -39,12 +40,7 @@ function playBeep() {
 }
 
 function useActivityRemaining(activity: ActivityRow, totalSeconds: number) {
-  const [nowMs, setNowMs] = useState(() => Date.now());
-
-  useEffect(() => {
-    const id = setInterval(() => setNowMs(Date.now()), 250);
-    return () => clearInterval(id);
-  }, []);
+  const nowMs = useServerNow();
 
   const status = activity.timer_status ?? "idle";
   let remaining: number;
@@ -100,7 +96,7 @@ export default function ActivityTimer({
   async function start(e: MouseEvent) {
     e.stopPropagation();
     const secs = status === "paused" ? activity.timer_remaining_seconds ?? totalSeconds : totalSeconds;
-    const endAt = new Date(Date.now() + secs * 1000).toISOString();
+    const endAt = new Date(serverNow() + secs * 1000).toISOString();
     await supabase
       .from("activities")
       .update({ timer_status: "running", timer_end_at: endAt, timer_remaining_seconds: null })

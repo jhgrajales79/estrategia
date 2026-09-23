@@ -103,6 +103,19 @@ export function uid() {
   return Math.random().toString(36).slice(2, 10);
 }
 
+// Etiqueta de oportunidad/amenaza para actividades tipo "notas" (p. ej. Mundo café) que activan
+// `config.polarityTags` — compartida entre el tablero en vivo (NotasColectivas) y las vistas de
+// solo lectura (NotesBoardView / fullscreen) para que ambas la pinten igual.
+export const POLARITY_META = {
+  // `badgeCls` (tono pastel) es para la etiqueta sobre una nota ya guardada, donde solo debe
+  // identificar sin competir visualmente. `selectedCls` (color sólido) es para el botón del
+  // selector cuando está elegido — necesita un verde bien distinto del fondo verde clarito que
+  // ya usan la mesa activa y el propio badge, si no, "elegido" y "no elegido" se confunden.
+  oportunidad: { label: "Oportunidad", icon: "🟢", badgeCls: "bg-emerald-100 text-emerald-700", selectedCls: "bg-emerald-600 text-white" },
+  amenaza: { label: "Amenaza", icon: "🔴", badgeCls: "bg-red-100 text-red-700", selectedCls: "bg-red-600 text-white" },
+} as const;
+export type NotePolarity = keyof typeof POLARITY_META;
+
 const ROTATIONS = [-2.5, 1.5, -1, 2, -1.8, 1, -2, 2.2];
 
 // Paletas automáticas: nunca se elige el color a mano.
@@ -139,6 +152,90 @@ export function PostIt({
       <span className="absolute -top-1.5 left-1/2 h-3 w-8 -translate-x-1/2 rounded-sm bg-black/10" />
       {highlighted && <span className="absolute -right-1.5 -top-1.5 text-sm">📌</span>}
       {children}
+    </div>
+  );
+}
+
+export interface NewsStory {
+  id: string;
+  headline: string;
+  author: string;
+  tag?: ReactNode;
+  // Reutiliza el "destacar" (📌) que ya existe en otras actividades de notas, pero aquí cambia
+  // de significado: en vez de solo resaltar, una nota destacada se vuelve la NOTA PRINCIPAL de
+  // la edición — portada a ancho completo, como en un periódico real — y el resto fluye como
+  // notas de columna más pequeñas debajo.
+  highlighted?: boolean;
+  actions?: ReactNode;
+}
+
+// Página de periódico para actividades de visualización guiada (p. ej. "Socya en 2029"), donde
+// el aporte de cada persona ES literalmente una noticia — mostrarlas como post-its sueltos, o
+// incluso como recortes individuales, no transmite lo que sí logra verlas todas juntas
+// componiendo una sola edición: masthead, portada y columnas de notas, como un periódico real.
+export function NewsPage({
+  title,
+  notes,
+  large = false,
+}: {
+  title: string;
+  notes: NewsStory[];
+  large?: boolean;
+}) {
+  const lead = notes.filter((n) => n.highlighted);
+  const rest = notes.filter((n) => !n.highlighted);
+
+  return (
+    <div className={`rounded-sm border border-[#d8cfb4] bg-[#faf6ea] shadow-sm ${large ? "p-8" : "p-5"}`}>
+      <div className="text-center">
+        <p className={`font-serif font-black uppercase tracking-[0.06em] text-[#2b2620] ${large ? "text-4xl" : "text-2xl"}`}>{title}</p>
+        <div className="mx-auto mt-2 h-[3px] w-full bg-[#2b2620]" />
+        <div className="mx-auto mt-[3px] h-px w-full bg-[#2b2620]" />
+        <p className="mt-1.5 font-serif text-[11px] uppercase tracking-[0.2em] text-[#8a6d3b]">
+          Edición especial · {notes.length} {notes.length === 1 ? "noticia" : "noticias"}
+        </p>
+      </div>
+
+      {notes.length === 0 && (
+        <p className="mt-6 text-center font-serif text-sm italic text-[#8a7f66]">
+          Aún no hay noticias — la primera que se guarde abre esta edición.
+        </p>
+      )}
+
+      {lead.length > 0 && (
+        <div className="mt-5 space-y-4 border-b-2 border-[#2b2620] pb-4">
+          {lead.map((n) => (
+            <article key={n.id}>
+              <div className="mb-1 flex items-center justify-between gap-2">
+                <span className="inline-flex items-center gap-1 font-serif text-[10px] font-bold uppercase tracking-[0.14em] text-[#8a6d3b]">
+                  📌 Portada {n.tag}
+                </span>
+                {n.actions}
+              </div>
+              <h3 className={`font-serif font-bold leading-tight text-[#2b2620] ${large ? "text-3xl" : "text-xl"}`}>{n.headline}</h3>
+              <p className="mt-1 font-serif text-sm italic text-[#6b6151]">Por {n.author}</p>
+            </article>
+          ))}
+        </div>
+      )}
+
+      {rest.length > 0 && (
+        <div
+          className={`mt-5 ${large ? "columns-3 gap-8" : "columns-2 gap-6"}`}
+          style={{ columnRule: "1px solid #d8cfb4" }}
+        >
+          {rest.map((n) => (
+            <article key={n.id} className="mb-4 break-inside-avoid border-b border-[#e3dcc7] pb-3">
+              <div className="mb-1 flex items-center justify-between gap-1">
+                {n.tag}
+                {n.actions}
+              </div>
+              <h4 className={`font-serif font-bold leading-snug text-[#2b2620] ${large ? "text-lg" : "text-sm"}`}>{n.headline}</h4>
+              <p className="mt-1 font-serif text-xs italic text-[#6b6151]">Por {n.author}</p>
+            </article>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
