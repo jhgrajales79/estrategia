@@ -166,13 +166,7 @@ export default function NuestroTrabajoPage() {
       ) : (
         <div>
           <h2 className="mb-3 text-sm font-semibold text-foreground">{activeSession.name}</h2>
-          <SessionAudio
-            session={activeSession}
-            presenter={presenter}
-            onUpdated={(sessionId, audioUrl) =>
-              setSessions((prev) => prev.map((s) => (s.id === sessionId ? { ...s, audio_url: audioUrl } : s)))
-            }
-          />
+          <SessionAudio session={activeSession} />
           {loadingTab ? (
             <div className="space-y-2">
               {[0, 1, 2].map((i) => (

@@ -9,6 +9,7 @@ import { isPresenter } from "@/lib/presenter";
 import type { ActivityRow, Aspiration, OutputRow, SessionRow } from "@/lib/types";
 import ActivityCard from "@/components/ActivityCard";
 import SessionBackupPanel from "@/components/SessionBackupPanel";
+import SessionAudioUpload from "@/components/SessionAudioUpload";
 import { aspClasses, findAspiration } from "@/lib/aspirationStyle";
 import { ToggleSwitch, LockBadge } from "@/components/activities/shared";
 
@@ -173,6 +174,12 @@ export default function SessionDetailPage({ params }: { params: Promise<{ code: 
         {presenter && (
           <div className="mt-3 border-t border-border pt-3">
             <SessionBackupPanel session={session} />
+          </div>
+        )}
+
+        {presenter && (
+          <div className="mt-3 border-t border-border pt-3">
+            <SessionAudioUpload session={session} onUpdated={(audioUrl) => setSession((s) => (s ? { ...s, audio_url: audioUrl } : s))} />
           </div>
         )}
 
