@@ -23,6 +23,18 @@ const NOTE_TYPES = new Set(["notas", "notas_matriz"]);
 export default function InsumosPanel({ sourceIds, aspirations }: { sourceIds: number[]; aspirations: Aspiration[] }) {
   const [sources, setSources] = useState<SourceData[]>([]);
   const [aspFilter, setAspFilter] = useState<number | null>(null);
+  // Contraídas por defecto: cada insumo (p. ej. Radar de contexto, Revisión del acumulado
+  // anual) puede traer bastante contenido, y mostrarlos siempre abiertos obligaba a un
+  // desplazamiento largo antes de llegar a la actividad en sí.
+  const [openIds, setOpenIds] = useState<Set<number>>(new Set());
+  function toggleOpen(id: number) {
+    setOpenIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
   const key = sourceIds.join(",");
 
   useEffect(() => {
@@ -115,12 +127,26 @@ export default function InsumosPanel({ sourceIds, aspirations }: { sourceIds: nu
           </div>
         )}
       </div>
-      {filteredSources.map(({ activity, submissions }) => (
-        <div key={activity.id} className="rounded-md border border-border bg-card p-3">
-          <p className="mb-2 text-sm font-semibold text-foreground">{activity.title}</p>
-          <ResultsBody activity={activity} submissions={submissions} aspirations={aspirations} />
-        </div>
-      ))}
+      {filteredSources.map(({ activity, submissions }) => {
+        const isOpen = openIds.has(activity.id);
+        return (
+          <div key={activity.id} className="rounded-md border border-border bg-card p-3">
+            <button
+              type="button"
+              className="flex w-full items-center justify-between gap-2 text-left"
+              onClick={() => toggleOpen(activity.id)}
+            >
+              <span className="text-sm font-semibold text-foreground">{activity.title}</span>
+              <span className={`shrink-0 text-muted transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}>▾</span>
+            </button>
+            {isOpen && (
+              <div className="mt-2">
+                <ResultsBody activity={activity} submissions={submissions} aspirations={aspirations} />
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
