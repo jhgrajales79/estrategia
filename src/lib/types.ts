@@ -33,6 +33,7 @@ export interface SessionRow {
   order_index: number;
   status: SessionStatus;
   is_enabled: boolean;
+  audio_url: string | null;
 }
 
 export type ActivityType =
