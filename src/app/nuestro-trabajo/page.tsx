@@ -18,10 +18,17 @@ import { LockBadge } from "@/components/activities/shared";
 import WeaveGalleryViewer, { MediaGroup } from "@/components/WeaveGalleryViewer";
 import SessionAudio from "@/components/SessionAudio";
 
-// Página pública: no requiere haber ingresado con nombre/rol. Cualquier visitante puede ver
-// los resultados de las sesiones que el facilitador ya haya habilitado; las que no, siguen
-// ocultas igual que antes (isPresenter(null) da false, así que un visitante anónimo nunca ve
+// Página pública: no requiere haber ingresado con nombre/rol. Una sesión es visible para
+// cualquier visitante si el facilitador la habilitó manualmente, o si ya está en curso o
+// terminada — así una sesión completada sigue mostrándose aunque el facilitador la haya
+// deshabilitado después (p. ej. al preparar la siguiente), y una que arrancó se ve en vivo sin
+// depender de que alguien recuerde prender el interruptor. Solo una sesión "pendiente" y sin
+// habilitar queda oculta (isPresenter(null) da false, así que un visitante anónimo nunca ve
 // sesiones bloqueadas).
+function isPublicallyVisible(session: SessionRow): boolean {
+  return session.is_enabled || session.status === "en_curso" || session.status === "completada";
+}
+
 export default function NuestroTrabajoPage() {
   const [participant, setParticipant] = useState<StoredParticipant | null>(null);
   useEffect(() => {
@@ -63,7 +70,7 @@ export default function NuestroTrabajoPage() {
 
   useEffect(() => {
     if (activeTab !== null) return;
-    const firstAvailable = sessions.find((s) => s.is_enabled) ?? (presenter ? sessions[0] : undefined);
+    const firstAvailable = sessions.find(isPublicallyVisible) ?? (presenter ? sessions[0] : undefined);
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (firstAvailable) setActiveTab(firstAvailable.id);
   }, [sessions, presenter, activeTab]);
@@ -94,7 +101,7 @@ export default function NuestroTrabajoPage() {
   const tejidoGroups: MediaGroup[] = useMemo(
     () =>
       sessions
-        .filter((s) => presenter || s.is_enabled)
+        .filter((s) => presenter || isPublicallyVisible(s))
         .map((s) => ({ label: s.code, media: tejidoMedia.find((t) => t.session_id === s.id)?.media ?? [] }))
         .filter((g) => g.media.length > 0),
     [sessions, tejidoMedia, presenter]
@@ -136,7 +143,7 @@ export default function NuestroTrabajoPage() {
 
       <div className="mb-6 flex flex-wrap gap-1.5 border-b border-border pb-4">
         {sessions.map((s) => {
-          const locked = !s.is_enabled && !presenter;
+          const locked = !isPublicallyVisible(s) && !presenter;
           const active = activeTab === s.id;
           return (
             <button
@@ -159,7 +166,7 @@ export default function NuestroTrabajoPage() {
         })}
       </div>
 
-      {activeSession && (!activeSession.is_enabled && !presenter ? (
+      {activeSession && (!isPublicallyVisible(activeSession) && !presenter ? (
         <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border bg-card p-10 text-center">
           <LockBadge text="El facilitador aún no ha habilitado esta sesión" />
         </div>
