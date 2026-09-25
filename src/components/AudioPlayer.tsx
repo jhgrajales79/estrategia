@@ -57,6 +57,27 @@ export default function AudioPlayer({ src }: { src: string }) {
     analyserRef.current = entry.analyser;
   }, []);
 
+  // Cambiar de sesión reutiliza este mismo componente (y el mismo <audio> real) con un `src`
+  // distinto en vez de desmontarlo — React solo actualiza el atributo. El navegador debería
+  // recargar el recurso solo con eso, pero con un elemento ya conectado a un
+  // MediaElementAudioSourceNode a veces se queda pausado en el audio anterior sin poder arrancar
+  // el nuevo: se fuerza `load()` explícito y se reinician tiempo/duración para que el audio
+  // recién elegido quede listo para reproducirse. Se salta el primer render (ese `src` ya lo
+  // carga el propio atributo del elemento al montar).
+  const isFirstSrc = useRef(true);
+  useEffect(() => {
+    if (isFirstSrc.current) {
+      isFirstSrc.current = false;
+      return;
+    }
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.load();
+    setCurrent(0);
+    setDuration(0);
+    setPlaying(false);
+  }, [src]);
+
   function drawSpectrum() {
     const analyser = analyserRef.current;
     const canvas = canvasRef.current;
@@ -96,7 +117,15 @@ export default function AudioPlayer({ src }: { src: string }) {
     if (playing) {
       audio.pause();
     } else {
-      await audio.play();
+      try {
+        await audio.play();
+      } catch (err) {
+        // Si mientras tanto se cambió de sesión, el `load()` del nuevo audio interrumpe este
+        // play() y el navegador rechaza la promesa con AbortError — es el flujo esperado, no un
+        // error real; cualquier otro motivo de rechazo sí se registra.
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        console.error(err);
+      }
     }
   }
 
