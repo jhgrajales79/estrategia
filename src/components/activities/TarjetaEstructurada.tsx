@@ -1,7 +1,8 @@
 "use client";
 
-import { useSubmission, effectiveAspirationId } from "@/lib/useSubmission";
-import { aspClasses, findAspiration } from "@/lib/aspirationStyle";
+import { useEffect, useState } from "react";
+import { useSubmission } from "@/lib/useSubmission";
+import { aspClasses, findAspiration, ARCHETYPE_LABEL } from "@/lib/aspirationStyle";
 import { isPresenter } from "@/lib/presenter";
 import { ActivityComponentProps, inputCls, textareaCls, btnPrimary, btnDanger, SaveIndicator, PresenterHint, uid } from "./shared";
 
@@ -52,8 +53,19 @@ export default function TarjetaEstructurada({ activity, session, aspirations, pa
   const repeatable = Boolean(activity.config.repeatable);
   const repeatLabel = (activity.config.repeatLabel as string) ?? "Registro";
   const presenter = isPresenter(participant);
-  const submissionAspId = effectiveAspirationId(activity, participant);
-  const { content, save, saving, updatedAt, saveError, loaded } = useSubmission<Content>(
+  const perAspiration = Boolean(activity.config.perAspiration);
+  // Igual que en MatrizPonderada: no hay (todavía) una asignación real de aspiración por
+  // participante, así que cada equipo elige su pestaña libremente en vez de depender de su
+  // identidad — así 3 aspiraciones caben en un mismo taller como 3 equipos independientes.
+  const [activeAspId, setActiveAspId] = useState<number | null>(() => aspirations[0]?.id ?? null);
+  useEffect(() => {
+    if (activeAspId === null && aspirations.length > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setActiveAspId(aspirations[0].id);
+    }
+  }, [aspirations, activeAspId]);
+  const submissionAspId = perAspiration ? activeAspId : null;
+  const { content, setContent, save, saving, updatedAt, saveError, loaded } = useSubmission<Content>(
     activity,
     session,
     submissionAspId,
@@ -63,13 +75,39 @@ export default function TarjetaEstructurada({ activity, session, aspirations, pa
 
   if (!loaded) return <p className="text-sm text-muted">Cargando…</p>;
 
+  const aspirationTabs = perAspiration && aspirations.length > 0 && (
+    <div className="flex flex-wrap gap-1.5">
+      {aspirations.map((a) => {
+        const cls = aspClasses(a.number);
+        const active = activeAspId === a.id;
+        return (
+          <button
+            key={a.id}
+            type="button"
+            onClick={() => setActiveAspId(a.id)}
+            className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
+              active ? `border-transparent ${cls.bg} text-dark` : `${cls.border} ${cls.text} bg-card hover:bg-black/5`
+            }`}
+          >
+            Aspiración {a.number} · {ARCHETYPE_LABEL[a.number]}
+          </button>
+        );
+      })}
+    </div>
+  );
+
   if (!repeatable) {
+    // `setContent` actualiza el estado local de inmediato y solo guarda 700ms después de la
+    // última tecla — a diferencia de `save()`, que dispara la escritura en cada tecla sin tocar
+    // el estado local: si dos guardados se cruzan (típico al escribir rápido), el que responde
+    // último pisa al otro con un `content` desactualizado, perdiendo caracteres ya tecleados.
     function setValue(key: string, v: string) {
-      save({ ...content, values: { ...content.values, [key]: v } });
+      setContent({ ...content, values: { ...content.values, [key]: v } });
     }
     return (
       <div className="space-y-3">
         {presenter && <PresenterHint />}
+        {aspirationTabs}
         <div className="grid gap-3 sm:grid-cols-2">
           {fields.map((f) => (
             <div key={f.key} className={f.type === "textarea" ? "sm:col-span-2" : ""}>
@@ -84,11 +122,11 @@ export default function TarjetaEstructurada({ activity, session, aspirations, pa
   }
 
   function addEntry() {
-    const entry: Entry = { id: uid(), aspiration_id: participant.aspiration_id };
+    const entry: Entry = { id: uid(), aspiration_id: submissionAspId };
     save({ ...content, entries: [...content.entries, entry] }, { eventType: "registro", summary: `${participant.name} agregó "${repeatLabel}" en "${activity.title}"` });
   }
   function setEntryField(id: string, key: string, v: string) {
-    save({ ...content, entries: content.entries.map((e) => (e.id === id ? { ...e, [key]: v } : e)) });
+    setContent({ ...content, entries: content.entries.map((e) => (e.id === id ? { ...e, [key]: v } : e)) });
   }
   function removeEntry(id: string) {
     save({ ...content, entries: content.entries.filter((e) => e.id !== id) });
@@ -97,6 +135,7 @@ export default function TarjetaEstructurada({ activity, session, aspirations, pa
   return (
     <div className="space-y-3">
       {presenter && <PresenterHint />}
+      {aspirationTabs}
       {presenter && content.entries.length === 0 && (
         <p className="text-sm text-muted">Aún no hay registros. Cada equipo los agrega desde su propia sesión.</p>
       )}
