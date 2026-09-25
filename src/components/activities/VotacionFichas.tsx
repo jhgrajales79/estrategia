@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import { useSubmission, effectiveAspirationId } from "@/lib/useSubmission";
+import { useEffect, useState } from "react";
+import { useSubmission } from "@/lib/useSubmission";
 import { isPresenter } from "@/lib/presenter";
 import { supabase } from "@/lib/supabase";
-import { aspClasses, findAspiration } from "@/lib/aspirationStyle";
+import { aspClasses, findAspiration, ARCHETYPE_LABEL } from "@/lib/aspirationStyle";
 import BarChart from "@/components/charts/BarChart";
 import { ActivityComponentProps, inputCls, btnPrimary, SaveIndicator, PresenterHint, DeleteButton, Stepper, uid } from "./shared";
 
@@ -47,11 +47,23 @@ export default function VotacionFichas({ activity, session, aspirations, partici
   const importCandidatesFrom = activity.config.importCandidatesFrom as number | undefined;
   const importCategory = (activity.config.importCategory as string) ?? "debilidad";
   const presenter = isPresenter(participant);
-  const submissionAspId = effectiveAspirationId(activity, participant);
+  const perAspiration = Boolean(activity.config.perAspiration);
+  // A diferencia de MatrizPonderada/TarjetaEstructurada, aquí NO se separa en una submission por
+  // aspiración: candidatas y votos siguen en una sola lista compartida (igual que ya la lee el
+  // tablero proyectado en /votacion/[activityId], que filtra por `c.aspiration_id` en el
+  // cliente) — solo se filtra qué candidatas se ven y se votan según la pestaña activa, así
+  // "una nueva meta por aspiración" corre como 3 subastas independientes sobre los mismos datos.
+  const [activeAspId, setActiveAspId] = useState<number | null>(() => aspirations[0]?.id ?? null);
+  useEffect(() => {
+    if (activeAspId === null && aspirations.length > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setActiveAspId(aspirations[0].id);
+    }
+  }, [aspirations, activeAspId]);
   const { content, save, saving, updatedAt, saveError, loaded } = useSubmission<Content>(
     activity,
     session,
-    submissionAspId,
+    null,
     participant,
     { candidates: [], votes: [] }
   );
@@ -76,7 +88,9 @@ export default function VotacionFichas({ activity, session, aspirations, partici
       return;
     }
     const rows = (data ?? []).flatMap((row) => ((row.content as { rows?: EfiRow[] } | null)?.rows ?? []));
-    const notes = rows.filter((r) => r.category === importCategory);
+    // Con `perAspiration`, cada pestaña importa solo las debilidades de SU aspiración — si no,
+    // el equipo de una aspiración vería (y podría votar) candidatas que le corresponden a otra.
+    const notes = rows.filter((r) => r.category === importCategory && (!perAspiration || r.aspiration_id === activeAspId));
     const existing = new Set(content.candidates.map((c) => c.text.trim().toLowerCase()));
     const newCandidates: Candidate[] = notes
       .filter((n) => n.factor.trim() && !existing.has(n.factor.trim().toLowerCase()))
@@ -89,7 +103,12 @@ export default function VotacionFichas({ activity, session, aspirations, partici
     setImportMsg(`Se importaron ${newCandidates.length} ${newCandidates.length === 1 ? "candidata" : "candidatas"}.`);
   }
 
-  const myVotes = content.votes.filter((v) => v.participant_id === participant.id);
+  // Solo las candidatas de la pestaña activa cuentan para el escalafón y el presupuesto de
+  // puntos de esta vista — cada aspiración es su propia subasta, con sus propios 3 puntos por
+  // persona, aunque vivan en la misma lista compartida.
+  const visibleCandidates = perAspiration ? content.candidates.filter((c) => c.aspiration_id === activeAspId) : content.candidates;
+  const visibleIds = new Set(visibleCandidates.map((c) => c.id));
+  const myVotes = content.votes.filter((v) => v.participant_id === participant.id && visibleIds.has(v.candidate_id));
   const myUsed = myVotes.reduce((a, v) => a + v.points, 0);
   const myRemaining = pointsPerPerson - myUsed;
 
@@ -102,6 +121,7 @@ export default function VotacionFichas({ activity, session, aspirations, partici
       author_id: participant.id,
       owner: newOwner || undefined,
       target_date: newDate || undefined,
+      aspiration_id: perAspiration ? activeAspId : undefined,
     };
     save(
       { ...content, candidates: [...content.candidates, c] },
@@ -126,13 +146,41 @@ export default function VotacionFichas({ activity, session, aspirations, partici
     save({ ...content, votes }, { eventType: "voto", summary: `${participant.name} votó en "${activity.title}"` });
   }
 
-  const totals = content.candidates
-    .map((c) => ({ c, total: content.votes.filter((v) => v.candidate_id === c.id).reduce((a, v) => a + v.points, 0) }))
-    .sort((a, b) => b.total - a.total);
+  const RANK_MEDAL = ["🥇", "🥈", "🥉"];
+  const totals = visibleCandidates
+    .map((c) => {
+      const myVotesForC = content.votes.filter((v) => v.candidate_id === c.id);
+      return { c, total: myVotesForC.reduce((a, v) => a + v.points, 0), voters: new Set(myVotesForC.map((v) => v.participant_id)).size };
+    })
+    // Desempate real cuando dos candidatas quedan con los mismos puntos: gana la que sumó esos
+    // puntos entre más personas distintas (apoyo más amplio, no concentrado en una sola persona).
+    // Si aun así persiste el empate, se resuelve por orden de llegada (sort de JS es estable) —
+    // así el escalafón de 3 puestos queda siempre resuelto, nunca en tablas.
+    .sort((a, b) => b.total - a.total || b.voters - a.voters);
   const hasVotes = totals.some((t) => t.total > 0);
 
   return (
     <div className="space-y-4">
+      {perAspiration && aspirations.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {aspirations.map((a) => {
+            const cls = aspClasses(a.number);
+            const active = activeAspId === a.id;
+            return (
+              <button
+                key={a.id}
+                type="button"
+                onClick={() => setActiveAspId(a.id)}
+                className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                  active ? `border-transparent ${cls.bg} text-dark` : `${cls.border} ${cls.text} bg-card hover:bg-black/5`
+                }`}
+              >
+                Aspiración {a.number} · {ARCHETYPE_LABEL[a.number]}
+              </button>
+            );
+          })}
+        </div>
+      )}
       {(presenter || importCandidatesFrom) && (
         <div className="flex flex-wrap items-center justify-between gap-2">
           {presenter && <PresenterHint />}
@@ -205,20 +253,27 @@ export default function VotacionFichas({ activity, session, aspirations, partici
       )}
 
       <div className="space-y-2">
-        {totals.map(({ c, total }, idx) => {
+        {totals.map(({ c, total, voters }, idx) => {
           const myPoints = myVotes.find((v) => v.candidate_id === c.id)?.points ?? 0;
           const canDeleteOwn = c.author_id ? c.author_id === participant.id : c.author === participant.name;
+          const medal = idx < 3 && total > 0 ? RANK_MEDAL[idx] : null;
           return (
-            <div key={c.id} className="flex flex-col gap-2 rounded-lg border border-border bg-card p-3 sm:flex-row sm:items-center sm:justify-between">
+            <div
+              key={c.id}
+              className={`flex flex-col gap-2 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between ${
+                medal ? "border-brand/40 bg-brand/5" : "border-border bg-card"
+              }`}
+            >
               <div>
                 <p className="text-sm font-medium text-foreground">
-                  {idx === 0 && total > 0 && "🏆 "}
+                  {medal ? `${medal} ` : ""}
                   {c.text}
                 </p>
                 <p className="text-xs text-muted">
                   {c.author}
                   {c.owner ? ` · doliente: ${c.owner}` : ""}
                   {c.target_date ? ` · fecha objetivo: ${c.target_date}` : ""}
+                  {total > 0 ? ` · ${voters} ${voters === 1 ? "persona" : "personas"}` : ""}
                 </p>
                 {(c.aspiration_id !== undefined && c.aspiration_id !== null) || c.impact ? (
                   <div className="mt-1 flex flex-wrap items-center gap-1.5">
