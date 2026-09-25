@@ -10,6 +10,12 @@ interface FieldDef {
   key: string;
   label: string;
   type: "text" | "textarea" | "date";
+  // Texto de apoyo bajo el campo — para dar una guía concreta (p. ej. desglosar qué hace
+  // "SMART" a un objetivo) sin inventar un tipo de actividad nuevo solo para eso.
+  helper?: string;
+  // Valor con el que arranca cada registro NUEVO (p. ej. un plazo que casi siempre es el mismo
+  // en todas las entradas de esta actividad) — el equipo lo puede editar si su caso es distinto.
+  default?: string;
 }
 interface Entry extends Record<string, unknown> {
   id: string;
@@ -34,17 +40,21 @@ function FieldInput({
   if (readOnly) {
     return <p className="rounded-md bg-black/[0.03] px-3 py-1.5 text-sm text-foreground min-h-8">{value || "—"}</p>;
   }
-  if (field.type === "textarea") {
-    return <textarea className={textareaCls} placeholder={field.label} value={value} onChange={(e) => onChange(e.target.value)} />;
-  }
   return (
-    <input
-      type={field.type === "date" ? "date" : "text"}
-      className={inputCls}
-      placeholder={field.label}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-    />
+    <>
+      {field.type === "textarea" ? (
+        <textarea className={textareaCls} placeholder={field.label} value={value} onChange={(e) => onChange(e.target.value)} />
+      ) : (
+        <input
+          type={field.type === "date" ? "date" : "text"}
+          className={inputCls}
+          placeholder={field.label}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      )}
+      {field.helper && <p className="mt-1 text-xs text-muted">{field.helper}</p>}
+    </>
   );
 }
 
@@ -123,6 +133,7 @@ export default function TarjetaEstructurada({ activity, session, aspirations, pa
 
   function addEntry() {
     const entry: Entry = { id: uid(), aspiration_id: submissionAspId };
+    for (const f of fields) if (f.default) entry[f.key] = f.default;
     save({ ...content, entries: [...content.entries, entry] }, { eventType: "registro", summary: `${participant.name} agregó "${repeatLabel}" en "${activity.title}"` });
   }
   function setEntryField(id: string, key: string, v: string) {
@@ -132,10 +143,22 @@ export default function TarjetaEstructurada({ activity, session, aspirations, pa
     save({ ...content, entries: content.entries.filter((e) => e.id !== id) });
   }
 
+  const minEntries = activity.config.minEntries as number | undefined;
+  const metMinimum = minEntries !== undefined && content.entries.length >= minEntries;
+  // Pluralizar "Objetivo SMART" agregando una "s" al final daría "objetivo smarts" — con
+  // etiquetas de más de una palabra no basta una regla mecánica, así que la actividad puede
+  // fijar el plural correcto explícitamente; a falta de eso, se usa el genérico "registros".
+  const minEntriesLabel = (activity.config.minEntriesLabel as string) ?? "registros";
+
   return (
     <div className="space-y-3">
       {presenter && <PresenterHint />}
       {aspirationTabs}
+      {minEntries !== undefined && (
+        <p className={`text-xs font-semibold ${metMinimum ? "text-brand-dark" : "text-muted"}`}>
+          {content.entries.length} de {minEntries} {minEntriesLabel} {metMinimum ? "✅" : "— faltan por completar"}
+        </p>
+      )}
       {presenter && content.entries.length === 0 && (
         <p className="text-sm text-muted">Aún no hay registros. Cada equipo los agrega desde su propia sesión.</p>
       )}
