@@ -34,11 +34,16 @@ function FieldInput({
   field,
   value,
   onChange,
+  onBlur,
   readOnly,
 }: {
   field: FieldDef;
   value: string;
   onChange: (v: string) => void;
+  // Se dispara al salir del campo (o Enter, en los de una sola línea) — es el único momento en
+  // que el valor se guarda de verdad. Mientras se escribe, `onChange` solo actualiza un borrador
+  // local (ver `drafts`/`entryDrafts` más abajo): nada viaja a la base de datos tecla por tecla.
+  onBlur?: () => void;
   readOnly?: boolean;
 }) {
   if (readOnly || field.type === "aspiration_name") {
@@ -47,7 +52,7 @@ function FieldInput({
   return (
     <>
       {field.type === "textarea" ? (
-        <textarea className={textareaCls} placeholder={field.label} value={value} onChange={(e) => onChange(e.target.value)} />
+        <textarea className={textareaCls} placeholder={field.label} value={value} onChange={(e) => onChange(e.target.value)} onBlur={onBlur} />
       ) : (
         <input
           type={field.type === "date" ? "date" : "text"}
@@ -55,6 +60,8 @@ function FieldInput({
           placeholder={field.label}
           value={value}
           onChange={(e) => onChange(e.target.value)}
+          onBlur={onBlur}
+          onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
         />
       )}
       {field.helper && <p className="mt-1 text-xs text-muted">{field.helper}</p>}
@@ -79,13 +86,19 @@ export default function TarjetaEstructurada({ activity, session, aspirations, pa
     }
   }, [aspirations, activeAspId]);
   const submissionAspId = perAspiration ? activeAspId : null;
-  const { content, setContent, save, saving, updatedAt, saveError, loaded } = useSubmission<Content>(
+  const { content, save, saving, updatedAt, saveError, loaded } = useSubmission<Content>(
     activity,
     session,
     submissionAspId,
     participant,
     { entries: [], values: {} }
   );
+  // Borrador local por campo: mientras se escribe no se guarda nada, solo al salir del campo
+  // (blur) o con Enter en los de una línea se persiste — mismo patrón que MatrizPonderada.tsx
+  // para Factor/Peso. Evita por completo la carga de red de guardar en cada tecla, y de paso
+  // impide cualquier condición de carrera entre guardados que se cruzan al escribir rápido.
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [entryDrafts, setEntryDrafts] = useState<Record<string, Record<string, string>>>({});
 
   if (!loaded) return <p className="text-sm text-muted">Cargando…</p>;
 
@@ -111,12 +124,23 @@ export default function TarjetaEstructurada({ activity, session, aspirations, pa
   );
 
   if (!repeatable) {
-    // `setContent` actualiza el estado local de inmediato y solo guarda 700ms después de la
-    // última tecla — a diferencia de `save()`, que dispara la escritura en cada tecla sin tocar
-    // el estado local: si dos guardados se cruzan (típico al escribir rápido), el que responde
-    // último pisa al otro con un `content` desactualizado, perdiendo caracteres ya tecleados.
-    function setValue(key: string, v: string) {
-      setContent({ ...content, values: { ...content.values, [key]: v } });
+    function draftValue(key: string) {
+      return drafts[key] ?? content.values[key] ?? "";
+    }
+    function updateDraft(key: string, v: string) {
+      setDrafts((d) => ({ ...d, [key]: v }));
+    }
+    function commitValue(key: string) {
+      const value = drafts[key];
+      if (value === undefined) return;
+      setDrafts((d) => {
+        const next = { ...d };
+        delete next[key];
+        return next;
+      });
+      if (value !== (content.values[key] ?? "")) {
+        save({ ...content, values: { ...content.values, [key]: value } });
+      }
     }
     const activeAspiration = findAspiration(aspirations, activeAspId);
     return (
@@ -139,11 +163,19 @@ export default function TarjetaEstructurada({ activity, session, aspirations, pa
         <div className="grid gap-3 sm:grid-cols-2">
           {fields.map((f) => (
             <div key={f.key} className={f.type === "textarea" || f.type === "aspiration_name" ? "sm:col-span-2" : ""}>
-              <label className="mb-1 block text-xs font-medium text-muted">{f.label}</label>
+              <label className="mb-1 flex items-center gap-1.5 text-xs font-medium text-muted">
+                {f.label}
+                {/* Mientras el borrador difiere de lo ya guardado: recordatorio de que falta salir
+                    del campo (clic afuera o Enter) para que el cambio se persista de verdad. */}
+                {drafts[f.key] !== undefined && (
+                  <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">sin guardar</span>
+                )}
+              </label>
               <FieldInput
                 field={f}
-                value={f.type === "aspiration_name" ? (activeAspiration?.name ?? "") : (content.values[f.key] ?? "")}
-                onChange={(v) => setValue(f.key, v)}
+                value={f.type === "aspiration_name" ? (activeAspiration?.name ?? "") : draftValue(f.key)}
+                onChange={(v) => updateDraft(f.key, v)}
+                onBlur={() => commitValue(f.key)}
                 readOnly={presenter}
               />
             </div>
@@ -159,8 +191,25 @@ export default function TarjetaEstructurada({ activity, session, aspirations, pa
     for (const f of fields) if (f.default) entry[f.key] = f.default;
     save({ ...content, entries: [...content.entries, entry] }, { eventType: "registro", summary: `${participant.name} agregó "${repeatLabel}" en "${activity.title}"` });
   }
-  function setEntryField(id: string, key: string, v: string) {
-    setContent({ ...content, entries: content.entries.map((e) => (e.id === id ? { ...e, [key]: v } : e)) });
+  function entryDraftValue(entry: Entry, key: string) {
+    return entryDrafts[entry.id]?.[key] ?? (entry[key] as string) ?? "";
+  }
+  function updateEntryDraft(entryId: string, key: string, v: string) {
+    setEntryDrafts((d) => ({ ...d, [entryId]: { ...d[entryId], [key]: v } }));
+  }
+  function commitEntryField(entryId: string, key: string) {
+    const value = entryDrafts[entryId]?.[key];
+    if (value === undefined) return;
+    setEntryDrafts((d) => {
+      if (!d[entryId]) return d;
+      const inner = { ...d[entryId] };
+      delete inner[key];
+      return { ...d, [entryId]: inner };
+    });
+    const entry = content.entries.find((e) => e.id === entryId);
+    if (entry && value !== ((entry[key] as string) ?? "")) {
+      save({ ...content, entries: content.entries.map((e) => (e.id === entryId ? { ...e, [key]: value } : e)) });
+    }
   }
   function removeEntry(id: string) {
     save({ ...content, entries: content.entries.filter((e) => e.id !== id) });
@@ -201,11 +250,17 @@ export default function TarjetaEstructurada({ activity, session, aspirations, pa
             <div className="grid gap-3 sm:grid-cols-2">
               {fields.map((f) => (
                 <div key={f.key} className={f.type === "textarea" ? "sm:col-span-2" : ""}>
-                  <label className="mb-1 block text-xs font-medium text-muted">{f.label}</label>
+                  <label className="mb-1 flex items-center gap-1.5 text-xs font-medium text-muted">
+                    {f.label}
+                    {entryDrafts[entry.id]?.[f.key] !== undefined && (
+                      <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">sin guardar</span>
+                    )}
+                  </label>
                   <FieldInput
                     field={f}
-                    value={(entry[f.key] as string) ?? ""}
-                    onChange={(v) => setEntryField(entry.id, f.key, v)}
+                    value={entryDraftValue(entry, f.key)}
+                    onChange={(v) => updateEntryDraft(entry.id, f.key, v)}
+                    onBlur={() => commitEntryField(entry.id, f.key)}
                     readOnly={presenter}
                   />
                 </div>
