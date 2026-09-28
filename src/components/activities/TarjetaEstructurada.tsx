@@ -9,7 +9,11 @@ import { ActivityComponentProps, inputCls, textareaCls, btnPrimary, btnDanger, S
 interface FieldDef {
   key: string;
   label: string;
-  type: "text" | "textarea" | "date";
+  // "aspiration_name" es un campo derivado de solo lectura: no guarda nada propio, siempre
+  // muestra el enunciado vigente de la aspiración de la pestaña activa (tabla `aspirations`) —
+  // para que el equipo tenga el texto actual a la vista sin tener que copiarlo de memoria ni
+  // saltar de pantalla a buscarlo.
+  type: "text" | "textarea" | "date" | "aspiration_name";
   // Texto de apoyo bajo el campo — para dar una guía concreta (p. ej. desglosar qué hace
   // "SMART" a un objetivo) sin inventar un tipo de actividad nuevo solo para eso.
   helper?: string;
@@ -37,7 +41,7 @@ function FieldInput({
   onChange: (v: string) => void;
   readOnly?: boolean;
 }) {
-  if (readOnly) {
+  if (readOnly || field.type === "aspiration_name") {
     return <p className="rounded-md bg-black/[0.03] px-3 py-1.5 text-sm text-foreground min-h-8">{value || "—"}</p>;
   }
   return (
@@ -114,15 +118,21 @@ export default function TarjetaEstructurada({ activity, session, aspirations, pa
     function setValue(key: string, v: string) {
       setContent({ ...content, values: { ...content.values, [key]: v } });
     }
+    const activeAspiration = findAspiration(aspirations, activeAspId);
     return (
       <div className="space-y-3">
         {presenter && <PresenterHint />}
         {aspirationTabs}
         <div className="grid gap-3 sm:grid-cols-2">
           {fields.map((f) => (
-            <div key={f.key} className={f.type === "textarea" ? "sm:col-span-2" : ""}>
+            <div key={f.key} className={f.type === "textarea" || f.type === "aspiration_name" ? "sm:col-span-2" : ""}>
               <label className="mb-1 block text-xs font-medium text-muted">{f.label}</label>
-              <FieldInput field={f} value={content.values[f.key] ?? ""} onChange={(v) => setValue(f.key, v)} readOnly={presenter} />
+              <FieldInput
+                field={f}
+                value={f.type === "aspiration_name" ? (activeAspiration?.name ?? "") : (content.values[f.key] ?? "")}
+                onChange={(v) => setValue(f.key, v)}
+                readOnly={presenter}
+              />
             </div>
           ))}
         </div>
