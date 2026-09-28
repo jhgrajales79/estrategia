@@ -76,7 +76,177 @@ export default function NotasFullscreenPage({ params }: { params: Promise<{ acti
   if (activity.config.topFrom) {
     return <SintesisFullscreenBoard activity={activity} session={session} aspirations={aspirations} participant={participant} />;
   }
+  // "Visión Socya 2029" (y cualquier otra actividad con config.frontPage) usa su propia portada
+  // de periódico a pantalla completa, con un botón de publicación que el facilitador dispara en
+  // vivo — ver FrontPageBoard.
+  if (activity.config.frontPage) {
+    return <FrontPageBoard activity={activity} session={session} aspirations={aspirations} participant={participant} />;
+  }
   return <MundoCafeFullscreenBoard activity={activity} session={session} aspirations={aspirations} participant={participant} presenter={presenter} />;
+}
+
+// Nota tal como la deja NotasColectivas (rama newsStyle) — misma forma, pero aquí además
+// necesitamos `media` (fotos que el facilitador sube desde el panel "Fotos y panel visual") y el
+// estado de publicación de la edición.
+interface FrontPageNote {
+  id: string;
+  category: string;
+  aspiration_id: number | null;
+  author: string;
+  text: string;
+  highlighted?: boolean;
+}
+
+interface FrontPageContent extends Record<string, unknown> {
+  notes: FrontPageNote[];
+  media: string[];
+  showOnlyHighlighted: boolean;
+  published: boolean;
+  publishedAt: string | null;
+}
+
+// La portada de periódico completa: antes de publicar, el facilitador ve una "sala de
+// redacción" a pantalla completa con un único botón — el momento de publicar es el que se
+// proyecta a toda la sala, así que tiene que sentirse como un evento (destello + portada que
+// "cae" en su lugar), no como un simple cambio de estado. Cada publicación nueva recibe su
+// propio `publishedAt`, que se usa como `key` de la portada para que React la vuelva a montar
+// (y así la animación se repita) cada vez que el facilitador saca una edición nueva.
+function FrontPageBoard({
+  activity,
+  session,
+  aspirations,
+  participant,
+}: {
+  activity: ActivityRow;
+  session: SessionRow;
+  aspirations: Aspiration[];
+  participant: StoredParticipant;
+}) {
+  const submissionAspId = effectiveAspirationId(activity, participant);
+  const emptyContent: FrontPageContent = { notes: [], media: [], showOnlyHighlighted: false, published: false, publishedAt: null };
+  const { content, save, loaded } = useSubmission<FrontPageContent>(activity, session, submissionAspId, participant, emptyContent);
+  const [flash, setFlash] = useState(false);
+
+  if (!loaded) {
+    return <div className="flex min-h-screen items-center justify-center bg-dark text-sm text-white/60">Cargando…</div>;
+  }
+
+  async function publish() {
+    const latest = await fetchLatestContent<FrontPageContent>(activity.id, submissionAspId, emptyContent);
+    setFlash(true);
+    setTimeout(() => setFlash(false), 700);
+    await save({ ...latest, published: true, publishedAt: new Date(serverNow()).toISOString() });
+  }
+  async function backToNewsroom() {
+    const latest = await fetchLatestContent<FrontPageContent>(activity.id, submissionAspId, emptyContent);
+    await save({ ...latest, published: false });
+  }
+
+  const notes = content.notes;
+  const lead = notes.filter((n) => n.highlighted);
+  const rest = notes.filter((n) => !n.highlighted);
+  const dateLabel = content.publishedAt
+    ? new Date(content.publishedAt).toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
+    : "";
+
+  if (!content.published) {
+    return (
+      <div className="relative flex min-h-screen flex-col items-center justify-center gap-6 overflow-hidden bg-dark px-6 text-center text-white">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_40%,rgba(128,198,18,0.14),transparent_60%)]" />
+        <Image src="/socya-logo.png" alt="Socya" width={220} height={92} className="relative h-16 w-auto animate-pulse brightness-0 invert sm:h-20" />
+        <div className="relative space-y-2">
+          <p className="text-xs font-bold uppercase tracking-[0.3em] text-brand">Sala de redacción</p>
+          <h1 className="text-2xl font-bold sm:text-4xl">{activity.title}</h1>
+          <p className="text-sm text-white/50">
+            {session.code} · {session.name} · {notes.length} {notes.length === 1 ? "noticia lista" : "noticias listas"} para imprenta
+          </p>
+        </div>
+        <button
+          onClick={publish}
+          disabled={notes.length === 0}
+          className="relative mt-4 rounded-full bg-brand px-10 py-4 text-lg font-bold text-dark shadow-[0_0_40px_rgba(128,198,18,0.35)] transition-transform hover:scale-105 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100"
+          title={notes.length === 0 ? "Aún no hay noticias para publicar" : "Publicar la edición para toda la sala"}
+        >
+          📰 Publicar edición
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-dark px-4 py-8 sm:px-8">
+      {flash && <div className="animate-news-flash pointer-events-none fixed inset-0 z-50 bg-white" />}
+      <div className="mx-auto flex max-w-[1100px] items-center justify-between gap-3 pb-4 text-white/60">
+        <span className="text-xs">
+          {session.code} · {session.name}
+        </span>
+        <button
+          onClick={backToNewsroom}
+          className="rounded-full border border-white/15 px-3 py-1.5 text-xs font-semibold text-white/70 hover:bg-white/10"
+        >
+          ✏️ Volver a redacción
+        </button>
+      </div>
+
+      <div key={content.publishedAt} className="animate-news-press mx-auto max-w-[1100px] rounded-sm border border-[#d8cfb4] bg-[#faf6ea] p-8 shadow-2xl sm:p-12">
+        <div className="text-center">
+          <Image src="/socya-logo.png" alt="Socya" width={72} height={30} className="mx-auto h-9 w-auto sm:h-11" />
+          <p className="mt-3 font-serif text-4xl font-black uppercase tracking-[0.08em] text-[#2b2620] sm:text-6xl">Socya</p>
+          <div className="animate-news-ink-sweep mx-auto mt-3 h-[4px] w-full bg-[#2b2620]" />
+          <div className="mx-auto mt-1 h-px w-full bg-[#2b2620]" />
+          <p className="mt-2 font-serif text-xs uppercase tracking-[0.25em] text-[#8a6d3b] sm:text-sm">
+            Edición especial · {activity.title}
+            {dateLabel && <> · {dateLabel}</>}
+          </p>
+        </div>
+
+        {notes.length === 0 && (
+          <p className="mt-10 text-center font-serif text-base italic text-[#8a7f66]">Esta edición salió sin noticias.</p>
+        )}
+
+        {lead.length > 0 && (
+          <div className="mt-8 grid gap-6 border-b-2 border-[#2b2620] pb-6 sm:grid-cols-[1.3fr_1fr]">
+            <div>
+              {lead.map((n) => (
+                <article key={n.id} className="mb-4">
+                  <p className="mb-1 font-serif text-[11px] font-bold uppercase tracking-[0.14em] text-[#8a6d3b]">📌 Portada</p>
+                  <h2 className="font-serif text-2xl font-bold leading-tight text-[#2b2620] sm:text-4xl">{n.text}</h2>
+                  <p className="mt-2 font-serif text-sm italic text-[#6b6151]">Por {n.author}</p>
+                </article>
+              ))}
+            </div>
+            {content.media.length > 0 && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={content.media[0]} alt="Foto de la sesión" className="h-full w-full rounded-sm border border-[#d8cfb4] object-cover" />
+            )}
+          </div>
+        )}
+
+        {rest.length > 0 && (
+          <div className="mt-6 columns-1 gap-8 sm:columns-2 lg:columns-3" style={{ columnRule: "1px solid #d8cfb4" }}>
+            {rest.map((n) => (
+              <article key={n.id} className="mb-5 break-inside-avoid border-b border-[#e3dcc7] pb-4">
+                <h3 className="font-serif text-lg font-bold leading-snug text-[#2b2620]">{n.text}</h3>
+                <p className="mt-1 font-serif text-xs italic text-[#6b6151]">Por {n.author}</p>
+              </article>
+            ))}
+          </div>
+        )}
+
+        {content.media.length > 1 && (
+          <div className="mt-8 border-t border-[#d8cfb4] pt-6">
+            <p className="mb-3 font-serif text-xs font-bold uppercase tracking-[0.14em] text-[#8a6d3b]">Galería de la sesión</p>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {content.media.slice(1).map((url) => (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img key={url} src={url} alt="Foto de la sesión" className="h-28 w-full rounded-sm border border-[#d8cfb4] object-cover" />
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 function MundoCafeFullscreenBoard({
