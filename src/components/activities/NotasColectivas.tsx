@@ -334,31 +334,108 @@ function NotasColectivasClasico({ activity, session, aspirations, participant }:
           if (newsStyle) {
             // La página de periódico ya trae su propio masthead — el recuadro genérico de
             // categoría (título + borde) sobraría encima, así que esta rama la reemplaza entera.
+            // El formulario de aporte va aparte, arriba del periódico: no tiene sentido meterlo
+            // dentro del maquetado de columnas de un diario.
             return (
-              <NewsPage
-                key={cat.key}
-                title={cat.label}
-                notes={notesInCat.map((n) => {
-                  const abbrev = aspAbbrev(aspirations, n.aspiration_id);
-                  const asp = findAspiration(aspirations, n.aspiration_id);
-                  const cls = aspClasses(asp?.number);
-                  const canRemove = !presenter && n.author === participant.name;
-                  return {
-                    id: n.id,
-                    headline: n.text,
-                    author: n.author,
-                    highlighted: n.highlighted,
-                    tag: abbrev ? <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${cls.bgSoft} ${cls.text}`}>{abbrev}</span> : undefined,
-                    actions: presenter ? (
-                      <PinToggle pinned={Boolean(n.highlighted)} onClick={() => toggleHighlight(n.id)} title="Poner/quitar de portada" />
-                    ) : canRemove ? (
-                      <button className={btnDanger} onClick={() => removeNote(n.id)}>
-                        ✕ quitar
-                      </button>
-                    ) : undefined,
-                  };
-                })}
-              />
+              <div key={cat.key} className="space-y-3">
+                {!presenter && (
+                  <div className="rounded-lg border border-border bg-card p-3">
+                    {!canWriteHere ? (
+                      <p className="rounded-md bg-black/[0.03] px-3 py-2 text-xs text-muted">
+                        🔒 Esta mesa no está activa en este momento — espera tu turno de rotación.
+                      </p>
+                    ) : (
+                      <div className="flex flex-col gap-2">
+                        {polarityTags && (
+                          <div className="flex gap-1.5" role="radiogroup" aria-label="¿Oportunidad o amenaza?">
+                            {(Object.keys(POLARITY_META) as (keyof typeof POLARITY_META)[]).map((key) => {
+                              const meta = POLARITY_META[key];
+                              const selected = polarity[cat.key] === key;
+                              return (
+                                <button
+                                  key={key}
+                                  type="button"
+                                  aria-pressed={selected}
+                                  onClick={() => setPolarity((p) => ({ ...p, [cat.key]: key }))}
+                                  className={`flex-1 rounded-md border px-2 py-1.5 text-xs font-semibold shadow-sm transition-colors ${
+                                    selected ? meta.selectedCls + " border-transparent" : "border-border text-muted hover:bg-black/5"
+                                  }`}
+                                >
+                                  {meta.icon} {meta.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                        {selectableAspiration && (
+                          <select
+                            className={inputCls}
+                            value={aspirationChoice[cat.key] ?? ""}
+                            onChange={(e) => setAspirationChoice((a) => ({ ...a, [cat.key]: e.target.value }))}
+                          >
+                            <option value="">Selecciona la aspiración…</option>
+                            {aspirations.map((a) => (
+                              <option key={a.id} value={a.id}>
+                                Aspiración {a.number} — {a.name}
+                              </option>
+                            ))}
+                          </select>
+                        )}
+                        <textarea
+                          className={textareaCls}
+                          placeholder="Escribe tu noticia de prensa…"
+                          value={draft[cat.key] ?? ""}
+                          onChange={(e) => setDraft((d) => ({ ...d, [cat.key]: e.target.value }))}
+                        />
+                        <div className="flex items-center gap-2">
+                          {impactLevels && (
+                            <select
+                              className={inputCls + " w-auto"}
+                              value={impact[cat.key] ?? "medio"}
+                              onChange={(e) => setImpact((i) => ({ ...i, [cat.key]: e.target.value as Note["impact"] }))}
+                            >
+                              <option value="alto">Impacto alto</option>
+                              <option value="medio">Impacto medio</option>
+                              <option value="bajo">Impacto bajo</option>
+                            </select>
+                          )}
+                          <button
+                            className={btnPrimary}
+                            disabled={polarityTags && !polarity[cat.key]}
+                            title={polarityTags && !polarity[cat.key] ? "Marca si es una oportunidad o una amenaza" : undefined}
+                            onClick={() => addNote(cat.key)}
+                          >
+                            Publicar noticia
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+                <NewsPage
+                  title={cat.label}
+                  notes={notesInCat.map((n) => {
+                    const abbrev = aspAbbrev(aspirations, n.aspiration_id);
+                    const asp = findAspiration(aspirations, n.aspiration_id);
+                    const cls = aspClasses(asp?.number);
+                    const canRemove = !presenter && n.author === participant.name;
+                    return {
+                      id: n.id,
+                      headline: n.text,
+                      author: n.author,
+                      highlighted: n.highlighted,
+                      tag: abbrev ? <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${cls.bgSoft} ${cls.text}`}>{abbrev}</span> : undefined,
+                      actions: presenter ? (
+                        <PinToggle pinned={Boolean(n.highlighted)} onClick={() => toggleHighlight(n.id)} title="Poner/quitar de portada" />
+                      ) : canRemove ? (
+                        <button className={btnDanger} onClick={() => removeNote(n.id)}>
+                          ✕ quitar
+                        </button>
+                      ) : undefined,
+                    };
+                  })}
+                />
+              </div>
             );
           }
           return (
