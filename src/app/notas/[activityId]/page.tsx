@@ -300,6 +300,9 @@ function FrontPageBoard({
                   <h2 className="m-0 text-lg font-semibold leading-tight text-[#1f3b57]" style={{ textWrap: "pretty" }}>
                     {destacado.text}
                   </h2>
+                  {destacado.content && (
+                    <p className="m-0 line-clamp-2 text-xs leading-snug text-[#333]">{destacado.content}</p>
+                  )}
                   <p className={`${sansPress.className} m-0 text-[11px] leading-tight`}>Por {destacado.author}</p>
                 </>
               ) : (
