@@ -2,6 +2,7 @@
 
 import { use, useEffect, useRef, useState } from "react";
 import Image from "next/image";
+import { Source_Serif_4, Archivo_Narrow } from "next/font/google";
 import { useRequireParticipant } from "@/lib/useRequireParticipant";
 import { isPresenter } from "@/lib/presenter";
 import { fetchActivityById, fetchAspirations, fetchSessionById } from "@/lib/data";
@@ -105,12 +106,26 @@ interface FrontPageContent extends Record<string, unknown> {
   publishedAt: string | null;
 }
 
+const serifPress = Source_Serif_4({ subsets: ["latin"], weight: ["400", "600", "800", "900"], style: ["normal", "italic"] });
+const sansPress = Archivo_Narrow({ subsets: ["latin"], weight: ["400", "600", "700"] });
+
+// Fotos por defecto del "Recorte de prensa": no se suben desde la sesión — son fijas, tomadas
+// de una sesión real del equipo Socya (ver C:\Desarrollos\estrategia\Recorte), igual que pediría
+// el diseño original en Recorte/Recorte de prensa.dc.html.
+const FOTOS_POR_DEFECTO = ["/vision-2029/foto-1.jpg", "/vision-2029/foto-2.jpg"];
+
 // La portada de periódico completa: antes de publicar, el facilitador ve una "sala de
 // redacción" a pantalla completa con un único botón — el momento de publicar es el que se
 // proyecta a toda la sala, así que tiene que sentirse como un evento (destello + portada que
 // "cae" en su lugar), no como un simple cambio de estado. Cada publicación nueva recibe su
 // propio `publishedAt`, que se usa como `key` de la portada para que React la vuelva a montar
 // (y así la animación se repita) cada vez que el facilitador saca una edición nueva.
+//
+// El maquetado de la edición publicada sigue el diseño de "Recorte de prensa" que ya se había
+// construido aparte (Recorte/Recorte de prensa.dc.html): masthead con el logo de Socya,
+// recuadro "destacado" arriba a la derecha, titular principal con dos fotos fijas, y el resto de
+// noticias en una cuadrícula tipo columnas de diario — reimplementado aquí en React/Tailwind en
+// vez del formato de mockup (x-dc/sc-if/sc-for) en el que se diseñó originalmente.
 function FrontPageBoard({
   activity,
   session,
@@ -143,8 +158,12 @@ function FrontPageBoard({
   }
 
   const notes = content.notes;
-  const lead = notes.filter((n) => n.highlighted);
-  const rest = notes.filter((n) => !n.highlighted);
+  // La nota destacada (📌) es el titular principal de portada; la siguiente sin destacar hace
+  // de "destacado" en el recuadro superior; el resto llena la cuadrícula de noticias.
+  const lead = notes.find((n) => n.highlighted) ?? notes[0];
+  const others = notes.filter((n) => n.id !== lead?.id);
+  const destacado = others[0];
+  const noticias = others.slice(1);
   const dateLabel = content.publishedAt
     ? new Date(content.publishedAt).toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
     : "";
@@ -174,77 +193,121 @@ function FrontPageBoard({
   }
 
   return (
-    <div className="min-h-screen bg-dark px-4 py-8 sm:px-8">
+    <div className="min-h-screen bg-[#e9e6df] px-4 py-8 sm:px-8">
       {flash && <div className="animate-news-flash pointer-events-none fixed inset-0 z-50 bg-white" />}
-      <div className="mx-auto flex max-w-[1100px] items-center justify-between gap-3 pb-4 text-white/60">
-        <span className="text-xs">
+      <div className="mx-auto flex max-w-[980px] items-center justify-between gap-3 pb-4 text-[#6b665b]">
+        <span className={`${sansPress.className} text-xs`}>
           {session.code} · {session.name}
         </span>
         <button
           onClick={backToNewsroom}
-          className="rounded-full border border-white/15 px-3 py-1.5 text-xs font-semibold text-white/70 hover:bg-white/10"
+          className={`${sansPress.className} rounded-full border border-[#c9c3b3] px-3 py-1.5 text-xs font-semibold text-[#4a463c] hover:bg-black/5`}
         >
           ✏️ Volver a redacción
         </button>
       </div>
 
-      <div key={content.publishedAt} className="animate-news-press mx-auto max-w-[1100px] rounded-sm border border-[#d8cfb4] bg-[#faf6ea] p-8 shadow-2xl sm:p-12">
-        <div className="text-center">
-          <Image src="/socya-logo.png" alt="Socya" width={72} height={30} className="mx-auto h-9 w-auto sm:h-11" />
-          <p className="mt-3 font-serif text-4xl font-black uppercase tracking-[0.08em] text-[#2b2620] sm:text-6xl">Socya</p>
-          <div className="animate-news-ink-sweep mx-auto mt-3 h-[4px] w-full bg-[#2b2620]" />
-          <div className="mx-auto mt-1 h-px w-full bg-[#2b2620]" />
-          <p className="mt-2 font-serif text-xs uppercase tracking-[0.25em] text-[#8a6d3b] sm:text-sm">
-            Edición especial · {activity.title}
-            {dateLabel && <> · {dateLabel}</>}
-          </p>
-        </div>
-
-        {notes.length === 0 && (
-          <p className="mt-10 text-center font-serif text-base italic text-[#8a7f66]">Esta edición salió sin noticias.</p>
-        )}
-
-        {lead.length > 0 && (
-          <div className="mt-8 grid gap-6 border-b-2 border-[#2b2620] pb-6 sm:grid-cols-[1.3fr_1fr]">
-            <div>
-              {lead.map((n) => (
-                <article key={n.id} className="mb-4">
-                  <p className="mb-1 font-serif text-[11px] font-bold uppercase tracking-[0.14em] text-[#8a6d3b]">📌 Portada</p>
-                  <h2 className="font-serif text-2xl font-bold leading-tight text-[#2b2620] sm:text-4xl">{n.text}</h2>
-                  <p className="mt-2 font-serif text-sm italic text-[#6b6151]">Por {n.author}</p>
-                </article>
-              ))}
+      <article
+        key={content.publishedAt}
+        lang="es"
+        className={`${serifPress.className} animate-news-press mx-auto box-border max-w-[980px] bg-[#fbfaf6] p-6 text-[#161616] shadow-2xl sm:p-10`}
+      >
+        {/* Encabezado: logo de Socya a la izquierda, recuadro "destacado" a la derecha —
+            mismo maquetado de dos columnas de Recorte/Recorte de prensa.dc.html. */}
+        <header className="grid gap-4 sm:grid-cols-[220px_1fr] sm:gap-6">
+          <div className="flex flex-col justify-end gap-2">
+            <div className="flex items-end gap-2">
+              <Image src="/socya-logo.png" alt="Socya" width={220} height={92} className="h-16 w-auto sm:h-20" />
+              <span className="mb-1 h-3 w-3 rounded-full bg-brand" />
             </div>
-            {content.media.length > 0 && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={content.media[0]} alt="Foto de la sesión" className="h-full w-full rounded-sm border border-[#d8cfb4] object-cover" />
+            <p className={`${sansPress.className} text-lg font-bold uppercase leading-none tracking-wide text-[#161616] sm:text-2xl`}>
+              Visión 2029
+            </p>
+          </div>
+          <div className="grid grid-cols-1 border border-[#d9d4c8] bg-[#efece4] sm:grid-cols-[1fr_150px]">
+            <div className="flex min-w-0 flex-col gap-1.5 p-3">
+              <div className={`${sansPress.className} leading-tight`}>
+                <div className="text-sm font-bold uppercase">{dateLabel || "Edición especial"}</div>
+                <div className="text-sm">{session.code} · {session.name}</div>
+              </div>
+              {destacado ? (
+                <>
+                  <h2 className="m-0 text-lg font-semibold leading-tight text-[#1f3b57]" style={{ textWrap: "pretty" }}>
+                    {destacado.text}
+                  </h2>
+                  <p className={`${sansPress.className} m-0 text-[11px] leading-tight`}>Por {destacado.author}</p>
+                </>
+              ) : (
+                <h2 className="m-0 text-lg font-semibold leading-tight text-[#1f3b57]">
+                  {notes.length} {notes.length === 1 ? "noticia publicada" : "noticias publicadas"} desde el futuro
+                </h2>
+              )}
+            </div>
+            <div className="hidden bg-dark sm:flex sm:items-center sm:justify-center">
+              <Image src="/socya-logo.png" alt="" width={72} height={30} className="h-8 w-auto brightness-0 invert opacity-80" />
+            </div>
+          </div>
+        </header>
+
+        {notes.length === 0 ? (
+          <p className={`${sansPress.className} mt-10 text-center text-base italic text-[#8a7f66]`}>Esta edición salió sin noticias.</p>
+        ) : (
+          <>
+            {/* Titular principal: la noticia destacada (📌), con las dos fotos fijas del
+                equipo Socya y una entradilla de contexto — no un dato inventado, es la
+                introducción fija de esta actividad. */}
+            <section className="mt-4 grid gap-4 border-b border-[#161616] pb-4 sm:grid-cols-[minmax(0,1fr)_190px] sm:gap-5 sm:pb-5">
+              <div className="flex flex-col gap-2.5">
+                <h1 className="m-0 text-4xl font-black leading-[1.02] tracking-tight text-[#161616] sm:text-6xl" style={{ textWrap: "balance" }}>
+                  {lead?.text}
+                </h1>
+                <div className="grid grid-cols-2 gap-1">
+                  {FOTOS_POR_DEFECTO.map((src) => (
+                    <div key={src} className="relative aspect-[4/5] overflow-hidden bg-[#cfc9bb]">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={src} alt="Equipo Socya" className="absolute inset-0 h-full w-full object-cover" />
+                    </div>
+                  ))}
+                </div>
+                <p className={`${sansPress.className} m-0 text-xs leading-tight text-[#333]`}>
+                  Fotos: equipo Socya <b className="uppercase">· Por {lead?.author}</b>
+                </p>
+              </div>
+              <aside className="flex flex-col gap-3">
+                <p className={`${sansPress.className} m-0 text-lg leading-snug text-[#1f3b57]`} style={{ textWrap: "pretty" }}>
+                  Así imaginó nuestro equipo a Socya en 2029, con las tres aspiraciones cumplidas.
+                </p>
+                <p className="m-0 text-sm leading-snug" style={{ textAlign: "justify", hyphens: "auto" }}>
+                  <span className="float-left mr-1.5 mt-0.5 text-[38px] font-extrabold leading-[0.85] text-[#1f3b57]">
+                    {(lead?.author ?? "S").charAt(0).toUpperCase()}
+                  </span>
+                  Una visión propuesta durante el ejercicio de imaginación guiada de la sesión {session.code}: cada
+                  persona escribió cómo se vería la Fundación con su futuro ya cumplido.
+                </p>
+              </aside>
+            </section>
+
+            {/* Resto de noticias: cuadrícula tipo columnas de diario, tantas como haya —
+                sin el límite fijo de 3 del mockup original. */}
+            {noticias.length > 0 && (
+              <section className="mt-4 grid gap-x-4 gap-y-4 border-b border-[#161616] pb-4 sm:grid-cols-2 lg:grid-cols-3">
+                {noticias.map((n, i) => (
+                  <div
+                    key={n.id}
+                    className="flex flex-col gap-1.5"
+                    style={{ borderLeft: i % 3 === 0 ? "none" : "1px solid #d9d4c8", paddingLeft: i % 3 === 0 ? 0 : 14 }}
+                  >
+                    <h3 className="m-0 text-xl font-semibold leading-tight" style={{ textWrap: "pretty" }}>
+                      {n.text}
+                    </h3>
+                    <p className={`${sansPress.className} m-0 text-xs italic`}>Por {n.author}</p>
+                  </div>
+                ))}
+              </section>
             )}
-          </div>
+          </>
         )}
-
-        {rest.length > 0 && (
-          <div className="mt-6 columns-1 gap-8 sm:columns-2 lg:columns-3" style={{ columnRule: "1px solid #d8cfb4" }}>
-            {rest.map((n) => (
-              <article key={n.id} className="mb-5 break-inside-avoid border-b border-[#e3dcc7] pb-4">
-                <h3 className="font-serif text-lg font-bold leading-snug text-[#2b2620]">{n.text}</h3>
-                <p className="mt-1 font-serif text-xs italic text-[#6b6151]">Por {n.author}</p>
-              </article>
-            ))}
-          </div>
-        )}
-
-        {content.media.length > 1 && (
-          <div className="mt-8 border-t border-[#d8cfb4] pt-6">
-            <p className="mb-3 font-serif text-xs font-bold uppercase tracking-[0.14em] text-[#8a6d3b]">Galería de la sesión</p>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              {content.media.slice(1).map((url) => (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img key={url} src={url} alt="Foto de la sesión" className="h-28 w-full rounded-sm border border-[#d8cfb4] object-cover" />
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
+      </article>
     </div>
   );
 }
