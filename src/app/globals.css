@@ -86,3 +86,12 @@ body {
 .animate-news-flash { animation: news-flash 0.7s ease-out forwards; }
 .animate-news-press { animation: news-press 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
 .animate-news-ink-sweep { animation: news-ink-sweep 0.9s 0.35s ease-out both; transform-origin: left; }
+
+/* Exportar el recorte de prensa a PDF (window.print()): hoja carta, ajustada a 2 páginas —
+   ver el botón "🖨️ Exportar a PDF" en notas/[activityId]/page.tsx. */
+@media print {
+  @page {
+    size: letter;
+    margin: 10mm;
+  }
+}

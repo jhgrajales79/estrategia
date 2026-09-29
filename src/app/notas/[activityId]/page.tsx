@@ -258,132 +258,146 @@ function FrontPageBoard({
   }
 
   return (
-    <div className="min-h-screen bg-[#e9e6df] px-4 py-8 sm:px-8">
+    <div className="min-h-screen bg-[#e9e6df] px-4 py-8 sm:px-8 print:bg-white print:p-0">
       {flash && <div className="animate-news-flash pointer-events-none fixed inset-0 z-50 bg-white" />}
-      <div className="mx-auto flex max-w-[980px] items-center justify-between gap-3 pb-4 text-[#6b665b]">
+      <div className="mx-auto flex max-w-[980px] items-center justify-between gap-3 pb-4 text-[#6b665b] print:hidden">
         <span className={`${sansPress.className} text-xs`}>
           {session.code} · {session.name}
         </span>
-        <button
-          onClick={backToNewsroom}
-          className={`${sansPress.className} rounded-full border border-[#c9c3b3] px-3 py-1.5 text-xs font-semibold text-[#4a463c] hover:bg-black/5`}
-        >
-          ✏️ Volver a redacción
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => window.print()}
+            className={`${sansPress.className} rounded-full bg-[#1f3b57] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#16293e]`}
+            title="Se ajusta a 2 hojas carta al elegir 'Guardar como PDF' en el diálogo de impresión"
+          >
+            🖨️ Exportar a PDF
+          </button>
+          <button
+            onClick={backToNewsroom}
+            className={`${sansPress.className} rounded-full border border-[#c9c3b3] px-3 py-1.5 text-xs font-semibold text-[#4a463c] hover:bg-black/5`}
+          >
+            ✏️ Volver a redacción
+          </button>
+        </div>
       </div>
 
       <article
         key={content.publishedAt}
         lang="es"
-        className={`${serifPress.className} animate-news-press mx-auto box-border max-w-[980px] bg-[#fbfaf6] p-6 text-[#161616] shadow-2xl sm:p-10`}
+        className={`${serifPress.className} animate-news-press mx-auto box-border max-w-[980px] bg-[#fbfaf6] p-6 text-[#161616] shadow-2xl sm:p-10 print:max-w-none print:animate-none print:p-0 print:text-[9.5px] print:shadow-none`}
       >
         {/* Encabezado: logo de Socya a la izquierda, recuadro "destacado" a la derecha —
             mismo maquetado de dos columnas de Recorte/Recorte de prensa.dc.html. */}
-        <header className="grid gap-4 sm:grid-cols-[220px_1fr] sm:gap-6">
-          <div className="flex flex-col justify-end gap-2">
+        <header className="grid gap-4 sm:grid-cols-[220px_1fr] sm:gap-6 print:grid-cols-[130px_1fr] print:gap-2">
+          <div className="flex flex-col justify-end gap-2 print:gap-1">
             <div className="flex items-end gap-2">
-              <Image src="/socya-logo.png" alt="Socya" width={220} height={92} className="h-16 w-auto sm:h-20" />
-              <span className="mb-1 h-3 w-3 rounded-full bg-brand" />
+              <Image src="/socya-logo.png" alt="Socya" width={220} height={92} className="h-16 w-auto sm:h-20 print:h-8" />
+              <span className="mb-1 h-3 w-3 rounded-full bg-brand print:h-1.5 print:w-1.5" />
             </div>
-            <p className={`${sansPress.className} text-lg font-bold uppercase leading-none tracking-wide text-[#161616] sm:text-2xl`}>
+            <p className={`${sansPress.className} text-lg font-bold uppercase leading-none tracking-wide text-[#161616] sm:text-2xl print:text-[10px]`}>
               Visión 2029
             </p>
           </div>
-          <div className="grid grid-cols-1 border border-[#d9d4c8] bg-[#efece4] sm:grid-cols-[1fr_150px]">
-            <div className="flex min-w-0 flex-col gap-1.5 p-3">
+          <div className="grid grid-cols-1 border border-[#d9d4c8] bg-[#efece4] sm:grid-cols-[1fr_150px] print:grid-cols-[1fr_110px]">
+            <div className="flex min-w-0 flex-col gap-1.5 p-3 print:gap-0.5 print:p-1.5">
               <div className={`${sansPress.className} leading-tight`}>
-                <div className="text-sm font-bold uppercase">{dateLabel || "Edición especial"}</div>
-                <div className="text-sm">{session.code} · {session.name}</div>
+                <div className="text-sm font-bold uppercase print:text-[8px]">{dateLabel || "Edición especial"}</div>
+                <div className="text-sm print:text-[8px]">{session.code} · {session.name}</div>
               </div>
               {destacado ? (
                 <>
-                  <h2 className="m-0 text-lg font-semibold leading-tight text-[#1f3b57]" style={{ textWrap: "pretty" }}>
+                  <h2 className="m-0 text-lg font-semibold leading-tight text-[#1f3b57] print:text-[9px]" style={{ textWrap: "pretty" }}>
                     {destacado.text}
                   </h2>
                   {destacado.content && (
-                    <p className="m-0 line-clamp-2 text-xs leading-snug text-[#333]">{destacado.content}</p>
+                    <p className="m-0 line-clamp-2 text-xs leading-snug text-[#333] print:text-[7px]">{destacado.content}</p>
                   )}
-                  <p className={`${sansPress.className} m-0 text-[11px] leading-tight`}>Por {destacado.author}</p>
+                  <p className={`${sansPress.className} m-0 text-[11px] leading-tight print:text-[6px]`}>Por {destacado.author}</p>
                 </>
               ) : (
-                <h2 className="m-0 text-lg font-semibold leading-tight text-[#1f3b57]">
+                <h2 className="m-0 text-lg font-semibold leading-tight text-[#1f3b57] print:text-[9px]">
                   {notes.length} {notes.length === 1 ? "noticia publicada" : "noticias publicadas"} desde el futuro
                 </h2>
               )}
             </div>
-            <div className="hidden bg-dark sm:flex sm:items-center sm:justify-center">
-              <Image src="/socya-logo.png" alt="" width={72} height={30} className="h-8 w-auto brightness-0 invert opacity-80" />
+            <div className="hidden bg-dark sm:flex sm:items-center sm:justify-center print:flex">
+              <Image src="/socya-logo.png" alt="" width={72} height={30} className="h-8 w-auto brightness-0 invert opacity-80 print:h-5" />
             </div>
           </div>
         </header>
 
         {/* Mención especial: contenido fijo de la organización, presente en toda edición sin
             importar lo que el grupo escriba en la actividad — con las 4 fotos del equipo en
-            medio del artículo, Vero 4 a ancho completo. */}
-        <section className="mt-5 border-b-2 border-[#1f3b57] pb-5">
-          <p className={`${sansPress.className} m-0 text-[11px] font-bold uppercase tracking-[0.14em] text-[#b3261e]`}>
+            medio del artículo, Vero 4 a ancho completo. En impresión ocupa la página 1 completa
+            (print:break-after-page fuerza a "Noticias de nuestro equipo" a empezar en la 2). */}
+        <section className="mt-5 border-b-2 border-[#1f3b57] pb-5 print:mt-2 print:break-after-page print:border-b print:pb-2">
+          <p className={`${sansPress.className} m-0 text-[11px] font-bold uppercase tracking-[0.14em] text-[#b3261e] print:text-[6px]`}>
             ★ {MENCION_VERONICA.kicker}
           </p>
-          <h2 className="m-0 mt-1.5 text-2xl font-bold leading-tight text-[#161616] sm:text-3xl" style={{ textWrap: "pretty" }}>
+          <h2 className="m-0 mt-1.5 text-2xl font-bold leading-tight text-[#161616] sm:text-3xl print:mt-0.5 print:text-xs" style={{ textWrap: "pretty" }}>
             {MENCION_VERONICA.titulo}
           </h2>
-          <p className={`${sansPress.className} m-0 mt-2 text-base leading-snug text-[#1f3b57]`} style={{ textWrap: "pretty" }}>
+          <p className={`${sansPress.className} m-0 mt-2 text-base leading-snug text-[#1f3b57] print:mt-0.5 print:text-[7px]`} style={{ textWrap: "pretty" }}>
             {MENCION_VERONICA.entradilla}
           </p>
 
-          <div className="mt-3 text-sm leading-snug" style={{ textAlign: "justify", hyphens: "auto" }}>
+          <div className="mt-3 text-sm leading-snug print:mt-1 print:text-[6.5px] print:leading-tight" style={{ textAlign: "justify", hyphens: "auto" }}>
             {MENCION_VERONICA.parrafos.map((p, i) => (
-              <p key={i} className="m-0 mb-3">
+              <p key={i} className="m-0 mb-3 print:mb-1">
                 {p}
               </p>
             ))}
           </div>
 
           {/* Vero 1 a Vero 3, en medio del artículo. */}
-          <div className="my-4 grid grid-cols-3 gap-2">
+          <div className="my-4 grid grid-cols-3 gap-2 print:my-1 print:gap-1">
             {VERO_FOTOS_FILA.map((src) => (
-              <div key={src} className="relative aspect-[4/3] overflow-hidden bg-[#cfc9bb]">
+              <div key={src} className="relative aspect-[4/3] overflow-hidden bg-[#cfc9bb] print:aspect-[3/1]">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={src} alt="Equipo Socya" className="absolute inset-0 h-full w-full object-cover" />
               </div>
             ))}
           </div>
-          <p className={`${sansPress.className} m-0 mb-4 text-xs italic text-[#6b6151]`}>Fotos: equipo Socya, sesiones de planeación estratégica.</p>
+          <p className={`${sansPress.className} m-0 mb-4 text-xs italic text-[#6b6151] print:mb-1 print:text-[5.5px]`}>
+            Fotos: equipo Socya, sesiones de planeación estratégica.
+          </p>
 
-          <h3 className={`${sansPress.className} m-0 mb-2 text-base font-bold uppercase tracking-wide text-[#1f3b57]`}>
+          <h3 className={`${sansPress.className} m-0 mb-2 text-base font-bold uppercase tracking-wide text-[#1f3b57] print:mb-0.5 print:text-[7px]`}>
             {MENCION_VERONICA.subtitulo2}
           </h3>
-          <p className="m-0 mb-3 text-sm leading-snug" style={{ textAlign: "justify", hyphens: "auto" }}>
+          <p className="m-0 mb-3 text-sm leading-snug print:mb-1 print:text-[6.5px] print:leading-tight" style={{ textAlign: "justify", hyphens: "auto" }}>
             {MENCION_VERONICA.parrafo3}
           </p>
 
-          <blockquote className="m-0 mb-4 border-l-4 border-[#b3261e] pl-4 text-base italic leading-snug text-[#1f3b57]">
+          <blockquote className="m-0 mb-4 border-l-4 border-[#b3261e] pl-4 text-base italic leading-snug text-[#1f3b57] print:mb-1 print:border-l-2 print:pl-1.5 print:text-[6.5px]">
             “{MENCION_VERONICA.cita}”
-            <footer className={`${sansPress.className} mt-1.5 text-xs not-italic text-[#6b6151]`}>— {MENCION_VERONICA.citaAtribucion}</footer>
+            <footer className={`${sansPress.className} mt-1.5 text-xs not-italic text-[#6b6151] print:mt-0.5 print:text-[5.5px]`}>
+              — {MENCION_VERONICA.citaAtribucion}
+            </footer>
           </blockquote>
 
           {/* Vero 4, a ancho completo. */}
-          <div className="relative my-4 aspect-[16/9] w-full overflow-hidden bg-[#cfc9bb]">
+          <div className="relative my-4 aspect-[16/9] w-full overflow-hidden bg-[#cfc9bb] print:my-1 print:aspect-[5/1]">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={VERO_FOTO_ANCHA} alt="Equipo Socya en sesión de planeación" className="absolute inset-0 h-full w-full object-cover" />
           </div>
 
-          <h3 className={`${sansPress.className} m-0 mb-2 text-base font-bold uppercase tracking-wide text-[#1f3b57]`}>
+          <h3 className={`${sansPress.className} m-0 mb-2 text-base font-bold uppercase tracking-wide text-[#1f3b57] print:mb-0.5 print:text-[7px]`}>
             {MENCION_VERONICA.subtitulo3}
           </h3>
-          <p className="m-0 mb-2 text-sm leading-snug">{MENCION_VERONICA.hitosIntro}</p>
-          <ul className="m-0 mb-4 list-none space-y-2 pl-0 text-sm leading-snug">
+          <p className="m-0 mb-2 text-sm leading-snug print:mb-0.5 print:text-[6.5px]">{MENCION_VERONICA.hitosIntro}</p>
+          <ul className="m-0 mb-4 list-none space-y-2 pl-0 text-sm leading-snug print:mb-1 print:space-y-0.5 print:text-[6.5px] print:leading-tight">
             {MENCION_VERONICA.hitos.map((h) => (
-              <li key={h.etiqueta} className="border-l-2 border-[#b3261e] pl-2.5">
+              <li key={h.etiqueta} className="border-l-2 border-[#b3261e] pl-2.5 print:pl-1">
                 <b className="text-[#1f3b57]">{h.etiqueta}:</b> {h.texto}
               </li>
             ))}
           </ul>
 
-          <h3 className={`${sansPress.className} m-0 mb-2 text-base font-bold uppercase tracking-wide text-[#1f3b57]`}>
+          <h3 className={`${sansPress.className} m-0 mb-2 text-base font-bold uppercase tracking-wide text-[#1f3b57] print:mb-0.5 print:text-[7px]`}>
             {MENCION_VERONICA.cierreSubtitulo}
           </h3>
-          <p className="m-0 text-sm leading-snug" style={{ textAlign: "justify", hyphens: "auto" }}>
+          <p className="m-0 text-sm leading-snug print:text-[6.5px] print:leading-tight" style={{ textAlign: "justify", hyphens: "auto" }}>
             {MENCION_VERONICA.cierre}
           </p>
         </section>
@@ -394,35 +408,35 @@ function FrontPageBoard({
           </p>
         ) : (
           <>
-            <p className={`${sansPress.className} mt-6 mb-1 text-[11px] font-bold uppercase tracking-[0.14em] text-[#8a6d3b]`}>
+            <p className={`${sansPress.className} mt-6 mb-1 text-[11px] font-bold uppercase tracking-[0.14em] text-[#8a6d3b] print:mt-0 print:text-[7px]`}>
               Noticias de nuestro equipo
             </p>
             {/* Titular principal: la noticia destacada (📌), con las dos fotos fijas del
                 equipo Socya y una entradilla de contexto — no un dato inventado, es la
                 introducción fija de esta actividad. */}
-            <section className="mt-4 grid gap-4 border-b border-[#161616] pb-4 sm:grid-cols-[minmax(0,1fr)_190px] sm:gap-5 sm:pb-5">
-              <div className="flex flex-col gap-2.5">
-                <h1 className="m-0 text-4xl font-black leading-[1.02] tracking-tight text-[#161616] sm:text-6xl" style={{ textWrap: "balance" }}>
+            <section className="mt-4 grid gap-4 border-b border-[#161616] pb-4 sm:grid-cols-[minmax(0,1fr)_190px] sm:gap-5 sm:pb-5 print:mt-1 print:grid-cols-[minmax(0,1fr)_130px] print:gap-2 print:pb-1.5">
+              <div className="flex flex-col gap-2.5 print:gap-1">
+                <h1 className="m-0 text-4xl font-black leading-[1.02] tracking-tight text-[#161616] sm:text-6xl print:text-lg" style={{ textWrap: "balance" }}>
                   {lead?.text}
                 </h1>
                 <div className="grid grid-cols-2 gap-1">
                   {FOTOS_POR_DEFECTO.map((src) => (
-                    <div key={src} className="relative aspect-[4/5] overflow-hidden bg-[#cfc9bb]">
+                    <div key={src} className="relative aspect-[4/5] overflow-hidden bg-[#cfc9bb] print:aspect-[4/3]">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={src} alt="Equipo Socya" className="absolute inset-0 h-full w-full object-cover" />
                     </div>
                   ))}
                 </div>
-                <p className={`${sansPress.className} m-0 text-xs leading-tight text-[#333]`}>
+                <p className={`${sansPress.className} m-0 text-xs leading-tight text-[#333] print:text-[6px]`}>
                   Fotos: equipo Socya <b className="uppercase">· Por {lead?.author}</b>
                 </p>
               </div>
-              <aside className="flex flex-col gap-3">
-                <p className={`${sansPress.className} m-0 text-lg leading-snug text-[#1f3b57]`} style={{ textWrap: "pretty" }}>
+              <aside className="flex flex-col gap-3 print:gap-1">
+                <p className={`${sansPress.className} m-0 text-lg leading-snug text-[#1f3b57] sm:text-lg print:text-[8px]`} style={{ textWrap: "pretty" }}>
                   Así imaginó nuestro equipo a Socya en 2029, con las tres aspiraciones cumplidas.
                 </p>
-                <p className="m-0 text-sm leading-snug" style={{ textAlign: "justify", hyphens: "auto" }}>
-                  <span className="float-left mr-1.5 mt-0.5 text-[38px] font-extrabold leading-[0.85] text-[#1f3b57]">
+                <p className="m-0 text-sm leading-snug print:text-[6.5px] print:leading-tight" style={{ textAlign: "justify", hyphens: "auto" }}>
+                  <span className="float-left mr-1.5 mt-0.5 text-[38px] font-extrabold leading-[0.85] text-[#1f3b57] print:text-base">
                     {(lead?.author ?? "S").charAt(0).toUpperCase()}
                   </span>
                   {lead?.content ||
@@ -434,7 +448,7 @@ function FrontPageBoard({
             {/* Resto de noticias: cuadrícula tipo columnas de diario, tantas como haya —
                 sin el límite fijo de 3 del mockup original. */}
             {noticias.length > 0 && (
-              <section className="mt-4 grid gap-x-4 gap-y-4 border-b border-[#161616] pb-4 sm:grid-cols-2 lg:grid-cols-3">
+              <section className="mt-4 grid gap-x-4 gap-y-4 border-b border-[#161616] pb-4 sm:grid-cols-2 lg:grid-cols-3 print:mt-1 print:grid-cols-3 print:gap-x-2 print:gap-y-1.5 print:pb-1.5">
                 {noticias.map((n, i) => {
                   // photoSeed se fija al azar cuando se crea la noticia (addNewsNote) y queda
                   // guardado con ella — así la asignación es realmente aleatoria por noticia,
@@ -449,28 +463,28 @@ function FrontPageBoard({
                   return (
                     <div
                       key={n.id}
-                      className="flex flex-col gap-1.5"
+                      className="flex flex-col gap-1.5 break-inside-avoid print:gap-0.5"
                       style={{ borderLeft: i % 3 === 0 ? "none" : "1px solid #d9d4c8", paddingLeft: i % 3 === 0 ? 0 : 14 }}
                     >
                       {foto && (
-                        <div className="relative aspect-[16/10] w-full overflow-hidden bg-[#cfc9bb]">
+                        <div className="relative aspect-[16/10] w-full overflow-hidden bg-[#cfc9bb] print:aspect-[16/9]">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img src={foto} alt="Equipo Socya" className="absolute inset-0 h-full w-full object-cover" />
                         </div>
                       )}
                       {/* Título + contenido, en el mismo estilo que los hitos de "Objetivos
                           2029" de la mención de honor: título en negrita, filete rojo. */}
-                      <div className="border-l-2 border-[#b3261e] pl-2.5">
-                        <h3 className="m-0 text-lg font-bold leading-tight text-[#161616]" style={{ textWrap: "pretty" }}>
+                      <div className="border-l-2 border-[#b3261e] pl-2.5 print:pl-1">
+                        <h3 className="m-0 text-lg font-bold leading-tight text-[#161616] print:text-[8px]" style={{ textWrap: "pretty" }}>
                           {n.text}
                         </h3>
                         {n.content && (
-                          <p className="mt-1 text-sm leading-snug text-[#333]" style={{ textAlign: "justify", hyphens: "auto" }}>
+                          <p className="mt-1 text-sm leading-snug text-[#333] print:mt-0.5 print:text-[6px] print:leading-tight" style={{ textAlign: "justify", hyphens: "auto" }}>
                             {n.content}
                           </p>
                         )}
                       </div>
-                      <p className={`${sansPress.className} m-0 text-xs italic`}>Por {n.author}</p>
+                      <p className={`${sansPress.className} m-0 text-xs italic print:text-[5.5px]`}>Por {n.author}</p>
                     </div>
                   );
                 })}
