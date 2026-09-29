@@ -95,6 +95,7 @@ interface FrontPageNote {
   aspiration_id: number | null;
   author: string;
   text: string;
+  content?: string;
   highlighted?: boolean;
 }
 
@@ -406,8 +407,8 @@ function FrontPageBoard({
                   <span className="float-left mr-1.5 mt-0.5 text-[38px] font-extrabold leading-[0.85] text-[#1f3b57]">
                     {(lead?.author ?? "S").charAt(0).toUpperCase()}
                   </span>
-                  Una visión propuesta durante el ejercicio de imaginación guiada de la sesión {session.code}: cada
-                  persona escribió cómo se vería la Fundación con su futuro ya cumplido.
+                  {lead?.content ||
+                    `Una visión propuesta durante el ejercicio de imaginación guiada de la sesión ${session.code}: cada persona escribió cómo se vería la Fundación con su futuro ya cumplido.`}
                 </p>
               </aside>
             </section>
@@ -430,9 +431,18 @@ function FrontPageBoard({
                           <img src={foto} alt="Equipo Socya" className="absolute inset-0 h-full w-full object-cover" />
                         </div>
                       )}
-                      <h3 className="m-0 text-xl font-semibold leading-tight" style={{ textWrap: "pretty" }}>
-                        {n.text}
-                      </h3>
+                      {/* Título + contenido, en el mismo estilo que los hitos de "Objetivos
+                          2029" de la mención de honor: título en negrita, filete rojo. */}
+                      <div className="border-l-2 border-[#b3261e] pl-2.5">
+                        <h3 className="m-0 text-lg font-bold leading-tight text-[#161616]" style={{ textWrap: "pretty" }}>
+                          {n.text}
+                        </h3>
+                        {n.content && (
+                          <p className="mt-1 text-sm leading-snug text-[#333]" style={{ textAlign: "justify", hyphens: "auto" }}>
+                            {n.content}
+                          </p>
+                        )}
+                      </div>
                       <p className={`${sansPress.className} m-0 text-xs italic`}>Por {n.author}</p>
                     </div>
                   );

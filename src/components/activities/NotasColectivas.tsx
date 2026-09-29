@@ -35,6 +35,9 @@ interface Note {
   aspiration_id: number | null;
   author: string;
   text: string;
+  // Cuerpo de la noticia (solo actividades newsStyle): text queda como título, content como
+  // desarrollo — así se ven como los "Objetivos 2029" de la mención de honor, título + contenido.
+  content?: string;
   impact?: "alto" | "medio" | "bajo";
   polarity?: NotePolarity;
   highlighted?: boolean;
@@ -98,6 +101,7 @@ function NotasColectivasClasico({ activity, session, aspirations, participant }:
     await save(fn(latest), opts);
   }
   const [draft, setDraft] = useState<Record<string, string>>({});
+  const [newsContentDraft, setNewsContentDraft] = useState<Record<string, string>>({});
   const [impact, setImpact] = useState<Record<string, Note["impact"]>>({});
   const [polarity, setPolarity] = useState<Record<string, Note["polarity"]>>({});
   const [aspirationChoice, setAspirationChoice] = useState<Record<string, string>>({});
@@ -171,6 +175,37 @@ function NotasColectivasClasico({ activity, session, aspirations, participant }:
       summary: `${participant.name} agregó una nota en "${activity.title}"`,
     });
     setDraft((d) => ({ ...d, [categoryKey]: "" }));
+  }
+
+  // Variante de addNote para las actividades newsStyle: la nota lleva título (draft) y
+  // contenido (newsContentDraft) por separado, en vez de un solo texto libre — igual que
+  // addNote, pero sin tocarla para no afectar Mundo café ni otras actividades de notas.
+  function addNewsNote(categoryKey: string) {
+    if (rotationLive && categoryKey !== activeCategoryKey) return;
+    const titulo = (draft[categoryKey] ?? "").trim();
+    if (!titulo) return;
+    const contenido = (newsContentDraft[categoryKey] ?? "").trim();
+    const chosen = aspirationChoice[categoryKey];
+    if (selectableAspiration && !chosen) return;
+    const chosenPolarity = polarity[categoryKey];
+    if (polarityTags && !chosenPolarity) return;
+    const aspirationId = selectableAspiration ? Number(chosen) : participant.aspiration_id;
+    const note: Note = {
+      id: uid(),
+      category: categoryKey,
+      aspiration_id: aspirationId,
+      author: participant.name,
+      text: titulo,
+      content: contenido || undefined,
+      impact: impactLevels ? impact[categoryKey] ?? "medio" : undefined,
+      polarity: polarityTags ? chosenPolarity : undefined,
+    };
+    mutateContent((latest) => ({ ...latest, notes: [...latest.notes, note] }), {
+      eventType: "nota",
+      summary: `${participant.name} agregó una noticia en "${activity.title}"`,
+    });
+    setDraft((d) => ({ ...d, [categoryKey]: "" }));
+    setNewsContentDraft((d) => ({ ...d, [categoryKey]: "" }));
   }
 
   function removeNote(id: string) {
@@ -381,11 +416,17 @@ function NotasColectivasClasico({ activity, session, aspirations, participant }:
                             ))}
                           </select>
                         )}
-                        <textarea
-                          className={textareaCls}
-                          placeholder="Escribe tu noticia de prensa…"
+                        <input
+                          className={inputCls}
+                          placeholder="Título de la noticia…"
                           value={draft[cat.key] ?? ""}
                           onChange={(e) => setDraft((d) => ({ ...d, [cat.key]: e.target.value }))}
+                        />
+                        <textarea
+                          className={textareaCls}
+                          placeholder="Contenido: desarrolla tu noticia…"
+                          value={newsContentDraft[cat.key] ?? ""}
+                          onChange={(e) => setNewsContentDraft((d) => ({ ...d, [cat.key]: e.target.value }))}
                         />
                         <div className="flex items-center gap-2">
                           {impactLevels && (
@@ -403,7 +444,7 @@ function NotasColectivasClasico({ activity, session, aspirations, participant }:
                             className={btnPrimary}
                             disabled={polarityTags && !polarity[cat.key]}
                             title={polarityTags && !polarity[cat.key] ? "Marca si es una oportunidad o una amenaza" : undefined}
-                            onClick={() => addNote(cat.key)}
+                            onClick={() => addNewsNote(cat.key)}
                           >
                             Publicar noticia
                           </button>
@@ -422,6 +463,7 @@ function NotasColectivasClasico({ activity, session, aspirations, participant }:
                     return {
                       id: n.id,
                       headline: n.text,
+                      body: n.content,
                       author: n.author,
                       highlighted: n.highlighted,
                       tag: abbrev ? <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${cls.bgSoft} ${cls.text}`}>{abbrev}</span> : undefined,

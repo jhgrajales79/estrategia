@@ -159,6 +159,9 @@ export function PostIt({
 export interface NewsStory {
   id: string;
   headline: string;
+  // Cuerpo de la noticia, además del titular — igual que la lista de "Objetivos 2029" de la
+  // mención de honor: título en negrita y, debajo, el desarrollo del contenido.
+  body?: string;
   author: string;
   tag?: ReactNode;
   // Reutiliza el "destacar" (📌) que ya existe en otras actividades de notas, pero aquí cambia
@@ -213,6 +216,9 @@ export function NewsPage({
                 {n.actions}
               </div>
               <h3 className={`font-serif font-bold leading-tight text-[#2b2620] ${large ? "text-3xl" : "text-xl"}`}>{n.headline}</h3>
+              {n.body && (
+                <p className={`mt-2 font-serif leading-snug text-[#3a3530] ${large ? "text-lg" : "text-sm"}`}>{n.body}</p>
+              )}
               <p className="mt-1 font-serif text-sm italic text-[#6b6151]">Por {n.author}</p>
             </article>
           ))}
@@ -231,6 +237,9 @@ export function NewsPage({
                 {n.actions}
               </div>
               <h4 className={`font-serif font-bold leading-snug text-[#2b2620] ${large ? "text-lg" : "text-sm"}`}>{n.headline}</h4>
+              {n.body && (
+                <p className={`mt-1 font-serif leading-snug text-[#3a3530] ${large ? "text-sm" : "text-xs"}`}>{n.body}</p>
+              )}
               <p className="mt-1 font-serif text-xs italic text-[#6b6151]">Por {n.author}</p>
             </article>
           ))}
