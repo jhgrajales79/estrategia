@@ -273,28 +273,25 @@ function FrontPageBoard({
               Visión 2029
             </p>
           </div>
-          <div className="grid grid-cols-1 border border-[#d9d4c8] bg-[#efece4] sm:grid-cols-[1fr_150px]">
-            <div className="flex min-w-0 flex-col gap-1.5 p-3">
-              <div className={`${sansPress.className} leading-tight`}>
-                <div className="text-sm font-bold uppercase">{dateLabel || "Edición especial"}</div>
-                <div className="text-sm">{session.code} · {session.name}</div>
-              </div>
-              {destacado ? (
-                <>
-                  <h2 className="m-0 text-lg font-semibold leading-tight text-[#1f3b57]" style={{ textWrap: "pretty" }}>
-                    {destacado.text}
-                  </h2>
-                  <p className={`${sansPress.className} m-0 text-[11px] leading-tight`}>Por {destacado.author}</p>
-                </>
-              ) : (
-                <h2 className="m-0 text-lg font-semibold leading-tight text-[#1f3b57]">
-                  {notes.length} {notes.length === 1 ? "noticia publicada" : "noticias publicadas"} desde el futuro
+          {/* Sin foto propia para este recuadro: el texto ocupa todo el ancho en vez de
+              dejar una columna decorativa vacía. */}
+          <div className="flex min-w-0 flex-col justify-center gap-1.5 border border-[#d9d4c8] bg-[#efece4] p-3 sm:p-4">
+            <div className={`${sansPress.className} leading-tight`}>
+              <div className="text-sm font-bold uppercase">{dateLabel || "Edición especial"}</div>
+              <div className="text-sm">{session.code} · {session.name}</div>
+            </div>
+            {destacado ? (
+              <>
+                <h2 className="m-0 text-xl font-semibold leading-tight text-[#1f3b57] sm:text-2xl" style={{ textWrap: "pretty" }}>
+                  {destacado.text}
                 </h2>
-              )}
-            </div>
-            <div className="hidden bg-dark sm:flex sm:items-center sm:justify-center">
-              <Image src="/socya-logo.png" alt="" width={72} height={30} className="h-8 w-auto brightness-0 invert opacity-80" />
-            </div>
+                <p className={`${sansPress.className} m-0 text-xs leading-tight`}>Por {destacado.author}</p>
+              </>
+            ) : (
+              <h2 className="m-0 text-xl font-semibold leading-tight text-[#1f3b57] sm:text-2xl">
+                {notes.length} {notes.length === 1 ? "noticia publicada" : "noticias publicadas"} desde el futuro
+              </h2>
+            )}
           </div>
         </header>
 
@@ -412,25 +409,35 @@ function FrontPageBoard({
               </aside>
             </section>
 
-            {/* Resto de noticias: cuadrícula tipo columnas de diario, tantas como haya —
-                sin el límite fijo de 3 del mockup original. */}
+            {/* Resto de noticias: cuadrícula tipo columnas de diario. El número de columnas se
+                ajusta a cuántas noticias hay (máx. 3) para que, con pocas, el texto se
+                estire y llene el ancho en vez de dejar huecos vacíos a la derecha. */}
             {noticias.length > 0 && (
-              <section className="mt-4 grid gap-x-4 gap-y-4 border-b border-[#161616] pb-4 sm:grid-cols-2 lg:grid-cols-3">
+              <section
+                className="mt-4 grid gap-x-5 gap-y-5 border-b border-[#161616] pb-4"
+                style={{ gridTemplateColumns: `repeat(${Math.min(noticias.length, 3)}, minmax(0, 1fr))` }}
+              >
                 {noticias.map((n, i) => {
+                  const cols = Math.min(noticias.length, 3);
                   const foto = NOTICIAS_FOTOS_ALTERNAS.length > 0 ? NOTICIAS_FOTOS_ALTERNAS[i % NOTICIAS_FOTOS_ALTERNAS.length] : null;
                   return (
                     <div
                       key={n.id}
                       className="flex flex-col gap-1.5"
-                      style={{ borderLeft: i % 3 === 0 ? "none" : "1px solid #d9d4c8", paddingLeft: i % 3 === 0 ? 0 : 14 }}
+                      style={{ borderLeft: i % cols === 0 ? "none" : "1px solid #d9d4c8", paddingLeft: i % cols === 0 ? 0 : 16 }}
                     >
-                      {foto && (
+                      {foto ? (
                         <div className="relative aspect-[16/10] w-full overflow-hidden bg-[#cfc9bb]">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img src={foto} alt="Equipo Socya" className="absolute inset-0 h-full w-full object-cover" />
                         </div>
+                      ) : (
+                        // Sin foto para esta noticia: un filete de color hace de remate visual
+                        // arriba, y el titular crece para llenar el espacio que habría ocupado
+                        // la imagen, en vez de dejarlo vacío.
+                        <div className="h-1 w-12 bg-[#b3261e]" />
                       )}
-                      <h3 className="m-0 text-xl font-semibold leading-tight" style={{ textWrap: "pretty" }}>
+                      <h3 className={`m-0 font-semibold leading-tight ${foto ? "text-xl" : "text-2xl"}`} style={{ textWrap: "pretty" }}>
                         {n.text}
                       </h3>
                       <p className={`${sansPress.className} m-0 text-xs italic`}>Por {n.author}</p>
