@@ -116,8 +116,8 @@ const FOTOS_POR_DEFECTO = ["/vision-2029/foto-1.jpg", "/vision-2029/foto-2.jpg"]
 
 // Mención especial fija a Verónica de Vivero Acevedo, con las 4 fotos del equipo (Vero 1 a
 // Vero 4) — Vero 4 va a ancho completo, como pidió el facilitador.
-const VERO_FOTOS_FILA = ["/vision-2029/vero-1.jpg", "/vision-2029/vero-2.jpg", "/vision-2029/vero-3.jpg"];
-const VERO_FOTO_ANCHA = "/vision-2029/vero-4.jpg";
+const VERO_FOTOS_FILA = ["/vision-2029/vero-1.jpg", "/vision-2029/vero-3.jpg", "/vision-2029/vero-4.jpg"];
+const VERO_FOTO_ANCHA = "/vision-2029/vero-5.jpg";
 
 const MENCION_VERONICA = {
   kicker: "Mención especial · De parte de Socya",
