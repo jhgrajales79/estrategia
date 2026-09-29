@@ -114,6 +114,46 @@ const sansPress = Archivo_Narrow({ subsets: ["latin"], weight: ["400", "600", "7
 // el diseño original en Recorte/Recorte de prensa.dc.html.
 const FOTOS_POR_DEFECTO = ["/vision-2029/foto-1.jpg", "/vision-2029/foto-2.jpg"];
 
+// Reconocimiento especial de la organización, fijo en toda edición (no depende de lo que el
+// grupo escriba en la actividad) — homenaje a la gestión de la Directora Ejecutiva.
+const RECONOCIMIENTO = {
+  kicker: "Reconocimiento especial · De parte de Socya",
+  titulo: "Liderazgo con visión de futuro: Verónica de Vivero Acevedo siembra las bases del impacto de la Fundación Socya rumbo al 2029",
+  entradilla:
+    "Bajo la dirección ejecutiva de De Vivero Acevedo, la organización fortalece su modelo de gestión socioambiental y economía circular, trazando la hoja de ruta estratégica para consolidar un desarrollo territorial sostenible.",
+  parrafos: [
+    'MEDELLÍN, Colombia — Con una estrategia enfocada en la sostenibilidad integral, la innovación social y el fortalecimiento del tejido comunitario, la Fundación Socya ha consolidado el camino para los objetivos fijados en su planeación estratégica con horizonte a 2029. Al frente de este proceso transformador se encuentra Verónica de Vivero Acevedo, Directora Ejecutiva de la entidad, cuyo liderazgo ha resultado determinante para sembrar la semilla de una gestión de alto impacto institucional en el país.',
+    "Desde la Dirección Ejecutiva, De Vivero Acevedo impulsó una visión orientada a articular soluciones operativas e integrales para los sectores público y privado. Su gestión ha permitido afianzar dos de los grandes pilares operacionales de la fundación: la Gestión Social y Ambiental y el desarrollo de Negocios Circulares. Este enfoque transformó la manera en que la entidad interviene en los territorios, acelerando la adopción de prácticas de economía circular y el cuidado de los ecosistemas.",
+  ],
+  subtitulo: "La semilla estratégica: pilares del horizonte 2029",
+  parrafoIntermedio:
+    "La hoja de ruta trazada por la Dirección Ejecutiva trasciende la gestión del día a día. Verónica de Vivero Acevedo promovió una cultura organizacional enfocada en anticipar los retos socioambientales de Colombia, consolidando alianzas intersectoriales clave y modelos de intervención de largo alcance.",
+  hitosIntro: "Entre los hitos principales sembrados bajo su administración, y que sirven como catalizadores de las metas proyectadas al 2029, destacan:",
+  hitos: [
+    {
+      etiqueta: "Aceleración de la Economía Circular",
+      texto:
+        "Consolidación de capacidades operativas para la recolección, aprovechamiento e integración de materiales al ciclo productivo, convirtiendo a Socya en un referente nacional de economía circular aplicada.",
+    },
+    {
+      etiqueta: "Transformación territorial sostenible",
+      texto:
+        "Implementación de metodologías de acompañamiento comunitario orientadas al desarrollo social, la gestión del agua y la conservación ambiental con enfoque participativo.",
+    },
+    {
+      etiqueta: "Red de alianzas estratégicas",
+      texto: "Articulación activa entre empresas privadas, entidades territoriales y cooperación internacional para escalar el impacto de las intervenciones socioambientales.",
+    },
+    {
+      etiqueta: "Fortalecimiento institucional y gobernanza",
+      texto: "Modernización de procesos internos, atracción de talento y aseguramiento de la sostenibilidad financiera requerida para ejecutar la estrategia de la próxima década.",
+    },
+  ],
+  cierreSubtitulo: "Un modelo listo para escalar",
+  cierre:
+    "Las bases sentadas durante la gestión de Verónica de Vivero Acevedo posicionan a la Fundación Socya en una ubicación de liderazgo para cumplir y superar sus metas hacia 2029. El modelo promovido asegura que el crecimiento futuro de la organización continúe cimentado en la innovación, el rigor operativo y la capacidad de transformar realidades en los territorios colombianos.",
+};
+
 // La portada de periódico completa: antes de publicar, el facilitador ve una "sala de
 // redacción" a pantalla completa con un único botón — el momento de publicar es el que se
 // proyecta a toda la sala, así que tiene que sentirse como un evento (destello + portada que
@@ -249,10 +289,52 @@ function FrontPageBoard({
           </div>
         </header>
 
+        {/* Reconocimiento especial: contenido fijo de la organización, presente en toda
+            edición sin importar lo que el grupo escriba en la actividad. */}
+        <section className="mt-5 border-b-2 border-[#1f3b57] pb-5">
+          <p className={`${sansPress.className} m-0 text-[11px] font-bold uppercase tracking-[0.14em] text-[#b3261e]`}>
+            ★ {RECONOCIMIENTO.kicker}
+          </p>
+          <h2 className="m-0 mt-1.5 text-2xl font-bold leading-tight text-[#161616] sm:text-3xl" style={{ textWrap: "pretty" }}>
+            {RECONOCIMIENTO.titulo}
+          </h2>
+          <p className={`${sansPress.className} m-0 mt-2 text-base leading-snug text-[#1f3b57]`} style={{ textWrap: "pretty" }}>
+            {RECONOCIMIENTO.entradilla}
+          </p>
+          <div className="mt-3 columns-1 gap-8 text-sm leading-snug sm:columns-2" style={{ textAlign: "justify", hyphens: "auto", columnRule: "1px solid #d9d4c8" }}>
+            {RECONOCIMIENTO.parrafos.map((p, i) => (
+              <p key={i} className="m-0 mb-3 break-inside-avoid">
+                {p}
+              </p>
+            ))}
+            <h3 className={`${sansPress.className} m-0 mb-2 break-after-avoid text-base font-bold uppercase tracking-wide text-[#1f3b57]`}>
+              {RECONOCIMIENTO.subtitulo}
+            </h3>
+            <p className="m-0 mb-3 break-inside-avoid">{RECONOCIMIENTO.parrafoIntermedio}</p>
+            <p className="m-0 mb-2 break-inside-avoid">{RECONOCIMIENTO.hitosIntro}</p>
+            <ul className="m-0 mb-3 list-none space-y-2 break-inside-avoid pl-0">
+              {RECONOCIMIENTO.hitos.map((h) => (
+                <li key={h.etiqueta} className="border-l-2 border-[#b3261e] pl-2.5">
+                  <b className="text-[#1f3b57]">{h.etiqueta}:</b> {h.texto}
+                </li>
+              ))}
+            </ul>
+            <h3 className={`${sansPress.className} m-0 mb-2 break-after-avoid text-base font-bold uppercase tracking-wide text-[#1f3b57]`}>
+              {RECONOCIMIENTO.cierreSubtitulo}
+            </h3>
+            <p className="m-0 break-inside-avoid">{RECONOCIMIENTO.cierre}</p>
+          </div>
+        </section>
+
         {notes.length === 0 ? (
-          <p className={`${sansPress.className} mt-10 text-center text-base italic text-[#8a7f66]`}>Esta edición salió sin noticias.</p>
+          <p className={`${sansPress.className} mt-6 text-center text-base italic text-[#8a7f66]`}>
+            Aún no hay noticias del equipo en esta edición.
+          </p>
         ) : (
           <>
+            <p className={`${sansPress.className} mt-6 mb-1 text-[11px] font-bold uppercase tracking-[0.14em] text-[#8a6d3b]`}>
+              Noticias de nuestro equipo
+            </p>
             {/* Titular principal: la noticia destacada (📌), con las dos fotos fijas del
                 equipo Socya y una entradilla de contexto — no un dato inventado, es la
                 introducción fija de esta actividad. */}
