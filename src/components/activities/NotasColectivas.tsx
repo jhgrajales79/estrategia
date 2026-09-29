@@ -38,6 +38,10 @@ interface Note {
   // Cuerpo de la noticia (solo actividades newsStyle): text queda como título, content como
   // desarrollo — así se ven como los "Objetivos 2029" de la mención de honor, título + contenido.
   content?: string;
+  // Semilla aleatoria fijada al crear la noticia (solo newsStyle), para elegir su foto ilustrativa
+  // en la portada — ver NOTICIAS_FOTOS_ALTERNAS en notas/[activityId]/page.tsx. Queda guardada en
+  // la nota (no se recalcula en cada render) para que la foto de cada noticia no cambie sola.
+  photoSeed?: number;
   impact?: "alto" | "medio" | "bajo";
   polarity?: NotePolarity;
   highlighted?: boolean;
@@ -197,6 +201,7 @@ function NotasColectivasClasico({ activity, session, aspirations, participant }:
       author: participant.name,
       text: titulo,
       content: contenido || undefined,
+      photoSeed: Math.floor(Math.random() * 1_000_000),
       impact: impactLevels ? impact[categoryKey] ?? "medio" : undefined,
       polarity: polarityTags ? chosenPolarity : undefined,
     };

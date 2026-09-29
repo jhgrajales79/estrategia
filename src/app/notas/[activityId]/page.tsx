@@ -96,6 +96,7 @@ interface FrontPageNote {
   author: string;
   text: string;
   content?: string;
+  photoSeed?: number;
   highlighted?: boolean;
 }
 
@@ -432,9 +433,15 @@ function FrontPageBoard({
             {noticias.length > 0 && (
               <section className="mt-4 grid gap-x-4 gap-y-4 border-b border-[#161616] pb-4 sm:grid-cols-2 lg:grid-cols-3">
                 {noticias.map((n, i) => {
+                  // photoSeed se fija al azar cuando se crea la noticia (addNewsNote) y queda
+                  // guardado con ella — así la asignación es realmente aleatoria por noticia,
+                  // sin depender de qué tan bien "se ve aleatorio" un hash del id. Las noticias
+                  // viejas sin photoSeed usan el hash del id como respaldo.
                   const foto =
                     NOTICIAS_FOTOS_ALTERNAS.length > 0
-                      ? NOTICIAS_FOTOS_ALTERNAS[hashToIndex(n.id, NOTICIAS_FOTOS_ALTERNAS.length)]
+                      ? NOTICIAS_FOTOS_ALTERNAS[
+                          typeof n.photoSeed === "number" ? n.photoSeed % NOTICIAS_FOTOS_ALTERNAS.length : hashToIndex(n.id, NOTICIAS_FOTOS_ALTERNAS.length)
+                        ]
                       : null;
                   return (
                     <div
