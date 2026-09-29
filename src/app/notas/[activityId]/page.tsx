@@ -116,8 +116,11 @@ const FOTOS_POR_DEFECTO = ["/vision-2029/foto-1.jpg", "/vision-2029/foto-2.jpg"]
 
 // Mención especial fija a Verónica de Vivero Acevedo, con las 4 fotos del equipo (Vero 1 a
 // Vero 4) — Vero 4 va a ancho completo, como pidió el facilitador.
-const VERO_FOTOS_FILA = ["/vision-2029/vero-1.jpg", "/vision-2029/vero-3.jpg", "/vision-2029/vero-4.jpg"];
+const VERO_FOTOS_FILA = ["/vision-2029/vero-1.jpg", "/vision-2029/vero-3.jpg"];
 const VERO_FOTO_ANCHA = "/vision-2029/vero-5.jpg";
+// Foto(s) que no se usaron en la mención de honor — se alternan en las noticias del equipo
+// (cada nota, según su posición en la lista, sección "Noticias de nuestro equipo").
+const NOTICIAS_FOTOS_ALTERNAS = ["/vision-2029/vero-4.jpg"];
 
 const MENCION_VERONICA = {
   kicker: "Mención especial · De parte de Socya",
@@ -413,18 +416,27 @@ function FrontPageBoard({
                 sin el límite fijo de 3 del mockup original. */}
             {noticias.length > 0 && (
               <section className="mt-4 grid gap-x-4 gap-y-4 border-b border-[#161616] pb-4 sm:grid-cols-2 lg:grid-cols-3">
-                {noticias.map((n, i) => (
-                  <div
-                    key={n.id}
-                    className="flex flex-col gap-1.5"
-                    style={{ borderLeft: i % 3 === 0 ? "none" : "1px solid #d9d4c8", paddingLeft: i % 3 === 0 ? 0 : 14 }}
-                  >
-                    <h3 className="m-0 text-xl font-semibold leading-tight" style={{ textWrap: "pretty" }}>
-                      {n.text}
-                    </h3>
-                    <p className={`${sansPress.className} m-0 text-xs italic`}>Por {n.author}</p>
-                  </div>
-                ))}
+                {noticias.map((n, i) => {
+                  const foto = NOTICIAS_FOTOS_ALTERNAS.length > 0 ? NOTICIAS_FOTOS_ALTERNAS[i % NOTICIAS_FOTOS_ALTERNAS.length] : null;
+                  return (
+                    <div
+                      key={n.id}
+                      className="flex flex-col gap-1.5"
+                      style={{ borderLeft: i % 3 === 0 ? "none" : "1px solid #d9d4c8", paddingLeft: i % 3 === 0 ? 0 : 14 }}
+                    >
+                      {foto && (
+                        <div className="relative aspect-[16/10] w-full overflow-hidden bg-[#cfc9bb]">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={foto} alt="Equipo Socya" className="absolute inset-0 h-full w-full object-cover" />
+                        </div>
+                      )}
+                      <h3 className="m-0 text-xl font-semibold leading-tight" style={{ textWrap: "pretty" }}>
+                        {n.text}
+                      </h3>
+                      <p className={`${sansPress.className} m-0 text-xs italic`}>Por {n.author}</p>
+                    </div>
+                  );
+                })}
               </section>
             )}
           </>
