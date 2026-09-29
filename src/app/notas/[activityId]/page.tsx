@@ -1,9 +1,10 @@
 "use client";
 
 import { use, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Source_Serif_4, Archivo_Narrow } from "next/font/google";
-import { useRequireParticipant } from "@/lib/useRequireParticipant";
+import { useOptionalParticipant } from "@/lib/useOptionalParticipant";
 import { isPresenter } from "@/lib/presenter";
 import { fetchActivityById, fetchAspirations, fetchSessionById } from "@/lib/data";
 import { useSubmission, effectiveAspirationId, fetchLatestContent } from "@/lib/useSubmission";
@@ -36,8 +37,9 @@ interface Content extends Record<string, unknown> {
 
 export default function NotasFullscreenPage({ params }: { params: Promise<{ activityId: string }> }) {
   const { activityId } = use(params);
-  const participant = useRequireParticipant();
+  const { participant, loaded: participantLoaded } = useOptionalParticipant();
   const presenter = isPresenter(participant);
+  const router = useRouter();
   const [activity, setActivity] = useState<ActivityRow | null>(null);
   const [session, setSession] = useState<SessionRow | null>(null);
   const [aspirations, setAspirations] = useState<Aspiration[]>([]);
@@ -50,7 +52,30 @@ export default function NotasFullscreenPage({ params }: { params: Promise<{ acti
     });
   }, [activityId]);
 
-  if (!participant || !activity || !session) {
+  // La portada de periódico (config.frontPage) es pública: cualquiera con el enlace la ve, sin
+  // iniciar sesión — es justo lo que se comparte fuera de la sesión. El resto de tableros
+  // ampliados (Mundo café, POAM, Cierre) siguen siendo solo para el facilitador, así que a esos
+  // sí los mandamos a /ingresar si no hay nadie identificado.
+  const isFrontPage = Boolean(activity?.config.frontPage);
+  useEffect(() => {
+    if (!participantLoaded || !activity || isFrontPage) return;
+    if (!participant) router.replace("/ingresar");
+  }, [participantLoaded, activity, isFrontPage, participant, router]);
+
+  if (!participantLoaded || !activity || !session) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-dark text-sm text-white/60">Cargando…</div>
+    );
+  }
+
+  // "Visión Socya 2029" (y cualquier otra actividad con config.frontPage) usa su propia portada
+  // de periódico a pantalla completa, pública — ver FrontPageBoard, que internamente restringe
+  // "Publicar edición" / "Volver a redacción" al facilitador.
+  if (isFrontPage) {
+    return <FrontPageBoard activity={activity} session={session} aspirations={aspirations} participant={participant} />;
+  }
+
+  if (!participant) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-dark text-sm text-white/60">Cargando…</div>
     );
@@ -76,12 +101,6 @@ export default function NotasFullscreenPage({ params }: { params: Promise<{ acti
   // necesita su propia vista ampliada de solo lectura del ranking, no la de Mundo café.
   if (activity.config.topFrom) {
     return <SintesisFullscreenBoard activity={activity} session={session} aspirations={aspirations} participant={participant} />;
-  }
-  // "Visión Socya 2029" (y cualquier otra actividad con config.frontPage) usa su propia portada
-  // de periódico a pantalla completa, con un botón de publicación que el facilitador dispara en
-  // vivo — ver FrontPageBoard.
-  if (activity.config.frontPage) {
-    return <FrontPageBoard activity={activity} session={session} aspirations={aspirations} participant={participant} />;
   }
   return <MundoCafeFullscreenBoard activity={activity} session={session} aspirations={aspirations} participant={participant} presenter={presenter} />;
 }
@@ -200,8 +219,11 @@ function FrontPageBoard({
   activity: ActivityRow;
   session: SessionRow;
   aspirations: Aspiration[];
-  participant: StoredParticipant;
+  // Página pública: quien la abre puede no haber iniciado sesión — solo el facilitador (role
+  // "facilitador") ve los controles de publicar/volver a redacción, ver más abajo.
+  participant: StoredParticipant | null;
 }) {
+  const presenter = isPresenter(participant);
   const submissionAspId = effectiveAspirationId(activity, participant);
   const emptyContent: FrontPageContent = { notes: [], media: [], showOnlyHighlighted: false, published: false, publishedAt: null };
   const { content, save, loaded } = useSubmission<FrontPageContent>(activity, session, submissionAspId, participant, emptyContent);
@@ -245,14 +267,18 @@ function FrontPageBoard({
             {session.code} · {session.name} · {notes.length} {notes.length === 1 ? "noticia lista" : "noticias listas"} para imprenta
           </p>
         </div>
-        <button
-          onClick={publish}
-          disabled={notes.length === 0}
-          className="relative mt-4 rounded-full bg-brand px-10 py-4 text-lg font-bold text-dark shadow-[0_0_40px_rgba(128,198,18,0.35)] transition-transform hover:scale-105 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100"
-          title={notes.length === 0 ? "Aún no hay noticias para publicar" : "Publicar la edición para toda la sala"}
-        >
-          📰 Publicar edición
-        </button>
+        {presenter ? (
+          <button
+            onClick={publish}
+            disabled={notes.length === 0}
+            className="relative mt-4 rounded-full bg-brand px-10 py-4 text-lg font-bold text-dark shadow-[0_0_40px_rgba(128,198,18,0.35)] transition-transform hover:scale-105 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100"
+            title={notes.length === 0 ? "Aún no hay noticias para publicar" : "Publicar la edición para toda la sala"}
+          >
+            📰 Publicar edición
+          </button>
+        ) : (
+          <p className="relative text-sm text-white/40">El facilitador aún no ha publicado esta edición — vuelve más tarde.</p>
+        )}
       </div>
     );
   }
@@ -272,12 +298,14 @@ function FrontPageBoard({
           >
             🖨️ Exportar a PDF
           </button>
-          <button
-            onClick={backToNewsroom}
-            className={`${sansPress.className} rounded-full border border-[#c9c3b3] px-3 py-1.5 text-xs font-semibold text-[#4a463c] hover:bg-black/5`}
-          >
-            ✏️ Volver a redacción
-          </button>
+          {presenter && (
+            <button
+              onClick={backToNewsroom}
+              className={`${sansPress.className} rounded-full border border-[#c9c3b3] px-3 py-1.5 text-xs font-semibold text-[#4a463c] hover:bg-black/5`}
+            >
+              ✏️ Volver a redacción
+            </button>
+          )}
         </div>
       </div>
 
