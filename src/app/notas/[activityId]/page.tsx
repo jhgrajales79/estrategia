@@ -121,7 +121,21 @@ const VERO_FOTOS_FILA = ["/vision-2029/vero-1.jpg", "/vision-2029/vero-3.jpg", "
 const VERO_FOTO_ANCHA = "/vision-2029/vero-5.jpg";
 // Foto(s) que no se usaron en la mención de honor — se alternan en las noticias del equipo
 // (cada nota, según su posición en la lista, sección "Noticias de nuestro equipo").
-const NOTICIAS_FOTOS_ALTERNAS = ["/vision-2029/vero-4.jpg"];
+const NOTICIAS_FOTOS_ALTERNAS = [
+  "/vision-2029/vero-4.jpg",
+  "/vision-2029/vero-7.jpg",
+  "/vision-2029/vero-8.jpg",
+  "/vision-2029/vero-9.jpg",
+];
+
+// Hash simple y estable para repartir las fotos "al azar" entre noticias: cada noticia (por su
+// id) siempre cae en la misma foto, así no cambia de una recarga a otra ni parpadea al agregar
+// una noticia nueva — pero la distribución entre notas distintas se ve aleatoria.
+function hashToIndex(id: string, length: number) {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) | 0;
+  return Math.abs(h) % length;
+}
 
 const MENCION_VERONICA = {
   kicker: "Mención especial · De parte de Socya",
@@ -418,7 +432,10 @@ function FrontPageBoard({
             {noticias.length > 0 && (
               <section className="mt-4 grid gap-x-4 gap-y-4 border-b border-[#161616] pb-4 sm:grid-cols-2 lg:grid-cols-3">
                 {noticias.map((n, i) => {
-                  const foto = NOTICIAS_FOTOS_ALTERNAS.length > 0 ? NOTICIAS_FOTOS_ALTERNAS[i % NOTICIAS_FOTOS_ALTERNAS.length] : null;
+                  const foto =
+                    NOTICIAS_FOTOS_ALTERNAS.length > 0
+                      ? NOTICIAS_FOTOS_ALTERNAS[hashToIndex(n.id, NOTICIAS_FOTOS_ALTERNAS.length)]
+                      : null;
                   return (
                     <div
                       key={n.id}
