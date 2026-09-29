@@ -114,6 +114,52 @@ const sansPress = Archivo_Narrow({ subsets: ["latin"], weight: ["400", "600", "7
 // el diseño original en Recorte/Recorte de prensa.dc.html.
 const FOTOS_POR_DEFECTO = ["/vision-2029/foto-1.jpg", "/vision-2029/foto-2.jpg"];
 
+// Mención especial fija a Verónica de Vivero Acevedo, con las 4 fotos del equipo (Vero 1 a
+// Vero 4) — Vero 4 va a ancho completo, como pidió el facilitador.
+const VERO_FOTOS_FILA = ["/vision-2029/vero-1.jpg", "/vision-2029/vero-2.jpg", "/vision-2029/vero-3.jpg"];
+const VERO_FOTO_ANCHA = "/vision-2029/vero-4.jpg";
+
+const MENCION_VERONICA = {
+  kicker: "Mención especial · De parte de Socya",
+  titulo: "El éxito del Plan Estratégico 2029 de la Fundación Socya: el fruto de la semilla que sembró Verónica de Vivero Acevedo",
+  entradilla:
+    "Al cierre del ciclo estratégico a 2029, la organización celebra el cumplimiento histórico de sus metas socioambientales, cimentado en la visión y hoja de ruta consolidadas por De Vivero Acevedo durante su gestión ejecutiva que culminó en octubre de 2026.",
+  parrafos: [
+    "MEDELLÍN, Colombia (Cierre de 2029) — Tras culminar con éxito la ejecución de su Plan Estratégico 2029, la Fundación Socya celebra hoy una transformación histórica en su impacto socioambiental. Al revisar el camino recorrido durante la última década, la institución destaca que el cumplimiento de estos hitos fue posible gracias a las bases estratégicas sembradas por Verónica de Vivero Acevedo, quien ejerció como Directora Ejecutiva hasta octubre de 2026.",
+    "Aquella visión de futuro, que en su momento reorganizó los pilares operativos de la entidad y potenció su modelo de gestión territorial, permitió que la fundación no solo alcanzara, sino que superara cada una de las metas proyectadas para el horizonte 2029.",
+  ],
+  subtitulo2: "La semilla de 2026: el origen del impacto alcanzado",
+  parrafo3:
+    "Entre los años de su gestión y su salida en octubre de 2026, Verónica de Vivero Acevedo se enfocó en diseñar una estructura organizacional resiliente y adaptable. Bajo su liderazgo, se articuló una red de alianzas público-privadas y se aceleró la transición hacia modelos de economía circular aplicada, dejando listos los catalizadores que impulsarían el crecimiento de la fundación en los años posteriores.",
+  cita:
+    'Cuando proyectamos los objetivos al 2029, sabíamos que la clave no estaba solo en la meta final, sino en sembrar las capacidades operativas, humanas y financieras desde el primer día. Mirar atrás y ver cómo esa semilla rindió sus frutos para el bienestar de miles de comunidades reafirma el valor del liderazgo con propósito.',
+  citaAtribucion: "Parte del legado conceptual que dejó De Vivero Acevedo al concluir su periodo directivo en 2026",
+  subtitulo3: "Objetivos 2029: de la visión a los resultados logrados",
+  hitosIntro: "Gracias a la hoja de ruta trazada en aquella gestión, la Fundación Socya presenta hoy un balance histórico con los siguientes logros consolidados al cierre de 2029:",
+  hitos: [
+    {
+      etiqueta: "Consolidación del ecosistema de Economía Circular",
+      texto:
+        "La organización logró escalar sus modelos de Negocios Circulares a nivel nacional, reincorporando cientos de miles de toneladas de materiales al ciclo productivo e integrando a recicladores de oficio en cadenas de valor formalizadas.",
+    },
+    {
+      etiqueta: "Transformación territorial y gestión del agua",
+      texto: "Se garantizó la seguridad hídrica y el desarrollo comunitario en decenas de cuencas estratégicas de Colombia, mediante metodologías de conservación participativa que fueron diseñadas e impulsadas durante la gestión de Verónica.",
+    },
+    {
+      etiqueta: "Red intersectorial consolidada",
+      texto: "El modelo de alianzas con propósito logró vincular a los principales actores del sector privado, entidades territoriales y cooperación internacional, convirtiendo a Socya en el articulador socioambiental por excelencia del país.",
+    },
+    {
+      etiqueta: "Sostenibilidad e innovación institucional",
+      texto: "La solidez financiera y la modernización de procesos instauradas a partir de 2026 permitieron a la fundación mantener un crecimiento auto-sostenible y una ejecución transparente a lo largo de todo el periodo.",
+    },
+  ],
+  cierreSubtitulo: "Un modelo de gestión para la historia",
+  cierre:
+    "El éxito alcanzado en este 2029 demuestra que los grandes logros institucionales se construyen con visión de largo plazo. La Fundación Socya inicia ahora una nueva etapa, respaldada por la certeza de que el liderazgo transformador de Verónica de Vivero Acevedo marcó un antes y un después en la historia del desarrollo sostenible en Colombia.",
+};
+
 // La portada de periódico completa: antes de publicar, el facilitador ve una "sala de
 // redacción" a pantalla completa con un único botón — el momento de publicar es el que se
 // proyecta a toda la sala, así que tiene que sentirse como un evento (destello + portada que
@@ -249,10 +295,86 @@ function FrontPageBoard({
           </div>
         </header>
 
+        {/* Mención especial: contenido fijo de la organización, presente en toda edición sin
+            importar lo que el grupo escriba en la actividad — con las 4 fotos del equipo en
+            medio del artículo, Vero 4 a ancho completo. */}
+        <section className="mt-5 border-b-2 border-[#1f3b57] pb-5">
+          <p className={`${sansPress.className} m-0 text-[11px] font-bold uppercase tracking-[0.14em] text-[#b3261e]`}>
+            ★ {MENCION_VERONICA.kicker}
+          </p>
+          <h2 className="m-0 mt-1.5 text-2xl font-bold leading-tight text-[#161616] sm:text-3xl" style={{ textWrap: "pretty" }}>
+            {MENCION_VERONICA.titulo}
+          </h2>
+          <p className={`${sansPress.className} m-0 mt-2 text-base leading-snug text-[#1f3b57]`} style={{ textWrap: "pretty" }}>
+            {MENCION_VERONICA.entradilla}
+          </p>
+
+          <div className="mt-3 text-sm leading-snug" style={{ textAlign: "justify", hyphens: "auto" }}>
+            {MENCION_VERONICA.parrafos.map((p, i) => (
+              <p key={i} className="m-0 mb-3">
+                {p}
+              </p>
+            ))}
+          </div>
+
+          {/* Vero 1 a Vero 3, en medio del artículo. */}
+          <div className="my-4 grid grid-cols-3 gap-2">
+            {VERO_FOTOS_FILA.map((src) => (
+              <div key={src} className="relative aspect-[4/3] overflow-hidden bg-[#cfc9bb]">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={src} alt="Equipo Socya" className="absolute inset-0 h-full w-full object-cover" />
+              </div>
+            ))}
+          </div>
+          <p className={`${sansPress.className} m-0 mb-4 text-xs italic text-[#6b6151]`}>Fotos: equipo Socya, sesiones de planeación estratégica.</p>
+
+          <h3 className={`${sansPress.className} m-0 mb-2 text-base font-bold uppercase tracking-wide text-[#1f3b57]`}>
+            {MENCION_VERONICA.subtitulo2}
+          </h3>
+          <p className="m-0 mb-3 text-sm leading-snug" style={{ textAlign: "justify", hyphens: "auto" }}>
+            {MENCION_VERONICA.parrafo3}
+          </p>
+
+          <blockquote className="m-0 mb-4 border-l-4 border-[#b3261e] pl-4 text-base italic leading-snug text-[#1f3b57]">
+            “{MENCION_VERONICA.cita}”
+            <footer className={`${sansPress.className} mt-1.5 text-xs not-italic text-[#6b6151]`}>— {MENCION_VERONICA.citaAtribucion}</footer>
+          </blockquote>
+
+          {/* Vero 4, a ancho completo. */}
+          <div className="relative my-4 aspect-[16/9] w-full overflow-hidden bg-[#cfc9bb]">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={VERO_FOTO_ANCHA} alt="Equipo Socya en sesión de planeación" className="absolute inset-0 h-full w-full object-cover" />
+          </div>
+
+          <h3 className={`${sansPress.className} m-0 mb-2 text-base font-bold uppercase tracking-wide text-[#1f3b57]`}>
+            {MENCION_VERONICA.subtitulo3}
+          </h3>
+          <p className="m-0 mb-2 text-sm leading-snug">{MENCION_VERONICA.hitosIntro}</p>
+          <ul className="m-0 mb-4 list-none space-y-2 pl-0 text-sm leading-snug">
+            {MENCION_VERONICA.hitos.map((h) => (
+              <li key={h.etiqueta} className="border-l-2 border-[#b3261e] pl-2.5">
+                <b className="text-[#1f3b57]">{h.etiqueta}:</b> {h.texto}
+              </li>
+            ))}
+          </ul>
+
+          <h3 className={`${sansPress.className} m-0 mb-2 text-base font-bold uppercase tracking-wide text-[#1f3b57]`}>
+            {MENCION_VERONICA.cierreSubtitulo}
+          </h3>
+          <p className="m-0 text-sm leading-snug" style={{ textAlign: "justify", hyphens: "auto" }}>
+            {MENCION_VERONICA.cierre}
+          </p>
+        </section>
+
         {notes.length === 0 ? (
-          <p className={`${sansPress.className} mt-10 text-center text-base italic text-[#8a7f66]`}>Esta edición salió sin noticias.</p>
+          <p className={`${sansPress.className} mt-6 text-center text-base italic text-[#8a7f66]`}>
+            Aún no hay noticias del equipo en esta edición.
+          </p>
         ) : (
           <>
+            <p className={`${sansPress.className} mt-6 mb-1 text-[11px] font-bold uppercase tracking-[0.14em] text-[#8a6d3b]`}>
+              Noticias de nuestro equipo
+            </p>
             {/* Titular principal: la noticia destacada (📌), con las dos fotos fijas del
                 equipo Socya y una entradilla de contexto — no un dato inventado, es la
                 introducción fija de esta actividad. */}
