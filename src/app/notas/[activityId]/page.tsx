@@ -284,7 +284,7 @@ function FrontPageBoard({
       <article
         key={content.publishedAt}
         lang="es"
-        className={`${serifPress.className} animate-news-press mx-auto box-border max-w-[980px] bg-[#fbfaf6] p-6 text-[#161616] shadow-2xl sm:p-10 print:max-w-none print:animate-none print:p-0 print:text-[9.5px] print:shadow-none`}
+        className={`${serifPress.className} animate-news-press mx-auto box-border max-w-[980px] bg-[#fbfaf6] p-6 text-[#161616] shadow-2xl sm:p-10 print:max-w-none print:animate-none print:p-0 print:text-[11px] print:shadow-none`}
       >
         {/* Encabezado: logo de Socya a la izquierda, recuadro "destacado" a la derecha —
             mismo maquetado de dos columnas de Recorte/Recorte de prensa.dc.html. */}
@@ -294,28 +294,28 @@ function FrontPageBoard({
               <Image src="/socya-logo.png" alt="Socya" width={220} height={92} className="h-16 w-auto sm:h-20 print:h-8" />
               <span className="mb-1 h-3 w-3 rounded-full bg-brand print:h-1.5 print:w-1.5" />
             </div>
-            <p className={`${sansPress.className} text-lg font-bold uppercase leading-none tracking-wide text-[#161616] sm:text-2xl print:text-[10px]`}>
+            <p className={`${sansPress.className} text-lg font-bold uppercase leading-none tracking-wide text-[#161616] sm:text-2xl print:text-[11px]`}>
               Visión 2029
             </p>
           </div>
           <div className="grid grid-cols-1 border border-[#d9d4c8] bg-[#efece4] sm:grid-cols-[1fr_150px] print:grid-cols-[1fr_110px]">
             <div className="flex min-w-0 flex-col gap-1.5 p-3 print:gap-0.5 print:p-1.5">
               <div className={`${sansPress.className} leading-tight`}>
-                <div className="text-sm font-bold uppercase print:text-[8px]">{dateLabel || "Edición especial"}</div>
-                <div className="text-sm print:text-[8px]">{session.code} · {session.name}</div>
+                <div className="text-sm font-bold uppercase print:text-[9.5px]">{dateLabel || "Edición especial"}</div>
+                <div className="text-sm print:text-[9.5px]">{session.code} · {session.name}</div>
               </div>
               {destacado ? (
                 <>
-                  <h2 className="m-0 text-lg font-semibold leading-tight text-[#1f3b57] print:text-[9px]" style={{ textWrap: "pretty" }}>
+                  <h2 className="m-0 text-lg font-semibold leading-tight text-[#1f3b57] print:text-[10.5px]" style={{ textWrap: "pretty" }}>
                     {destacado.text}
                   </h2>
                   {destacado.content && (
-                    <p className="m-0 line-clamp-2 text-xs leading-snug text-[#333] print:text-[7px]">{destacado.content}</p>
+                    <p className="m-0 line-clamp-2 text-xs leading-snug text-[#333] print:text-[9px]">{destacado.content}</p>
                   )}
-                  <p className={`${sansPress.className} m-0 text-[11px] leading-tight print:text-[6px]`}>Por {destacado.author}</p>
+                  <p className={`${sansPress.className} m-0 text-[11px] leading-tight print:text-[7.5px]`}>Por {destacado.author}</p>
                 </>
               ) : (
-                <h2 className="m-0 text-lg font-semibold leading-tight text-[#1f3b57] print:text-[9px]">
+                <h2 className="m-0 text-lg font-semibold leading-tight text-[#1f3b57] print:text-[10.5px]">
                   {notes.length} {notes.length === 1 ? "noticia publicada" : "noticias publicadas"} desde el futuro
                 </h2>
               )}
@@ -331,17 +331,17 @@ function FrontPageBoard({
             medio del artículo, Vero 4 a ancho completo. En impresión ocupa la página 1 completa
             (print:break-after-page fuerza a "Noticias de nuestro equipo" a empezar en la 2). */}
         <section className="mt-5 border-b-2 border-[#1f3b57] pb-5 print:mt-2 print:break-after-page print:border-b print:pb-2">
-          <p className={`${sansPress.className} m-0 text-[11px] font-bold uppercase tracking-[0.14em] text-[#b3261e] print:text-[6px]`}>
+          <p className={`${sansPress.className} m-0 text-[11px] font-bold uppercase tracking-[0.14em] text-[#b3261e] print:text-[7.5px]`}>
             ★ {MENCION_VERONICA.kicker}
           </p>
-          <h2 className="m-0 mt-1.5 text-2xl font-bold leading-tight text-[#161616] sm:text-3xl print:mt-0.5 print:text-xs" style={{ textWrap: "pretty" }}>
+          <h2 className="m-0 mt-1.5 text-2xl font-bold leading-tight text-[#161616] sm:text-3xl print:mt-0.5 print:text-sm" style={{ textWrap: "pretty" }}>
             {MENCION_VERONICA.titulo}
           </h2>
-          <p className={`${sansPress.className} m-0 mt-2 text-base leading-snug text-[#1f3b57] print:mt-0.5 print:text-[7px]`} style={{ textWrap: "pretty" }}>
+          <p className={`${sansPress.className} m-0 mt-2 text-base leading-snug text-[#1f3b57] print:mt-0.5 print:text-[9px]`} style={{ textWrap: "pretty" }}>
             {MENCION_VERONICA.entradilla}
           </p>
 
-          <div className="mt-3 text-sm leading-snug print:mt-1 print:text-[6.5px] print:leading-tight" style={{ textAlign: "justify", hyphens: "auto" }}>
+          <div className="mt-3 text-sm leading-snug print:mt-1 print:text-[8.5px] print:leading-tight" style={{ textAlign: "justify", hyphens: "auto" }}>
             {MENCION_VERONICA.parrafos.map((p, i) => (
               <p key={i} className="m-0 mb-3 print:mb-1">
                 {p}
@@ -358,20 +358,20 @@ function FrontPageBoard({
               </div>
             ))}
           </div>
-          <p className={`${sansPress.className} m-0 mb-4 text-xs italic text-[#6b6151] print:mb-1 print:text-[5.5px]`}>
+          <p className={`${sansPress.className} m-0 mb-4 text-xs italic text-[#6b6151] print:mb-1 print:text-[7px]`}>
             Fotos: equipo Socya, sesiones de planeación estratégica.
           </p>
 
-          <h3 className={`${sansPress.className} m-0 mb-2 text-base font-bold uppercase tracking-wide text-[#1f3b57] print:mb-0.5 print:text-[7px]`}>
+          <h3 className={`${sansPress.className} m-0 mb-2 text-base font-bold uppercase tracking-wide text-[#1f3b57] print:mb-0.5 print:text-[9px]`}>
             {MENCION_VERONICA.subtitulo2}
           </h3>
-          <p className="m-0 mb-3 text-sm leading-snug print:mb-1 print:text-[6.5px] print:leading-tight" style={{ textAlign: "justify", hyphens: "auto" }}>
+          <p className="m-0 mb-3 text-sm leading-snug print:mb-1 print:text-[8.5px] print:leading-tight" style={{ textAlign: "justify", hyphens: "auto" }}>
             {MENCION_VERONICA.parrafo3}
           </p>
 
-          <blockquote className="m-0 mb-4 border-l-4 border-[#b3261e] pl-4 text-base italic leading-snug text-[#1f3b57] print:mb-1 print:border-l-2 print:pl-1.5 print:text-[6.5px]">
+          <blockquote className="m-0 mb-4 border-l-4 border-[#b3261e] pl-4 text-base italic leading-snug text-[#1f3b57] print:mb-1 print:border-l-2 print:pl-1.5 print:text-[8.5px]">
             “{MENCION_VERONICA.cita}”
-            <footer className={`${sansPress.className} mt-1.5 text-xs not-italic text-[#6b6151] print:mt-0.5 print:text-[5.5px]`}>
+            <footer className={`${sansPress.className} mt-1.5 text-xs not-italic text-[#6b6151] print:mt-0.5 print:text-[7px]`}>
               — {MENCION_VERONICA.citaAtribucion}
             </footer>
           </blockquote>
@@ -382,11 +382,11 @@ function FrontPageBoard({
             <img src={VERO_FOTO_ANCHA} alt="Equipo Socya en sesión de planeación" className="absolute inset-0 h-full w-full object-cover" />
           </div>
 
-          <h3 className={`${sansPress.className} m-0 mb-2 text-base font-bold uppercase tracking-wide text-[#1f3b57] print:mb-0.5 print:text-[7px]`}>
+          <h3 className={`${sansPress.className} m-0 mb-2 text-base font-bold uppercase tracking-wide text-[#1f3b57] print:mb-0.5 print:text-[9px]`}>
             {MENCION_VERONICA.subtitulo3}
           </h3>
-          <p className="m-0 mb-2 text-sm leading-snug print:mb-0.5 print:text-[6.5px]">{MENCION_VERONICA.hitosIntro}</p>
-          <ul className="m-0 mb-4 list-none space-y-2 pl-0 text-sm leading-snug print:mb-1 print:space-y-0.5 print:text-[6.5px] print:leading-tight">
+          <p className="m-0 mb-2 text-sm leading-snug print:mb-0.5 print:text-[8.5px]">{MENCION_VERONICA.hitosIntro}</p>
+          <ul className="m-0 mb-4 list-none space-y-2 pl-0 text-sm leading-snug print:mb-1 print:space-y-0.5 print:text-[8.5px] print:leading-tight">
             {MENCION_VERONICA.hitos.map((h) => (
               <li key={h.etiqueta} className="border-l-2 border-[#b3261e] pl-2.5 print:pl-1">
                 <b className="text-[#1f3b57]">{h.etiqueta}:</b> {h.texto}
@@ -394,10 +394,10 @@ function FrontPageBoard({
             ))}
           </ul>
 
-          <h3 className={`${sansPress.className} m-0 mb-2 text-base font-bold uppercase tracking-wide text-[#1f3b57] print:mb-0.5 print:text-[7px]`}>
+          <h3 className={`${sansPress.className} m-0 mb-2 text-base font-bold uppercase tracking-wide text-[#1f3b57] print:mb-0.5 print:text-[9px]`}>
             {MENCION_VERONICA.cierreSubtitulo}
           </h3>
-          <p className="m-0 text-sm leading-snug print:text-[6.5px] print:leading-tight" style={{ textAlign: "justify", hyphens: "auto" }}>
+          <p className="m-0 text-sm leading-snug print:text-[8.5px] print:leading-tight" style={{ textAlign: "justify", hyphens: "auto" }}>
             {MENCION_VERONICA.cierre}
           </p>
         </section>
@@ -408,7 +408,7 @@ function FrontPageBoard({
           </p>
         ) : (
           <>
-            <p className={`${sansPress.className} mt-6 mb-1 text-[11px] font-bold uppercase tracking-[0.14em] text-[#8a6d3b] print:mt-0 print:text-[7px]`}>
+            <p className={`${sansPress.className} mt-6 mb-1 text-[11px] font-bold uppercase tracking-[0.14em] text-[#8a6d3b] print:mt-0 print:text-[9px]`}>
               Noticias de nuestro equipo
             </p>
             {/* Titular principal: la noticia destacada (📌), con las dos fotos fijas del
@@ -416,7 +416,7 @@ function FrontPageBoard({
                 introducción fija de esta actividad. */}
             <section className="mt-4 grid gap-4 border-b border-[#161616] pb-4 sm:grid-cols-[minmax(0,1fr)_190px] sm:gap-5 sm:pb-5 print:mt-1 print:grid-cols-[minmax(0,1fr)_130px] print:gap-2 print:pb-1.5">
               <div className="flex flex-col gap-2.5 print:gap-1">
-                <h1 className="m-0 text-4xl font-black leading-[1.02] tracking-tight text-[#161616] sm:text-6xl print:text-lg" style={{ textWrap: "balance" }}>
+                <h1 className="m-0 text-4xl font-black leading-[1.02] tracking-tight text-[#161616] sm:text-6xl print:text-xl" style={{ textWrap: "balance" }}>
                   {lead?.text}
                 </h1>
                 <div className="grid grid-cols-2 gap-1">
@@ -427,15 +427,15 @@ function FrontPageBoard({
                     </div>
                   ))}
                 </div>
-                <p className={`${sansPress.className} m-0 text-xs leading-tight text-[#333] print:text-[6px]`}>
+                <p className={`${sansPress.className} m-0 text-xs leading-tight text-[#333] print:text-[7.5px]`}>
                   Fotos: equipo Socya <b className="uppercase">· Por {lead?.author}</b>
                 </p>
               </div>
               <aside className="flex flex-col gap-3 print:gap-1">
-                <p className={`${sansPress.className} m-0 text-lg leading-snug text-[#1f3b57] sm:text-lg print:text-[8px]`} style={{ textWrap: "pretty" }}>
+                <p className={`${sansPress.className} m-0 text-lg leading-snug text-[#1f3b57] sm:text-lg print:text-[9.5px]`} style={{ textWrap: "pretty" }}>
                   Así imaginó nuestro equipo a Socya en 2029, con las tres aspiraciones cumplidas.
                 </p>
-                <p className="m-0 text-sm leading-snug print:text-[6.5px] print:leading-tight" style={{ textAlign: "justify", hyphens: "auto" }}>
+                <p className="m-0 text-sm leading-snug print:text-[8.5px] print:leading-tight" style={{ textAlign: "justify", hyphens: "auto" }}>
                   <span className="float-left mr-1.5 mt-0.5 text-[38px] font-extrabold leading-[0.85] text-[#1f3b57] print:text-base">
                     {(lead?.author ?? "S").charAt(0).toUpperCase()}
                   </span>
@@ -475,16 +475,16 @@ function FrontPageBoard({
                       {/* Título + contenido, en el mismo estilo que los hitos de "Objetivos
                           2029" de la mención de honor: título en negrita, filete rojo. */}
                       <div className="border-l-2 border-[#b3261e] pl-2.5 print:pl-1">
-                        <h3 className="m-0 text-lg font-bold leading-tight text-[#161616] print:text-[8px]" style={{ textWrap: "pretty" }}>
+                        <h3 className="m-0 text-lg font-bold leading-tight text-[#161616] print:text-[9.5px]" style={{ textWrap: "pretty" }}>
                           {n.text}
                         </h3>
                         {n.content && (
-                          <p className="mt-1 text-sm leading-snug text-[#333] print:mt-0.5 print:text-[6px] print:leading-tight" style={{ textAlign: "justify", hyphens: "auto" }}>
+                          <p className="mt-1 text-sm leading-snug text-[#333] print:mt-0.5 print:text-[7.5px] print:leading-tight" style={{ textAlign: "justify", hyphens: "auto" }}>
                             {n.content}
                           </p>
                         )}
                       </div>
-                      <p className={`${sansPress.className} m-0 text-xs italic print:text-[5.5px]`}>Por {n.author}</p>
+                      <p className={`${sansPress.className} m-0 text-xs italic print:text-[7px]`}>Por {n.author}</p>
                     </div>
                   );
                 })}
