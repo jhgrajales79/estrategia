@@ -1,10 +1,30 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSubmission } from "@/lib/useSubmission";
+import { supabase } from "@/lib/supabase";
 import { aspClasses, findAspiration, ARCHETYPE_LABEL } from "@/lib/aspirationStyle";
 import { isPresenter } from "@/lib/presenter";
 import { ActivityComponentProps, inputCls, textareaCls, btnPrimary, btnDanger, SaveIndicator, PresenterHint, uid } from "./shared";
+
+// Meta candidata tal como la deja la Subasta de nuevas metas (VotacionFichas) — solo nos
+// interesan las que ya ganaron fichas (puntos > 0), filtradas a la aspiración activa.
+interface MetaCandidate {
+  id: string;
+  text: string;
+  author: string;
+  owner?: string;
+  target_date?: string;
+  aspiration_id?: number | null;
+}
+interface MetaVote {
+  candidate_id: string;
+  points: number;
+}
+interface MetaSourceContent {
+  candidates?: MetaCandidate[];
+  votes?: MetaVote[];
+}
 
 interface FieldDef {
   key: string;
@@ -24,6 +44,10 @@ interface FieldDef {
 interface Entry extends Record<string, unknown> {
   id: string;
   aspiration_id?: number | null;
+  // Meta de la Subasta (config.metasFrom) de la que nace este registro — opcional: un registro
+  // creado con el botón genérico "+ {repeatLabel}" no queda ligado a ninguna. Varios registros
+  // pueden compartir la misma meta_id (una meta puede dar más de un objetivo SMART).
+  meta_id?: string;
 }
 interface Content extends Record<string, unknown> {
   entries: Entry[];
@@ -99,6 +123,46 @@ export default function TarjetaEstructurada({ activity, session, aspirations, pa
   // impide cualquier condición de carrera entre guardados que se cruzan al escribir rápido.
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [entryDrafts, setEntryDrafts] = useState<Record<string, Record<string, string>>>({});
+  const [draggingMetaId, setDraggingMetaId] = useState<string | null>(null);
+
+  // Metas de la Subasta (config.metasFrom, p. ej. "De aspiración a objetivos SMART" las toma de
+  // "Subasta de nuevas metas"): se leen en vivo de esa otra submission compartida (aspiration_id
+  // null, igual que SintesisEntorno.tsx lee el POAM) para poder arrastrarlas o seleccionarlas al
+  // crear un registro nuevo.
+  const metasFrom = activity.config.metasFrom as number | undefined;
+  const [metaCandidates, setMetaCandidates] = useState<MetaCandidate[]>([]);
+  const [metaVotes, setMetaVotes] = useState<MetaVote[]>([]);
+  useEffect(() => {
+    if (!metasFrom) return;
+    let cancelled = false;
+    async function fetchMetas() {
+      const { data } = await supabase.from("submissions").select("content").eq("activity_id", metasFrom!).is("aspiration_id", null).maybeSingle();
+      if (cancelled) return;
+      const c = (data?.content as MetaSourceContent | null) ?? {};
+      setMetaCandidates(c.candidates ?? []);
+      setMetaVotes(c.votes ?? []);
+    }
+    fetchMetas();
+    const channel = supabase
+      .channel(`metas-${metasFrom}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "submissions", filter: `activity_id=eq.${metasFrom}` }, () => fetchMetas())
+      .subscribe();
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(channel);
+    };
+  }, [metasFrom]);
+  const metaPoints = useMemo(() => {
+    const totals: Record<string, number> = {};
+    for (const v of metaVotes) totals[v.candidate_id] = (totals[v.candidate_id] ?? 0) + v.points;
+    return totals;
+  }, [metaVotes]);
+  // Solo las metas que ya ganaron fichas (puntos > 0) y de la aspiración activa — una meta sin
+  // votos no es todavía una meta oficial, no debería poder convertirse en objetivo SMART.
+  const availableMetas = metaCandidates.filter((c) => c.aspiration_id === activeAspId && (metaPoints[c.id] ?? 0) > 0);
+  function findMeta(id: string | undefined) {
+    return id ? metaCandidates.find((c) => c.id === id) : undefined;
+  }
 
   if (!loaded) return <p className="text-sm text-muted">Cargando…</p>;
 
@@ -186,8 +250,9 @@ export default function TarjetaEstructurada({ activity, session, aspirations, pa
     );
   }
 
-  function addEntry() {
+  function addEntry(metaId?: string) {
     const entry: Entry = { id: uid(), aspiration_id: submissionAspId };
+    if (metaId) entry.meta_id = metaId;
     for (const f of fields) if (f.default) entry[f.key] = f.default;
     save({ ...content, entries: [...content.entries, entry] }, { eventType: "registro", summary: `${participant.name} agregó "${repeatLabel}" en "${activity.title}"` });
   }
@@ -234,9 +299,44 @@ export default function TarjetaEstructurada({ activity, session, aspirations, pa
       {presenter && content.entries.length === 0 && (
         <p className="text-sm text-muted">Aún no hay registros. Cada equipo los agrega desde su propia sesión.</p>
       )}
+      {metasFrom && !presenter && (
+        <div className="rounded-lg border border-dashed border-brand/40 bg-brand/5 p-3">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-brand-dark">
+            🏷️ Metas de la Subasta con puntos — arrastra una sobre &quot;+ {repeatLabel}&quot;, o tócala para crear el objetivo directo
+          </p>
+          {availableMetas.length === 0 ? (
+            <p className="text-xs text-muted">Todavía no hay metas con puntos para esta aspiración.</p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {availableMetas.map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  draggable
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData("text/plain", m.id);
+                    setDraggingMetaId(m.id);
+                  }}
+                  onDragEnd={() => setDraggingMetaId(null)}
+                  onClick={() => addEntry(m.id)}
+                  className="max-w-xs cursor-grab rounded-md border border-brand/40 bg-card px-3 py-2 text-left text-xs shadow-sm transition-transform hover:scale-[1.02] active:cursor-grabbing"
+                  title="Arrastra sobre el botón de abajo, o toca para crear un objetivo con esta meta"
+                >
+                  <span className="block truncate font-semibold text-foreground">{m.text}</span>
+                  <span className="mt-0.5 block text-[11px] text-muted">
+                    {metaPoints[m.id]} {metaPoints[m.id] === 1 ? "punto" : "puntos"}
+                    {m.owner ? ` · ${m.owner}` : ""}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
       {content.entries.map((entry) => {
         const asp = findAspiration(aspirations, (entry.aspiration_id as number) ?? null);
         const cls = aspClasses(asp?.number);
+        const meta = findMeta(entry.meta_id);
         return (
           <div key={entry.id} className={`rounded-lg border-l-4 ${cls.border} border border-border bg-card p-3`}>
             <div className="mb-2 flex items-center justify-between">
@@ -247,6 +347,11 @@ export default function TarjetaEstructurada({ activity, session, aspirations, pa
                 </button>
               )}
             </div>
+            {meta && (
+              <p className="mb-2 rounded-md bg-black/[0.03] px-2 py-1.5 text-xs text-muted">
+                🏷️ Meta de la subasta: <span className="font-medium text-foreground">{meta.text}</span>
+              </p>
+            )}
             <div className="grid gap-3 sm:grid-cols-2">
               {fields.map((f) => (
                 <div key={f.key} className={f.type === "textarea" ? "sm:col-span-2" : ""}>
@@ -270,7 +375,17 @@ export default function TarjetaEstructurada({ activity, session, aspirations, pa
         );
       })}
       {!presenter && (
-        <button className={btnPrimary} onClick={addEntry}>
+        <button
+          className={`${btnPrimary} ${draggingMetaId ? "ring-2 ring-brand ring-offset-2" : ""}`}
+          onClick={() => addEntry()}
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => {
+            e.preventDefault();
+            const id = e.dataTransfer.getData("text/plain");
+            addEntry(id || undefined);
+            setDraggingMetaId(null);
+          }}
+        >
           + {repeatLabel}
         </button>
       )}
