@@ -39,6 +39,13 @@ interface Content extends Record<string, unknown> {
 
 export default function VotacionFichas({ activity, session, aspirations, participant }: ActivityComponentProps) {
   const pointsPerPerson = (activity.config.pointsPerPerson as number) ?? 3;
+  // Modo "elegir hasta N": en vez de repartir pointsPerPerson puntos (pudiendo concentrarlos en
+  // una sola candidata), cada persona apoya como máximo maxVotes candidatas distintas, 1 voto
+  // cada una. Con perAspiration, esto obliga a votar desde una pestaña "Todos" que junta las
+  // candidatas de las 3 aspiraciones — si no, 3 votos "en total" no tendría sentido repartidos
+  // en presupuestos separados por pestaña. Las demás actividades de votación (sin maxVotes)
+  // no cambian: siguen con el reparto de puntos de siempre.
+  const maxVotes = activity.config.maxVotes as number | undefined;
   const allowSubmitCandidates = Boolean(activity.config.allowSubmitCandidates);
   const candidateLabel = (activity.config.candidateLabel as string) ?? "Candidata";
   const requireOwnerAndDate = Boolean(activity.config.requireOwnerAndDate);
@@ -48,18 +55,23 @@ export default function VotacionFichas({ activity, session, aspirations, partici
   const importCategory = (activity.config.importCategory as string) ?? "debilidad";
   const presenter = isPresenter(participant);
   const perAspiration = Boolean(activity.config.perAspiration);
+  // Con maxVotes + perAspiration, votar pasa a hacerse solo desde una pestaña "Todos" que junta
+  // las candidatas de las 3 aspiraciones (ver comentario de `maxVotes` arriba); las pestañas por
+  // aspiración quedan para proponer y para mirar, no para votar.
+  const groupedVoting = perAspiration && Boolean(maxVotes);
   // A diferencia de MatrizPonderada/TarjetaEstructurada, aquí NO se separa en una submission por
   // aspiración: candidatas y votos siguen en una sola lista compartida (igual que ya la lee el
   // tablero proyectado en /votacion/[activityId], que filtra por `c.aspiration_id` en el
   // cliente) — solo se filtra qué candidatas se ven y se votan según la pestaña activa, así
-  // "una nueva meta por aspiración" corre como 3 subastas independientes sobre los mismos datos.
-  const [activeAspId, setActiveAspId] = useState<number | null>(() => aspirations[0]?.id ?? null);
+  // "una nueva meta por aspiración" corre como 3 subastas independientes sobre los mismos datos
+  // (o, con groupedVoting, como una sola subasta conjunta).
+  const [activeAspId, setActiveAspId] = useState<number | "all" | null>(() => (groupedVoting ? "all" : aspirations[0]?.id ?? null));
   useEffect(() => {
     if (activeAspId === null && aspirations.length > 0) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setActiveAspId(aspirations[0].id);
+      setActiveAspId(groupedVoting ? "all" : aspirations[0].id);
     }
-  }, [aspirations, activeAspId]);
+  }, [aspirations, activeAspId, groupedVoting]);
   const { content, save, saving, updatedAt, saveError, loaded } = useSubmission<Content>(
     activity,
     session,
@@ -90,7 +102,7 @@ export default function VotacionFichas({ activity, session, aspirations, partici
     const rows = (data ?? []).flatMap((row) => ((row.content as { rows?: EfiRow[] } | null)?.rows ?? []));
     // Con `perAspiration`, cada pestaña importa solo las debilidades de SU aspiración — si no,
     // el equipo de una aspiración vería (y podría votar) candidatas que le corresponden a otra.
-    const notes = rows.filter((r) => r.category === importCategory && (!perAspiration || r.aspiration_id === activeAspId));
+    const notes = rows.filter((r) => r.category === importCategory && (!perAspiration || activeAspId === "all" || r.aspiration_id === activeAspId));
     const existing = new Set(content.candidates.map((c) => c.text.trim().toLowerCase()));
     const newCandidates: Candidate[] = notes
       .filter((n) => n.factor.trim() && !existing.has(n.factor.trim().toLowerCase()))
@@ -106,14 +118,23 @@ export default function VotacionFichas({ activity, session, aspirations, partici
   // Solo las candidatas de la pestaña activa cuentan para el escalafón y el presupuesto de
   // puntos de esta vista — cada aspiración es su propia subasta, con sus propios 3 puntos por
   // persona, aunque vivan en la misma lista compartida.
-  const visibleCandidates = perAspiration ? content.candidates.filter((c) => c.aspiration_id === activeAspId) : content.candidates;
+  const visibleCandidates =
+    perAspiration && activeAspId !== "all" ? content.candidates.filter((c) => c.aspiration_id === activeAspId) : content.candidates;
   const visibleIds = new Set(visibleCandidates.map((c) => c.id));
   const myVotes = content.votes.filter((v) => v.participant_id === participant.id && visibleIds.has(v.candidate_id));
   const myUsed = myVotes.reduce((a, v) => a + v.points, 0);
   const myRemaining = pointsPerPerson - myUsed;
+  // Modo maxVotes: cuenta cuántas candidatas DISTINTAS ya apoyó (no cuántos puntos sumó) — cada
+  // voto vale 1, no se puede concentrar. Con groupedVoting, myVotes ya viene de visibleIds =
+  // TODAS las candidatas (porque activeAspId es "all" cuando se vota), así el límite es global.
+  const myVotesCount = myVotes.length;
+  const myVotesRemaining = (maxVotes ?? 0) - myVotesCount;
 
   function addCandidate() {
     if (!newText.trim()) return;
+    // En la pestaña "Todos" no hay una aspiración a la cual asignar la candidata nueva — el
+    // formulario de proponer se oculta ahí (ver más abajo), esto es solo un resguardo.
+    if (perAspiration && activeAspId === "all") return;
     const c: Candidate = {
       id: uid(),
       text: newText.trim(),
@@ -121,7 +142,7 @@ export default function VotacionFichas({ activity, session, aspirations, partici
       author_id: participant.id,
       owner: newOwner || undefined,
       target_date: newDate || undefined,
-      aspiration_id: perAspiration ? activeAspId : undefined,
+      aspiration_id: perAspiration && activeAspId !== "all" ? activeAspId : undefined,
     };
     save(
       { ...content, candidates: [...content.candidates, c] },
@@ -145,6 +166,17 @@ export default function VotacionFichas({ activity, session, aspirations, partici
     const votes = next > 0 ? [...others, { participant_id: participant.id, participant_name: participant.name, candidate_id: candidateId, points: next }] : others;
     save({ ...content, votes }, { eventType: "voto", summary: `${participant.name} votó en "${activity.title}"` });
   }
+  // Modo maxVotes: 1 voto por candidata (no puntos a repartir) — tocar apoya/quita el apoyo,
+  // hasta un máximo de maxVotes candidatas distintas en total.
+  function toggleVote(candidateId: string) {
+    const already = myVotes.some((v) => v.candidate_id === candidateId);
+    const others = content.votes.filter((v) => !(v.participant_id === participant.id && v.candidate_id === candidateId));
+    if (!already && myVotesRemaining <= 0) return;
+    const votes = already
+      ? others
+      : [...others, { participant_id: participant.id, participant_name: participant.name, candidate_id: candidateId, points: 1 }];
+    save({ ...content, votes }, { eventType: "voto", summary: `${participant.name} votó en "${activity.title}"` });
+  }
 
   const RANK_MEDAL = ["🥇", "🥈", "🥉"];
   const totals = visibleCandidates
@@ -163,6 +195,17 @@ export default function VotacionFichas({ activity, session, aspirations, partici
     <div className="space-y-4">
       {perAspiration && aspirations.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
+          {groupedVoting && (
+            <button
+              type="button"
+              onClick={() => setActiveAspId("all")}
+              className={`rounded-full border px-3 py-1.5 text-xs font-bold transition-colors ${
+                activeAspId === "all" ? "border-transparent bg-brand-dark text-white" : "border-brand-dark text-brand-dark bg-card hover:bg-black/5"
+              }`}
+            >
+              🗳️ Todos · aquí se vota
+            </button>
+          )}
           {aspirations.map((a) => {
             const cls = aspClasses(a.number);
             const active = activeAspId === a.id;
@@ -180,6 +223,13 @@ export default function VotacionFichas({ activity, session, aspirations, partici
             );
           })}
         </div>
+      )}
+      {groupedVoting && (
+        <p className="text-xs text-muted">
+          {activeAspId === "all"
+            ? "Estás en \"Todos\": aquí puedes apoyar tus metas favoritas, de cualquier aspiración."
+            : "Esta pestaña es solo para proponer y mirar — para votar, ve a la pestaña \"Todos\"."}
+        </p>
       )}
       {(presenter || importCandidatesFrom) && (
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -218,7 +268,7 @@ export default function VotacionFichas({ activity, session, aspirations, partici
           <BarChart bars={totals.map((t) => ({ label: t.c.text, value: t.total, colorClass: "bg-brand" }))} unit=" pts" />
         </div>
       )}
-      {allowSubmitCandidates && !presenter && (
+      {allowSubmitCandidates && !presenter && !(groupedVoting && activeAspId === "all") && (
         <div className="rounded-lg border border-border bg-card p-3">
           <p className="mb-2 text-sm font-semibold">Proponer {candidateLabel.toLowerCase()}</p>
           <div className="flex flex-col gap-2 sm:flex-row">
@@ -245,7 +295,13 @@ export default function VotacionFichas({ activity, session, aspirations, partici
         </div>
       )}
 
-      {!presenter && (
+      {!presenter && maxVotes && (!perAspiration || activeAspId === "all") && (
+        <p className="text-sm text-muted">
+          Metas apoyadas: <span className="font-semibold text-foreground">{myVotesCount}</span> de {maxVotes} — 1 voto por meta, sin
+          concentrar
+        </p>
+      )}
+      {!presenter && !maxVotes && (
         <p className="text-sm text-muted">
           Puntos disponibles: <span className="font-semibold text-foreground">{myRemaining}</span> de {pointsPerPerson} · puedes
           concentrar varios en una misma idea
@@ -296,13 +352,32 @@ export default function VotacionFichas({ activity, session, aspirations, partici
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-sm font-semibold text-brand">{total} pts</span>
-                {!presenter && (
-                  <Stepper
-                    value={myPoints}
-                    max={myPoints + myRemaining}
-                    onChange={(next) => setPoints(c.id, next)}
-                    ariaLabel={`puntos para "${c.text}"`}
-                  />
+                {!presenter && maxVotes ? (
+                  // Solo se puede votar desde "Todos" cuando hay groupedVoting — en las pestañas
+                  // por aspiración el botón de apoyo no aparece (ver mensaje arriba).
+                  (!groupedVoting || activeAspId === "all") && (
+                    <button
+                      type="button"
+                      onClick={() => toggleVote(c.id)}
+                      disabled={myPoints === 0 && myVotesRemaining <= 0}
+                      className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+                        myPoints > 0
+                          ? "border-transparent bg-brand-dark text-white"
+                          : "border-brand-dark text-brand-dark hover:bg-brand/10"
+                      }`}
+                    >
+                      {myPoints > 0 ? "✓ Apoyada" : "Apoyar"}
+                    </button>
+                  )
+                ) : (
+                  !presenter && (
+                    <Stepper
+                      value={myPoints}
+                      max={myPoints + myRemaining}
+                      onChange={(next) => setPoints(c.id, next)}
+                      ariaLabel={`puntos para "${c.text}"`}
+                    />
+                  )
                 )}
                 {canDeleteOwn && total === 0 && <DeleteButton onConfirm={() => removeCandidate(c.id)} />}
               </div>
