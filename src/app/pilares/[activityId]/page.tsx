@@ -4,9 +4,10 @@ import { use, useEffect, useState } from "react";
 import Image from "next/image";
 import { useRequireParticipant } from "@/lib/useRequireParticipant";
 import { isPresenter } from "@/lib/presenter";
-import { fetchActivityById, fetchSessionById, fetchSubmissionsByActivityIds } from "@/lib/data";
+import { fetchActivityById, fetchAspirations, fetchSessionById, fetchSubmissionsByActivityIds } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
-import type { ActivityRow, SessionRow } from "@/lib/types";
+import { aspClasses, findAspiration, ARCHETYPE_LABEL } from "@/lib/aspirationStyle";
+import type { ActivityRow, Aspiration, SessionRow } from "@/lib/types";
 
 interface FieldDef {
   key: string;
@@ -15,6 +16,8 @@ interface FieldDef {
 }
 interface Entry extends Record<string, unknown> {
   id: string;
+  aspiration_id?: number | null;
+  ejemplo?: boolean;
 }
 
 // Tablero de solo lectura para actividades "tarjeta_estructurada" repetibles y NO por
@@ -27,10 +30,12 @@ export default function PilaresFullscreenPage({ params }: { params: Promise<{ ac
   const presenter = isPresenter(participant);
   const [activity, setActivity] = useState<ActivityRow | null>(null);
   const [session, setSession] = useState<SessionRow | null>(null);
+  const [aspirations, setAspirations] = useState<Aspiration[]>([]);
   const [entries, setEntries] = useState<Entry[]>([]);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
+    fetchAspirations().then(setAspirations).catch(console.error);
     fetchActivityById(Number(activityId)).then((a) => {
       setActivity(a);
       if (a) fetchSessionById(a.session_id).then(setSession).catch(console.error);
@@ -98,8 +103,25 @@ export default function PilaresFullscreenPage({ params }: { params: Promise<{ ac
           </div>
         ) : (
           <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-            {entries.map((entry) => (
-              <div key={entry.id} className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+            {entries.map((entry) => {
+              const asp = findAspiration(aspirations, entry.aspiration_id ?? null);
+              const cls = aspClasses(asp?.number);
+              return (
+              <div key={entry.id} className={`rounded-2xl border border-white/10 bg-white/[0.03] p-5 ${asp ? `border-l-4 ${cls.border}` : ""}`}>
+                {(entry.ejemplo || asp) && (
+                  <div className="mb-2 flex flex-wrap items-center gap-1.5">
+                    {entry.ejemplo && (
+                      <span className="rounded-full bg-amber-400/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-300">
+                        🧩 Ejemplo
+                      </span>
+                    )}
+                    {asp && (
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${cls.bgSoft} ${cls.text}`}>
+                        Aspiración {asp.number} · {ARCHETYPE_LABEL[asp.number]}
+                      </span>
+                    )}
+                  </div>
+                )}
                 {titleField && (
                   <p className="mb-3 text-lg font-bold leading-snug text-brand">
                     {(entry[titleField.key] as string) || "—"}
@@ -115,7 +137,8 @@ export default function PilaresFullscreenPage({ params }: { params: Promise<{ ac
                   );
                 })}
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

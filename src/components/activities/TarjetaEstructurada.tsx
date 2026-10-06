@@ -48,6 +48,10 @@ interface Entry extends Record<string, unknown> {
   // creado con el botón genérico "+ {repeatLabel}" no queda ligado a ninguna. Varios registros
   // pueden compartir la misma meta_id (una meta puede dar más de un objetivo SMART).
   meta_id?: string;
+  // Marca un registro como ejemplo ilustrativo precargado (p. ej. en "Cierre: pilares y valores
+  // en acción") — se distingue con una insignia, pero el equipo lo puede editar o borrar igual
+  // que cualquier otro.
+  ejemplo?: boolean;
 }
 interface Content extends Record<string, unknown> {
   entries: Entry[];
@@ -352,8 +356,20 @@ export default function TarjetaEstructurada({ activity, session, aspirations, pa
         const meta = findMeta(entry.meta_id);
         return (
           <div key={entry.id} className={`rounded-lg border-l-4 ${cls.border} border border-border bg-card p-3`}>
-            <div className="mb-2 flex items-center justify-between">
-              <span className="text-xs font-semibold text-muted">{repeatLabel}</span>
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-xs font-semibold text-muted">{repeatLabel}</span>
+                {entry.ejemplo && (
+                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700">
+                    🧩 Ejemplo
+                  </span>
+                )}
+                {asp && (
+                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${cls.bgSoft} ${cls.text}`}>
+                    Aspiración {asp.number}
+                  </span>
+                )}
+              </div>
               {!presenter && (
                 <button className={btnDanger} onClick={() => removeEntry(entry.id)}>
                   eliminar
