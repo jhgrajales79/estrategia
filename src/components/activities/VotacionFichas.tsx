@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSubmission } from "@/lib/useSubmission";
+import { useSubmission, fetchLatestContent } from "@/lib/useSubmission";
 import { isPresenter } from "@/lib/presenter";
 import { supabase } from "@/lib/supabase";
 import { aspClasses, findAspiration, ARCHETYPE_LABEL } from "@/lib/aspirationStyle";
@@ -84,8 +84,21 @@ export default function VotacionFichas({ activity, session, aspirations, partici
   const [newDate, setNewDate] = useState("");
   const [importing, setImporting] = useState(false);
   const [importMsg, setImportMsg] = useState<string | null>(null);
+  const emptyContent: Content = { candidates: [], votes: [] };
 
   if (!loaded) return <p className="text-sm text-muted">Cargando…</p>;
+
+  // Muchas personas proponen candidatas y votan casi al mismo tiempo sobre esta MISMA
+  // submission compartida (aspiration_id null) — si cada guardado parte del `content` que ya
+  // trae el hook (que solo se refresca con el eco de tiempo real), dos escrituras que se cruzan
+  // en milisegundos se pisan entre sí y una de las dos candidatas/votos desaparece en silencio.
+  // Por eso cada mutación relee la fila más reciente justo antes de aplicar su cambio — mismo
+  // patrón que ya usan NotasColectivas.tsx, ConsolidacionImpacto.tsx y SintesisEntorno.tsx para
+  // submissions compartidas.
+  async function mutateContent(fn: (latest: Content) => Content, opts?: { eventType?: string; summary?: string }) {
+    const latest = await fetchLatestContent<Content>(activity.id, null, emptyContent);
+    await save(fn(latest), opts);
+  }
 
   async function importFromSource() {
     if (!importCandidatesFrom) return;
@@ -94,8 +107,8 @@ export default function VotacionFichas({ activity, session, aspirations, partici
     // La EFI guarda una submission por aspiración (no una sola combinada), así que hay
     // que traerlas todas y aplanar sus filas para reunir las debilidades de las tres.
     const { data, error } = await supabase.from("submissions").select("content").eq("activity_id", importCandidatesFrom);
-    setImporting(false);
     if (error) {
+      setImporting(false);
       setImportMsg("No se pudo consultar la actividad de origen.");
       return;
     }
@@ -103,15 +116,17 @@ export default function VotacionFichas({ activity, session, aspirations, partici
     // Con `perAspiration`, cada pestaña importa solo las debilidades de SU aspiración — si no,
     // el equipo de una aspiración vería (y podría votar) candidatas que le corresponden a otra.
     const notes = rows.filter((r) => r.category === importCategory && (!perAspiration || activeAspId === "all" || r.aspiration_id === activeAspId));
-    const existing = new Set(content.candidates.map((c) => c.text.trim().toLowerCase()));
+    const latest = await fetchLatestContent<Content>(activity.id, null, emptyContent);
+    const existing = new Set(latest.candidates.map((c) => c.text.trim().toLowerCase()));
     const newCandidates: Candidate[] = notes
       .filter((n) => n.factor.trim() && !existing.has(n.factor.trim().toLowerCase()))
       .map((n) => ({ id: uid(), text: n.factor.trim(), author: n.sourceAuthor ?? "Equipo", aspiration_id: n.aspiration_id }));
+    setImporting(false);
     if (newCandidates.length === 0) {
       setImportMsg("No hay candidatas nuevas por importar.");
       return;
     }
-    save({ ...content, candidates: [...content.candidates, ...newCandidates] });
+    await save({ ...latest, candidates: [...latest.candidates, ...newCandidates] });
     setImportMsg(`Se importaron ${newCandidates.length} ${newCandidates.length === 1 ? "candidata" : "candidatas"}.`);
   }
 
@@ -135,47 +150,67 @@ export default function VotacionFichas({ activity, session, aspirations, partici
     // En la pestaña "Todos" no hay una aspiración a la cual asignar la candidata nueva — el
     // formulario de proponer se oculta ahí (ver más abajo), esto es solo un resguardo.
     if (perAspiration && activeAspId === "all") return;
+    const text = newText.trim();
     const c: Candidate = {
       id: uid(),
-      text: newText.trim(),
+      text,
       author: participant.name,
       author_id: participant.id,
       owner: newOwner || undefined,
       target_date: newDate || undefined,
       aspiration_id: perAspiration && activeAspId !== "all" ? activeAspId : undefined,
     };
-    save(
-      { ...content, candidates: [...content.candidates, c] },
-      { eventType: "candidata", summary: `${participant.name} propuso "${newText.trim()}" en "${activity.title}"` }
-    );
+    mutateContent((latest) => ({ ...latest, candidates: [...latest.candidates, c] }), {
+      eventType: "candidata",
+      summary: `${participant.name} propuso "${text}" en "${activity.title}"`,
+    });
     setNewText("");
     setNewOwner("");
     setNewDate("");
   }
   function removeCandidate(id: string) {
-    save({ candidates: content.candidates.filter((c) => c.id !== id), votes: content.votes.filter((v) => v.candidate_id !== id) });
+    mutateContent((latest) => ({
+      candidates: latest.candidates.filter((c) => c.id !== id),
+      votes: latest.votes.filter((v) => v.candidate_id !== id),
+    }));
   }
   // Reparte puntos entre ideas (no un simple sí/no): un participante puede concentrar
-  // varios de sus puntos en una misma idea si eso refleja mejor su prioridad.
+  // varios de sus puntos en una misma idea si eso refleja mejor su prioridad. El presupuesto
+  // (cuántos puntos lleva usados) se recalcula sobre `latest`, no sobre el `content` del
+  // render, para que la validación use el dato más reciente de la base de datos.
   function setPoints(candidateId: string, requested: number) {
-    const current = myVotes.find((v) => v.candidate_id === candidateId)?.points ?? 0;
-    const maxAllowed = current + myRemaining;
-    const next = Math.max(0, Math.min(requested, maxAllowed));
-    if (next === current) return;
-    const others = content.votes.filter((v) => !(v.participant_id === participant.id && v.candidate_id === candidateId));
-    const votes = next > 0 ? [...others, { participant_id: participant.id, participant_name: participant.name, candidate_id: candidateId, points: next }] : others;
-    save({ ...content, votes }, { eventType: "voto", summary: `${participant.name} votó en "${activity.title}"` });
+    mutateContent((latest) => {
+      const visibleIdsLatest = new Set(
+        (perAspiration && activeAspId !== "all" ? latest.candidates.filter((c) => c.aspiration_id === activeAspId) : latest.candidates).map(
+          (c) => c.id
+        )
+      );
+      const myVotesLatest = latest.votes.filter((v) => v.participant_id === participant.id && visibleIdsLatest.has(v.candidate_id));
+      const myUsedLatest = myVotesLatest.reduce((a, v) => a + v.points, 0);
+      const myRemainingLatest = pointsPerPerson - myUsedLatest;
+      const current = myVotesLatest.find((v) => v.candidate_id === candidateId)?.points ?? 0;
+      const maxAllowed = current + myRemainingLatest;
+      const next = Math.max(0, Math.min(requested, maxAllowed));
+      if (next === current) return latest;
+      const others = latest.votes.filter((v) => !(v.participant_id === participant.id && v.candidate_id === candidateId));
+      const votes =
+        next > 0 ? [...others, { participant_id: participant.id, participant_name: participant.name, candidate_id: candidateId, points: next }] : others;
+      return { ...latest, votes };
+    }, { eventType: "voto", summary: `${participant.name} votó en "${activity.title}"` });
   }
   // Modo maxVotes: 1 voto por candidata (no puntos a repartir) — tocar apoya/quita el apoyo,
-  // hasta un máximo de maxVotes candidatas distintas en total.
+  // hasta un máximo de maxVotes candidatas distintas en total (recalculado sobre `latest`).
   function toggleVote(candidateId: string) {
-    const already = myVotes.some((v) => v.candidate_id === candidateId);
-    const others = content.votes.filter((v) => !(v.participant_id === participant.id && v.candidate_id === candidateId));
-    if (!already && myVotesRemaining <= 0) return;
-    const votes = already
-      ? others
-      : [...others, { participant_id: participant.id, participant_name: participant.name, candidate_id: candidateId, points: 1 }];
-    save({ ...content, votes }, { eventType: "voto", summary: `${participant.name} votó en "${activity.title}"` });
+    mutateContent((latest) => {
+      const myVotesLatest = latest.votes.filter((v) => v.participant_id === participant.id);
+      const already = myVotesLatest.some((v) => v.candidate_id === candidateId);
+      const others = latest.votes.filter((v) => !(v.participant_id === participant.id && v.candidate_id === candidateId));
+      if (!already && myVotesLatest.length >= (maxVotes ?? 0)) return latest;
+      const votes = already
+        ? others
+        : [...others, { participant_id: participant.id, participant_name: participant.name, candidate_id: candidateId, points: 1 }];
+      return { ...latest, votes };
+    }, { eventType: "voto", summary: `${participant.name} votó en "${activity.title}"` });
   }
 
   const RANK_MEDAL = ["🥇", "🥈", "🥉"];
