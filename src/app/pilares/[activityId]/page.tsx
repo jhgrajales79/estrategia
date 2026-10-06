@@ -79,6 +79,10 @@ export default function PilaresFullscreenPage({ params }: { params: Promise<{ ac
   // asumir nombres de clave específicos.
   const titleField = fields[0];
   const bodyFields = fields.slice(1);
+  // Los registros precargados (`ejemplo`) se proyectan aparte, como insignias compactas arriba
+  // de todo — no se mezclan con la cuadrícula de registros reales del equipo.
+  const exampleEntries = entries.filter((e) => e.ejemplo);
+  const realEntries = entries.filter((e) => !e.ejemplo);
 
   return (
     <div className="min-h-screen bg-dark bg-[radial-gradient(circle_at_50%_0%,rgba(128,198,18,0.08),transparent_60%)] px-6 py-6 text-white">
@@ -91,35 +95,48 @@ export default function PilaresFullscreenPage({ params }: { params: Promise<{ ac
           </p>
         </div>
         <span className="shrink-0 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-white/70">
-          {entries.length} {entries.length === 1 ? "registro" : "registros"}
+          {realEntries.length} {realEntries.length === 1 ? "registro" : "registros"}
         </span>
       </div>
 
+      {exampleEntries.length > 0 && (
+        <div className="mx-auto mt-6 max-w-[1500px]">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-white/40">🧩 Ejemplos</p>
+          <div className="flex flex-wrap gap-2">
+            {exampleEntries.map((entry) => {
+              const asp = findAspiration(aspirations, entry.aspiration_id ?? null);
+              const cls = aspClasses(asp?.number);
+              const titleValue = titleField ? (entry[titleField.key] as string) : undefined;
+              const bodyValue = bodyFields[0] ? (entry[bodyFields[0].key] as string) : undefined;
+              return (
+                <div key={entry.id} className={`max-w-[260px] rounded-lg border px-3 py-2 ${cls.border} bg-white/[0.04]`}>
+                  <p className={`text-xs font-bold ${cls.text}`}>{titleValue || "—"}</p>
+                  {bodyValue && <p className="mt-0.5 line-clamp-2 text-[11px] italic text-white/60">{bodyValue}</p>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       <div className="mx-auto mt-8 max-w-[1500px]">
-        {entries.length === 0 ? (
+        {realEntries.length === 0 ? (
           <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-white/15 py-24 text-center">
             <span className="text-3xl">🏛️</span>
             <p className="text-sm text-white/40">Aún no hay registros en esta actividad.</p>
           </div>
         ) : (
           <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-            {entries.map((entry) => {
+            {realEntries.map((entry) => {
               const asp = findAspiration(aspirations, entry.aspiration_id ?? null);
               const cls = aspClasses(asp?.number);
               return (
               <div key={entry.id} className={`rounded-2xl border border-white/10 bg-white/[0.03] p-5 ${asp ? `border-l-4 ${cls.border}` : ""}`}>
-                {(entry.ejemplo || asp) && (
+                {asp && (
                   <div className="mb-2 flex flex-wrap items-center gap-1.5">
-                    {entry.ejemplo && (
-                      <span className="rounded-full bg-amber-400/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-300">
-                        🧩 Ejemplo
-                      </span>
-                    )}
-                    {asp && (
-                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${cls.bgSoft} ${cls.text}`}>
-                        Aspiración {asp.number} · {ARCHETYPE_LABEL[asp.number]}
-                      </span>
-                    )}
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${cls.bgSoft} ${cls.text}`}>
+                      Aspiración {asp.number} · {ARCHETYPE_LABEL[asp.number]}
+                    </span>
                   </div>
                 )}
                 {titleField && (

@@ -284,8 +284,13 @@ export default function TarjetaEstructurada({ activity, session, aspirations, pa
     save({ ...content, entries: content.entries.filter((e) => e.id !== id) });
   }
 
+  // Los registros marcados `ejemplo` (precargados, p. ej. en "Cierre: pilares y valores en
+  // acción") se muestran aparte, como insignias compactas arriba de todo — no cuentan para el
+  // mínimo ni se mezclan con los registros reales del equipo en la lista editable de abajo.
+  const exampleEntries = content.entries.filter((e) => e.ejemplo);
+  const realEntries = content.entries.filter((e) => !e.ejemplo);
   const minEntries = activity.config.minEntries as number | undefined;
-  const metMinimum = minEntries !== undefined && content.entries.length >= minEntries;
+  const metMinimum = minEntries !== undefined && realEntries.length >= minEntries;
   // Pluralizar "Objetivo SMART" agregando una "s" al final daría "objetivo smarts" — con
   // etiquetas de más de una palabra no basta una regla mecánica, así que la actividad puede
   // fijar el plural correcto explícitamente; a falta de eso, se usa el genérico "registros".
@@ -308,12 +313,28 @@ export default function TarjetaEstructurada({ activity, session, aspirations, pa
         </div>
       )}
       {aspirationTabs}
+      {exampleEntries.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {exampleEntries.map((entry) => {
+            const asp = findAspiration(aspirations, (entry.aspiration_id as number) ?? null);
+            const cls = aspClasses(asp?.number);
+            const titleValue = fields[0] ? (entry[fields[0].key] as string) : undefined;
+            const bodyValue = fields[1] ? (entry[fields[1].key] as string) : undefined;
+            return (
+              <div key={entry.id} className={`max-w-[230px] rounded-lg border px-3 py-2 ${cls.border} ${cls.bgSoft}`}>
+                <p className={`text-xs font-bold ${cls.text}`}>🧩 {titleValue || repeatLabel}</p>
+                {bodyValue && <p className="mt-0.5 line-clamp-2 text-[11px] italic text-muted">{bodyValue}</p>}
+              </div>
+            );
+          })}
+        </div>
+      )}
       {minEntries !== undefined && (
         <p className={`text-xs font-semibold ${metMinimum ? "text-brand-dark" : "text-muted"}`}>
-          {content.entries.length} de {minEntries} {minEntriesLabel} {metMinimum ? "✅" : "— faltan por completar"}
+          {realEntries.length} de {minEntries} {minEntriesLabel} {metMinimum ? "✅" : "— faltan por completar"}
         </p>
       )}
-      {presenter && content.entries.length === 0 && (
+      {presenter && realEntries.length === 0 && (
         <p className="text-sm text-muted">Aún no hay registros. Cada equipo los agrega desde su propia sesión.</p>
       )}
       {metasFrom && !presenter && (
@@ -350,7 +371,7 @@ export default function TarjetaEstructurada({ activity, session, aspirations, pa
           )}
         </div>
       )}
-      {content.entries.map((entry) => {
+      {realEntries.map((entry) => {
         const asp = findAspiration(aspirations, (entry.aspiration_id as number) ?? null);
         const cls = aspClasses(asp?.number);
         const meta = findMeta(entry.meta_id);
