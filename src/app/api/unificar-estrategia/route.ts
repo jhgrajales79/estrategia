@@ -40,7 +40,7 @@ export async function POST(req: Request) {
   try {
     const groq = createGroq({ apiKey: process.env.GROQ_API_KEY });
     const { text } = await generateText({
-      model: groq("llama-3.3-70b-versatile"),
+      model: groq("openai/gpt-oss-120b"),
       prompt:
         `Eres un consultor de planeación estratégica. A continuación hay ${strategies.length} estrategias corporativas, cada una ratificada por consenso para una aspiración distinta de una fundación social:\n\n${listado}\n\n` +
         "Redacta un ÚNICO párrafo en español (120-180 palabras), en prosa fluida y natural (no uses listas, viñetas ni numeración), que unifique estas estrategias en una sola narrativa estratégica corporativa coherente — mostrando cómo se complementan y refuerzan entre sí hacia un propósito común. No inventes datos ni metas que no estén en el listado. Responde solo con el párrafo, sin título ni comentarios adicionales.",
