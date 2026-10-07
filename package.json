@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@ai-sdk/groq": "^4.0.57",
     "@supabase/supabase-js": "^2.112.4",
     "ai": "^7.0.131",
     "heic2any": "^0.0.4",
