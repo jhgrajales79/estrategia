@@ -1,8 +1,10 @@
 "use client";
 
-import { useSubmission, effectiveAspirationId, fetchLatestContent } from "@/lib/useSubmission";
+import { useEffect, useState } from "react";
+import { useSubmission, fetchLatestContent } from "@/lib/useSubmission";
 import { supabase } from "@/lib/supabase";
 import { isPresenter } from "@/lib/presenter";
+import { aspClasses, ARCHETYPE_LABEL } from "@/lib/aspirationStyle";
 import { ActivityComponentProps, inputCls, textareaCls, btnPrimary, btnDanger, SaveIndicator, PresenterHint, uid } from "./shared";
 
 interface FieldDef {
@@ -17,11 +19,22 @@ interface Content extends Record<string, unknown> {
   projects: Project[];
 }
 
-export default function TableroProyectos({ activity, session, aspirationId, participant }: ActivityComponentProps) {
+export default function TableroProyectos({ activity, session, aspirationId, aspirations, participant }: ActivityComponentProps) {
   const fields = (activity.config.fields as FieldDef[]) ?? [];
   const updatesTrackingBoard = Boolean(activity.config.updatesTrackingBoard);
+  const perAspiration = Boolean(activity.config.perAspiration);
   const presenter = isPresenter(participant);
-  const submissionAspId = effectiveAspirationId(activity, participant);
+  // No hay (todavía) una asignación real de aspiración por participante — todos se registran con
+  // aspiration_id null — así que, igual que en MatrizPonderada/TarjetaEstructurada/DofaCruzado,
+  // la separación real depende de una pestaña local que cada equipo elige, no de la identidad.
+  const [activeAspId, setActiveAspId] = useState<number | null>(() => aspirations[0]?.id ?? null);
+  useEffect(() => {
+    if (activeAspId === null && aspirations.length > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setActiveAspId(aspirations[0].id);
+    }
+  }, [aspirations, activeAspId]);
+  const submissionAspId = perAspiration ? activeAspId : null;
   const emptyContent: Content = { projects: [] };
   const { content, save, saving, updatedAt, saveError, loaded } = useSubmission<Content>(
     activity,
@@ -58,7 +71,7 @@ export default function TableroProyectos({ activity, session, aspirationId, part
   }
 
   async function pushToTrackingBoard() {
-    const asp = aspirationId ?? participant.aspiration_id;
+    const asp = submissionAspId ?? aspirationId ?? participant.aspiration_id;
     if (!asp) return;
     await supabase
       .from("tracking_board")
@@ -80,6 +93,26 @@ export default function TableroProyectos({ activity, session, aspirationId, part
               ⛶ Ver tablero
             </button>
           )}
+        </div>
+      )}
+      {perAspiration && aspirations.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {aspirations.map((a) => {
+            const cls = aspClasses(a.number);
+            const active = activeAspId === a.id;
+            return (
+              <button
+                key={a.id}
+                type="button"
+                onClick={() => setActiveAspId(a.id)}
+                className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                  active ? `border-transparent ${cls.bg} text-dark` : `${cls.border} ${cls.text} bg-card hover:bg-black/5`
+                }`}
+              >
+                Aspiración {a.number} · {ARCHETYPE_LABEL[a.number]}
+              </button>
+            );
+          })}
         </div>
       )}
       {content.projects.map((p) => (
