@@ -6,6 +6,7 @@ import { aspClasses, ARCHETYPE_LABEL } from "@/lib/aspirationStyle";
 import { isPresenter } from "@/lib/presenter";
 import { supabase } from "@/lib/supabase";
 import BarChart from "@/components/charts/BarChart";
+import EjemploQSPM from "./EjemploQSPM";
 import {
   ActivityComponentProps,
   inputCls,
@@ -127,6 +128,7 @@ export default function PriorizacionQSPM({ activity, session, aspirations, parti
   );
   const [newFactorDraft, setNewFactorDraft] = useState({ factor: "", peso: "" });
   const [newStrategyName, setNewStrategyName] = useState("");
+  const [showEjemplo, setShowEjemplo] = useState(false);
   const [nameDrafts, setNameDrafts] = useState<Record<string, string>>({});
   const [focusStrategyId, setFocusStrategyId] = useState<string | null>(null);
   // Selección temporal (solo de este navegador, no se guarda) para armar UNA estrategia a partir
@@ -282,6 +284,16 @@ export default function PriorizacionQSPM({ activity, session, aspirations, parti
   return (
     <div className="space-y-4">
       {presenter && <PresenterHint />}
+
+      <div className="flex justify-end">
+        <button
+          className="inline-flex items-center gap-1.5 rounded-md border border-brand/40 bg-brand/10 px-3 py-1.5 text-sm font-semibold text-brand-dark hover:bg-brand/20"
+          onClick={() => setShowEjemplo(true)}
+        >
+          💡 Ver ejemplo: cómo debería quedar
+        </button>
+      </div>
+      {showEjemplo && <EjemploQSPM aspirations={aspirations} onClose={() => setShowEjemplo(false)} />}
 
       {aspirations.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
