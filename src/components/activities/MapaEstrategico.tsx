@@ -75,11 +75,22 @@ export default function MapaEstrategico({ activity, session, aspirations, partic
       {presenter && (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-card p-3">
           <PresenterHint />
-          <ToggleSwitch
-            checked={content.showOnlyHighlighted}
-            onChange={(next) => save({ ...content, showOnlyHighlighted: next })}
-            label="Mostrar solo destacadas"
-          />
+          <div className="flex items-center gap-3">
+            <ToggleSwitch
+              checked={content.showOnlyHighlighted}
+              onChange={(next) => save({ ...content, showOnlyHighlighted: next })}
+              label="Mostrar solo destacadas"
+            />
+            {Boolean(activity.config.boardRoute) && (
+              <button
+                className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-black/5 transition-colors"
+                title="Ver el paredón estratégico en una pestaña nueva"
+                onClick={() => window.open(`/${activity.config.boardRoute}/${activity.id}`, "_blank", "noopener,noreferrer")}
+              >
+                ⛶ Ver tablero
+              </button>
+            )}
+          </div>
         </div>
       )}
       <p className="text-xs text-muted">Perspectivas de abajo hacia arriba, tal como en el paredón estratégico.</p>
