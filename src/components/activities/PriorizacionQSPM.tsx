@@ -1,0 +1,449 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useSubmission, fetchLatestContent } from "@/lib/useSubmission";
+import { aspClasses, ARCHETYPE_LABEL } from "@/lib/aspirationStyle";
+import { isPresenter } from "@/lib/presenter";
+import { supabase } from "@/lib/supabase";
+import BarChart from "@/components/charts/BarChart";
+import {
+  ActivityComponentProps,
+  inputCls,
+  btnPrimary,
+  btnGhost,
+  SaveIndicator,
+  PresenterHint,
+  ToggleSwitch,
+  DeleteButton,
+  uid,
+} from "./shared";
+
+interface SourceRow {
+  id: string;
+  factor: string;
+  peso: number;
+  aspiration_id: number | null;
+}
+interface DofaSelection {
+  id: string;
+  quadrant: "FO" | "DO" | "FA" | "DA";
+  factorAId: string;
+  factorBId: string;
+  custom?: { textA: string; textB: string };
+}
+interface CustomFactor {
+  id: string;
+  factor: string;
+  peso: number;
+}
+interface Strategy {
+  id: string;
+  name: string;
+}
+interface Content extends Record<string, unknown> {
+  activeKeys: string[];
+  customFactors: CustomFactor[];
+  strategies: Strategy[];
+  ratings: Record<string, Record<string, number>>;
+}
+
+const DEFAULT_RATING_LABELS = [
+  { value: 1, label: "No atractiva" },
+  { value: 2, label: "Algo atractiva" },
+  { value: 3, label: "Razonablemente atractiva" },
+  { value: 4, label: "Altamente atractiva" },
+];
+
+const QUADRANT_LABEL: Record<DofaSelection["quadrant"], string> = {
+  FO: "FO",
+  DO: "DO",
+  FA: "FA",
+  DA: "DA",
+};
+
+// La priorización QSPM ya no se llena a mano desde cero: los factores clave (EFI/EFE) y las
+// estrategias candidatas (cruces del DOFA cruzado) ya existen en otras actividades de esta misma
+// aspiración — aquí solo se activan (igual que el check del DOFA cruzado) y, por cada factor o
+// cruce activado, se puede crear de inmediato la estrategia correspondiente para calificarla.
+export default function PriorizacionQSPM({ activity, session, aspirations, participant }: ActivityComponentProps) {
+  const [efiFrom, efeFrom, dofaFrom] = (activity.config.inputsFrom as number[]) ?? [];
+  const scaleMax = (activity.config.scaleMax as number) ?? 4;
+  const ratingLabels = (activity.config.ratingLabels as { value: number; label: string }[] | undefined) ?? DEFAULT_RATING_LABELS;
+  const presenter = isPresenter(participant);
+  const [activeAspId, setActiveAspId] = useState<number | null>(() => aspirations[0]?.id ?? null);
+  useEffect(() => {
+    if (activeAspId === null && aspirations.length > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setActiveAspId(aspirations[0].id);
+    }
+  }, [aspirations, activeAspId]);
+
+  const [efiRows, setEfiRows] = useState<SourceRow[]>([]);
+  const [efeRows, setEfeRows] = useState<SourceRow[]>([]);
+  const [dofaSelections, setDofaSelections] = useState<DofaSelection[]>([]);
+  const [dofaFactorText, setDofaFactorText] = useState<Map<string, string>>(new Map());
+
+  useEffect(() => {
+    if (activeAspId === null) return;
+    async function load() {
+      const [efi, efe, dofa] = await Promise.all([
+        supabase.from("submissions").select("content").eq("activity_id", efiFrom).eq("aspiration_id", activeAspId).maybeSingle(),
+        supabase.from("submissions").select("content").eq("activity_id", efeFrom).eq("aspiration_id", activeAspId).maybeSingle(),
+        dofaFrom
+          ? supabase.from("submissions").select("content").eq("activity_id", dofaFrom).eq("aspiration_id", activeAspId).maybeSingle()
+          : Promise.resolve({ data: null }),
+      ]);
+      const efiR = ((efi.data?.content as { rows?: SourceRow[] } | null)?.rows ?? []).filter((r) => r.factor.trim());
+      const efeR = ((efe.data?.content as { rows?: SourceRow[] } | null)?.rows ?? []).filter((r) => r.factor.trim());
+      setEfiRows(efiR);
+      setEfeRows(efeR);
+      setDofaFactorText(new Map([...efiR, ...efeR].map((r) => [r.id, r.factor])));
+      setDofaSelections(((dofa?.data?.content as { selections?: DofaSelection[] } | null)?.selections ?? []));
+    }
+    load().catch(console.error);
+    const channel = supabase
+      .channel(`qspm-fuentes-${activity.id}-${activeAspId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "submissions", filter: `activity_id=eq.${efiFrom}` }, () => load())
+      .on("postgres_changes", { event: "*", schema: "public", table: "submissions", filter: `activity_id=eq.${efeFrom}` }, () => load())
+      .on("postgres_changes", { event: "*", schema: "public", table: "submissions", filter: `activity_id=eq.${dofaFrom}` }, () => load())
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [activeAspId, efiFrom, efeFrom, dofaFrom, activity.id]);
+
+  const emptyContent: Content = { activeKeys: [], customFactors: [], strategies: [], ratings: {} };
+  const { content, save, saving, updatedAt, saveError, loaded } = useSubmission<Content>(
+    activity,
+    session,
+    activeAspId,
+    participant,
+    emptyContent
+  );
+  const [newFactorDraft, setNewFactorDraft] = useState({ factor: "", peso: "" });
+  const [newStrategyName, setNewStrategyName] = useState("");
+
+  if (!loaded) return <p className="text-sm text-muted">Cargando…</p>;
+
+  async function mutateContent(fn: (latest: Content) => Content) {
+    const latest = await fetchLatestContent<Content>(activity.id, activeAspId, emptyContent);
+    await save(fn(latest));
+  }
+
+  function toggleFactor(key: string) {
+    mutateContent((latest) => ({
+      ...latest,
+      activeKeys: latest.activeKeys.includes(key) ? latest.activeKeys.filter((k) => k !== key) : [...latest.activeKeys, key],
+    }));
+  }
+  function addCustomFactor() {
+    const factor = newFactorDraft.factor.trim();
+    const peso = Number(newFactorDraft.peso) || 0;
+    if (!factor) return;
+    const id = uid();
+    mutateContent((latest) => ({
+      ...latest,
+      customFactors: [...latest.customFactors, { id, factor, peso }],
+      activeKeys: [...latest.activeKeys, `custom:${id}`],
+    }));
+    setNewFactorDraft({ factor: "", peso: "" });
+  }
+  function removeCustomFactor(id: string) {
+    mutateContent((latest) => {
+      const ratings = { ...latest.ratings };
+      delete ratings[`custom:${id}`];
+      return {
+        ...latest,
+        customFactors: latest.customFactors.filter((f) => f.id !== id),
+        activeKeys: latest.activeKeys.filter((k) => k !== `custom:${id}`),
+        ratings,
+      };
+    });
+  }
+  function addStrategy(name: string) {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    mutateContent((latest) => ({ ...latest, strategies: [...latest.strategies, { id: uid(), name: trimmed }] }));
+  }
+  function renameStrategy(id: string, name: string) {
+    mutateContent((latest) => ({ ...latest, strategies: latest.strategies.map((s) => (s.id === id ? { ...s, name } : s)) }));
+  }
+  function removeStrategy(id: string) {
+    mutateContent((latest) => {
+      const ratings: Content["ratings"] = {};
+      for (const [fk, row] of Object.entries(latest.ratings)) {
+        const rest = { ...row };
+        delete rest[id];
+        ratings[fk] = rest;
+      }
+      return { ...latest, strategies: latest.strategies.filter((s) => s.id !== id), ratings };
+    });
+  }
+  function setRating(factorKey: string, strategyId: string, value: number) {
+    mutateContent((latest) => ({
+      ...latest,
+      ratings: { ...latest.ratings, [factorKey]: { ...(latest.ratings[factorKey] ?? {}), [strategyId]: value } },
+    }));
+  }
+
+  const allFactors = [
+    ...efiRows.map((r) => ({ key: `efi:${r.id}`, factor: r.factor, peso: r.peso, origin: "EFI", custom: false })),
+    ...efeRows.map((r) => ({ key: `efe:${r.id}`, factor: r.factor, peso: r.peso, origin: "EFE", custom: false })),
+    ...content.customFactors.map((c) => ({ key: `custom:${c.id}`, factor: c.factor, peso: c.peso, origin: "Personalizado", custom: true, customId: c.id })),
+  ];
+  const activeFactors = allFactors.filter((f) => content.activeKeys.includes(f.key));
+  const totals = content.strategies.map((s) => ({
+    id: s.id,
+    name: s.name,
+    total: activeFactors.reduce((a, f) => a + f.peso * (content.ratings[f.key]?.[s.id] ?? 0), 0),
+  }));
+  const ranked = [...totals].sort((a, b) => b.total - a.total);
+  const canEdit = !presenter;
+
+  return (
+    <div className="space-y-4">
+      {presenter && <PresenterHint />}
+
+      {aspirations.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {aspirations.map((a) => {
+            const cls = aspClasses(a.number);
+            const active = activeAspId === a.id;
+            return (
+              <button
+                key={a.id}
+                type="button"
+                onClick={() => setActiveAspId(a.id)}
+                className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                  active ? `border-transparent ${cls.bg} text-dark` : `${cls.border} ${cls.text} bg-card hover:bg-black/5`
+                }`}
+              >
+                Aspiración {a.number} · {ARCHETYPE_LABEL[a.number]}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="rounded-lg border border-border bg-black/[0.02] p-3 text-xs text-muted">
+        <p className="font-semibold text-foreground">¿Cómo funciona?</p>
+        <p className="mt-1">
+          1) Activa los factores clave (EFI/EFE) que de verdad definen si una estrategia es viable. 2) Crea una estrategia por cada
+          factor o cruce DOFA relevante. 3) Califica qué tan atractiva es cada estrategia frente a cada factor (1 a {scaleMax}). El
+          puntaje ponderado (peso × calificación) arma el ranking final.
+        </p>
+        <p className="mt-1 italic">
+          Ejemplo: si el factor <b>&quot;Alianzas territoriales consolidadas&quot;</b> (peso 0.15) es clave para la estrategia{" "}
+          <b>&quot;Fortalecer alianzas con cooperación internacional&quot;</b> y la calificas como Altamente atractiva (4), aporta
+          0.15 × 4 = 0.60 al puntaje de esa estrategia.
+        </p>
+      </div>
+
+      <div className="space-y-2">
+        <p className="text-sm font-semibold text-foreground">Factores clave (EFI / EFE)</p>
+        <div className="space-y-1.5">
+          {allFactors
+            .filter((f) => !f.custom)
+            .map((f) => (
+              <div key={f.key} className="flex items-center justify-between gap-2 rounded-md border border-border bg-card p-2">
+                <div className="min-w-0 flex-1">
+                  <span className="mr-1.5 rounded-full bg-black/5 px-1.5 py-0.5 text-[10px] font-bold text-muted">{f.origin}</span>
+                  <span className="text-sm text-foreground">{f.factor}</span>
+                  <span className="ml-1.5 text-xs text-muted">(peso {f.peso.toFixed(2)})</span>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  {content.activeKeys.includes(f.key) && (
+                    <button className={btnGhost + " !px-2 !py-1 text-xs"} onClick={() => addStrategy(`Estrategia para: ${f.factor}`)}>
+                      + Crear estrategia
+                    </button>
+                  )}
+                  <ToggleSwitch checked={content.activeKeys.includes(f.key)} onChange={() => toggleFactor(f.key)} label="Activar" />
+                </div>
+              </div>
+            ))}
+          {allFactors.filter((f) => !f.custom).length === 0 && (
+            <p className="text-sm text-muted">Aún no hay factores en la Matriz EFI/EFE de esta aspiración.</p>
+          )}
+        </div>
+
+        {content.customFactors.length > 0 && (
+          <div className="space-y-1.5">
+            {content.customFactors.map((c) => (
+              <div key={c.id} className="flex items-center justify-between gap-2 rounded-md border border-border bg-card p-2">
+                <div className="min-w-0 flex-1">
+                  <span className="mr-1.5 rounded-full bg-black/5 px-1.5 py-0.5 text-[10px] font-bold text-muted">Personalizado</span>
+                  <span className="text-sm text-foreground">{c.factor}</span>
+                  <span className="ml-1.5 text-xs text-muted">(peso {c.peso.toFixed(2)})</span>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <button className={btnGhost + " !px-2 !py-1 text-xs"} onClick={() => addStrategy(`Estrategia para: ${c.factor}`)}>
+                    + Crear estrategia
+                  </button>
+                  {canEdit && <DeleteButton label="quitar" onConfirm={() => removeCustomFactor(c.id)} />}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {canEdit && (
+          <div className="flex flex-wrap items-center gap-2 rounded-md border border-dashed border-border p-2">
+            <input
+              className={inputCls + " flex-1"}
+              placeholder="Otro factor clave… (p. ej. Reputación institucional)"
+              value={newFactorDraft.factor}
+              onChange={(e) => setNewFactorDraft((d) => ({ ...d, factor: e.target.value }))}
+            />
+            <input
+              type="number"
+              step="0.01"
+              min={0}
+              max={1}
+              className={inputCls + " w-24"}
+              placeholder="Peso"
+              value={newFactorDraft.peso}
+              onChange={(e) => setNewFactorDraft((d) => ({ ...d, peso: e.target.value }))}
+            />
+            <button className={btnPrimary} onClick={addCustomFactor}>
+              + Agregar factor
+            </button>
+          </div>
+        )}
+      </div>
+
+      {dofaSelections.length > 0 && (
+        <div className="space-y-1.5">
+          <p className="text-sm font-semibold text-foreground">Cruces del DOFA cruzado (sugerencias de estrategia)</p>
+          <div className="flex flex-wrap gap-2">
+            {dofaSelections.map((s) => {
+              const textA = s.custom ? s.custom.textA : dofaFactorText.get(s.factorAId) ?? "—";
+              const textB = s.custom ? s.custom.textB : dofaFactorText.get(s.factorBId) ?? "—";
+              const suggestion = `${textA} + ${textB}`;
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  className="max-w-xs rounded-lg border border-border bg-card p-2 text-left text-xs hover:bg-black/5"
+                  title="Crear una estrategia a partir de este cruce"
+                  onClick={() => addStrategy(suggestion)}
+                >
+                  <span className="mr-1 rounded-full bg-brand/15 px-1.5 py-0.5 text-[10px] font-bold text-brand-dark">
+                    {QUADRANT_LABEL[s.quadrant]}
+                  </span>
+                  {suggestion}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      <div className="space-y-2">
+        <p className="text-sm font-semibold text-foreground">Estrategias y calificación</p>
+        {activeFactors.length === 0 ? (
+          <p className="text-sm text-muted">Activa al menos un factor arriba para poder calificar estrategias.</p>
+        ) : content.strategies.length === 0 ? (
+          <p className="text-sm text-muted">Aún no hay estrategias. Créalas desde un factor activo o desde un cruce DOFA arriba.</p>
+        ) : (
+          <div className="overflow-x-auto rounded-lg border border-border">
+            <table className="min-w-full text-sm">
+              <thead className="bg-black/[0.03]">
+                <tr>
+                  <th className="p-2 text-left font-medium">Factor (peso)</th>
+                  {content.strategies.map((s) => (
+                    <th key={s.id} className="p-2 text-left font-medium min-w-52">
+                      {canEdit ? (
+                        <input
+                          className={inputCls}
+                          value={s.name}
+                          placeholder="p. ej. Fortalecer alianzas territoriales (FO)"
+                          onChange={(e) => renameStrategy(s.id, e.target.value)}
+                        />
+                      ) : (
+                        <span className="text-foreground">{s.name}</span>
+                      )}
+                      {canEdit && (
+                        <button className="mt-1 text-xs text-red-600 hover:underline" onClick={() => removeStrategy(s.id)}>
+                          quitar
+                        </button>
+                      )}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {activeFactors.map((f) => (
+                  <tr key={f.key} className="border-t border-border">
+                    <td className="p-2">
+                      <span className="mr-1 rounded-full bg-black/5 px-1.5 py-0.5 text-[10px] font-bold text-muted">{f.origin}</span>
+                      {f.factor} <span className="text-xs text-muted">({f.peso.toFixed(2)})</span>
+                    </td>
+                    {content.strategies.map((s) => (
+                      <td key={s.id} className="p-2">
+                        <select
+                          className={inputCls}
+                          disabled={presenter}
+                          value={content.ratings[f.key]?.[s.id] ?? ""}
+                          onChange={(e) => setRating(f.key, s.id, Number(e.target.value))}
+                        >
+                          <option value="">—</option>
+                          {ratingLabels.map((rl) => (
+                            <option key={rl.value} value={rl.value}>
+                              {rl.value} — {rl.label}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+                <tr className="border-t border-border bg-black/[0.03] font-semibold">
+                  <td className="p-2">Puntaje total ponderado</td>
+                  {content.strategies.map((s) => (
+                    <td key={s.id} className="p-2">
+                      {(totals.find((t) => t.id === s.id)?.total ?? 0).toFixed(2)}
+                    </td>
+                  ))}
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        )}
+        {canEdit && (
+          <div className="flex gap-2">
+            <input
+              className={inputCls}
+              placeholder="Agregar otra estrategia a mano…"
+              value={newStrategyName}
+              onChange={(e) => setNewStrategyName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  addStrategy(newStrategyName);
+                  setNewStrategyName("");
+                }
+              }}
+            />
+            <button
+              className={btnPrimary}
+              onClick={() => {
+                addStrategy(newStrategyName);
+                setNewStrategyName("");
+              }}
+            >
+              + Agregar
+            </button>
+          </div>
+        )}
+      </div>
+
+      {ranked.length > 0 && (
+        <div className="rounded-md bg-black/[0.03] p-3">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Ranking</p>
+          <BarChart bars={ranked.map((r) => ({ label: r.name || "(sin nombre)", value: Number(r.total.toFixed(2)), colorClass: "bg-brand" }))} />
+        </div>
+      )}
+
+      <SaveIndicator saving={saving} updatedAt={updatedAt} error={saveError} sticky />
+    </div>
+  );
+}

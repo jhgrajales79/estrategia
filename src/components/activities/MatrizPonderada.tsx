@@ -7,6 +7,7 @@ import { isPresenter } from "@/lib/presenter";
 import { supabase } from "@/lib/supabase";
 import BarChart from "@/components/charts/BarChart";
 import { ActivityComponentProps, inputCls, btnPrimary, btnDanger, SaveIndicator, PresenterHint, DeleteButton, uid } from "./shared";
+import PriorizacionQSPM from "./PriorizacionQSPM";
 
 interface PciNote {
   id: string;
@@ -66,6 +67,13 @@ export default function MatrizPonderada({ activity, session, aspirations, partic
   const presenter = isPresenter(participant);
 
   if (mode === "qspm") {
+    // La Priorización QSPM (S4) trae factores EFI/EFE y cruces del DOFA cruzado ya diligenciados
+    // en otras actividades (`inputsFrom: [efiId, efeId, dofaId]`) — se activan con check en vez
+    // de escribirse de nuevo, dividido por aspiración. Sin esa fuente, se mantiene la tabla
+    // clásica (factores y estrategias 100% manuales) tal cual estaba.
+    if (Array.isArray(activity.config.inputsFrom) && activity.config.inputsFrom.length >= 2) {
+      return <PriorizacionQSPM activity={activity} session={session} aspirations={aspirations} participant={participant} aspirationId={null} />;
+    }
     return <QspmMatrix activity={activity} session={session} participant={participant} presenter={presenter} scaleMax={scaleMax} />;
   }
 
