@@ -11,7 +11,6 @@ import {
   inputCls,
   textareaCls,
   btnPrimary,
-  btnGhost,
   SaveIndicator,
   PresenterHint,
   ToggleSwitch,
@@ -40,6 +39,11 @@ interface CustomFactor {
 interface Strategy {
   id: string;
   name: string;
+  // Texto de los factores y/o cruces DOFA con los que se creó — solo para mostrar "Basada en…"
+  // en la tabla de calificación y evitar que la gente se confunda calificando sin saber de dónde
+  // salió cada estrategia. No afecta el cálculo (igual se califica frente a todos los factores
+  // activos, como exige la metodología QSPM).
+  originLabels?: string[];
 }
 interface Content extends Record<string, unknown> {
   activeKeys: string[];
@@ -125,6 +129,12 @@ export default function PriorizacionQSPM({ activity, session, aspirations, parti
   const [newStrategyName, setNewStrategyName] = useState("");
   const [nameDrafts, setNameDrafts] = useState<Record<string, string>>({});
   const [focusStrategyId, setFocusStrategyId] = useState<string | null>(null);
+  // Selección temporal (solo de este navegador, no se guarda) para armar UNA estrategia a partir
+  // de uno o varios factores/cruces marcados — separa "elegir con qué se arma la estrategia" de
+  // "activar un factor para que cuente en la calificación", que antes vivían en el mismo botón y
+  // generaban confusión sobre qué se estaba haciendo.
+  const [selectedFactorKeys, setSelectedFactorKeys] = useState<Set<string>>(new Set());
+  const [selectedDofaIds, setSelectedDofaIds] = useState<Set<string>>(new Set());
   const strategyInputRefs = useRef<Record<string, HTMLTextAreaElement | null>>({});
   // Dos clics casi simultáneos (p. ej. doble clic sin querer en "+ Crear estrategia") disparaban
   // dos lecturas concurrentes del mismo estado "latest", y el segundo guardado podía pisar al
@@ -186,15 +196,44 @@ export default function PriorizacionQSPM({ activity, session, aspirations, parti
       };
     });
   }
-  function addStrategy(name: string) {
+  function addStrategy(name: string, originLabels?: string[]) {
     const trimmed = name.trim();
     if (!trimmed) return;
     const id = uid();
-    mutateContent((latest) => ({ ...latest, strategies: [...latest.strategies, { id, name: trimmed }] }));
+    mutateContent((latest) => ({ ...latest, strategies: [...latest.strategies, { id, name: trimmed, originLabels }] }));
     // El nombre autogenerado (desde un factor o un cruce DOFA) es solo un punto de partida, no
     // una redacción final de estrategia — se enfoca y selecciona todo el texto para invitar a
     // reescribirlo de una vez, en vez de obligar a borrarlo a mano antes de poder escribir.
     setFocusStrategyId(id);
+  }
+  function toggleFactorSelection(key: string) {
+    setSelectedFactorKeys((prev) => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  }
+  function toggleDofaSelection(id: string) {
+    setSelectedDofaIds((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+  function dofaSuggestionText(s: DofaSelection) {
+    const textA = s.custom ? s.custom.textA : dofaFactorText.get(s.factorAId) ?? "—";
+    const textB = s.custom ? s.custom.textB : dofaFactorText.get(s.factorBId) ?? "—";
+    return `${textA} + ${textB}`;
+  }
+  function createStrategyFromSelection() {
+    const factorLabels = allFactors.filter((f) => selectedFactorKeys.has(f.key)).map((f) => f.factor);
+    const dofaLabels = dofaSelections.filter((s) => selectedDofaIds.has(s.id)).map(dofaSuggestionText);
+    const originLabels = [...factorLabels, ...dofaLabels];
+    if (originLabels.length === 0) return;
+    const name = factorLabels.length === 0 && dofaLabels.length === 1 ? dofaLabels[0] : `Estrategia para: ${originLabels.join(" + ")}`;
+    addStrategy(name, originLabels);
+    setSelectedFactorKeys(new Set());
+    setSelectedDofaIds(new Set());
   }
   function renameStrategy(id: string, name: string) {
     mutateContent((latest) => ({ ...latest, strategies: latest.strategies.map((s) => (s.id === id ? { ...s, name } : s)) }));
@@ -268,9 +307,11 @@ export default function PriorizacionQSPM({ activity, session, aspirations, parti
       <div className="rounded-lg border border-border bg-black/[0.02] p-3 text-xs text-muted">
         <p className="font-semibold text-foreground">¿Cómo funciona?</p>
         <p className="mt-1">
-          1) Activa los factores clave (EFI/EFE) que de verdad definen si una estrategia es viable. 2) Crea una estrategia por cada
-          factor o cruce DOFA relevante. 3) Califica qué tan atractiva es cada estrategia frente a cada factor (1 a {scaleMax}). El
-          puntaje ponderado (peso × calificación) arma el ranking final.
+          1) Activa (interruptor) los factores clave (EFI/EFE) que de verdad definen si una estrategia es viable — eso es
+          independiente de crear estrategias. 2) Marca con el check ☑ uno o varios factores/cruces DOFA y pulsa{" "}
+          <b>&quot;Crear estrategia con la selección&quot;</b> para generar una sola estrategia a partir de todos los que
+          marcaste. 3) Califica qué tan atractiva es cada estrategia frente a cada factor activo (1 a {scaleMax}). El puntaje
+          ponderado (peso × calificación) arma el ranking final.
         </p>
         <p className="mt-1 italic">
           Ejemplo: si el factor <b>&quot;Alianzas territoriales consolidadas&quot;</b> (peso 0.15) es clave para la estrategia{" "}
@@ -286,17 +327,21 @@ export default function PriorizacionQSPM({ activity, session, aspirations, parti
             .filter((f) => !f.custom)
             .map((f) => (
               <div key={f.key} className="flex items-center justify-between gap-2 rounded-md border border-border bg-card p-2">
-                <div className="min-w-0 flex-1">
+                <div className="flex min-w-0 flex-1 items-center gap-2">
+                  {content.activeKeys.includes(f.key) && (
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 shrink-0 accent-brand"
+                      checked={selectedFactorKeys.has(f.key)}
+                      onChange={() => toggleFactorSelection(f.key)}
+                      title="Marcar para incluir en la próxima estrategia"
+                    />
+                  )}
                   <span className="mr-1.5 rounded-full bg-black/5 px-1.5 py-0.5 text-[10px] font-bold text-muted">{f.origin}</span>
                   <span className="text-sm text-foreground">{f.factor}</span>
                   <span className="ml-1.5 text-xs text-muted">(peso {f.peso.toFixed(2)})</span>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
-                  {content.activeKeys.includes(f.key) && (
-                    <button className={btnGhost + " !px-2 !py-1 text-xs"} onClick={() => addStrategy(`Estrategia para: ${f.factor}`)}>
-                      + Crear estrategia
-                    </button>
-                  )}
                   <ToggleSwitch checked={content.activeKeys.includes(f.key)} onChange={() => toggleFactor(f.key)} label="Activar" />
                 </div>
               </div>
@@ -310,15 +355,19 @@ export default function PriorizacionQSPM({ activity, session, aspirations, parti
           <div className="space-y-1.5">
             {content.customFactors.map((c) => (
               <div key={c.id} className="flex items-center justify-between gap-2 rounded-md border border-border bg-card p-2">
-                <div className="min-w-0 flex-1">
+                <div className="flex min-w-0 flex-1 items-center gap-2">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 shrink-0 accent-brand"
+                    checked={selectedFactorKeys.has(`custom:${c.id}`)}
+                    onChange={() => toggleFactorSelection(`custom:${c.id}`)}
+                    title="Marcar para incluir en la próxima estrategia"
+                  />
                   <span className="mr-1.5 rounded-full bg-black/5 px-1.5 py-0.5 text-[10px] font-bold text-muted">Personalizado</span>
                   <span className="text-sm text-foreground">{c.factor}</span>
                   <span className="ml-1.5 text-xs text-muted">(peso {c.peso.toFixed(2)})</span>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
-                  <button className={btnGhost + " !px-2 !py-1 text-xs"} onClick={() => addStrategy(`Estrategia para: ${c.factor}`)}>
-                    + Crear estrategia
-                  </button>
                   {canEdit && <DeleteButton label="quitar" onConfirm={() => removeCustomFactor(c.id)} />}
                 </div>
               </div>
@@ -356,25 +405,49 @@ export default function PriorizacionQSPM({ activity, session, aspirations, parti
           <p className="text-sm font-semibold text-foreground">Cruces del DOFA cruzado (sugerencias de estrategia)</p>
           <div className="flex flex-wrap gap-2">
             {dofaSelections.map((s) => {
-              const textA = s.custom ? s.custom.textA : dofaFactorText.get(s.factorAId) ?? "—";
-              const textB = s.custom ? s.custom.textB : dofaFactorText.get(s.factorBId) ?? "—";
-              const suggestion = `${textA} + ${textB}`;
+              const suggestion = dofaSuggestionText(s);
+              const checked = selectedDofaIds.has(s.id);
               return (
                 <button
                   key={s.id}
                   type="button"
-                  className="max-w-xs rounded-lg border border-border bg-card p-2 text-left text-xs hover:bg-black/5"
-                  title="Crear una estrategia a partir de este cruce"
-                  onClick={() => addStrategy(suggestion)}
+                  className={`flex max-w-xs items-start gap-2 rounded-lg border p-2 text-left text-xs transition-colors ${
+                    checked ? "border-brand bg-brand/10" : "border-border bg-card hover:bg-black/5"
+                  }`}
+                  title="Marcar para incluir en la próxima estrategia"
+                  onClick={() => toggleDofaSelection(s.id)}
                 >
-                  <span className="mr-1 rounded-full bg-brand/15 px-1.5 py-0.5 text-[10px] font-bold text-brand-dark">
-                    {QUADRANT_LABEL[s.quadrant]}
+                  <input type="checkbox" readOnly checked={checked} className="mt-0.5 h-4 w-4 shrink-0 accent-brand" />
+                  <span>
+                    <span className="mr-1 rounded-full bg-brand/15 px-1.5 py-0.5 text-[10px] font-bold text-brand-dark">
+                      {QUADRANT_LABEL[s.quadrant]}
+                    </span>
+                    {suggestion}
                   </span>
-                  {suggestion}
                 </button>
               );
             })}
           </div>
+        </div>
+      )}
+
+      {(selectedFactorKeys.size > 0 || selectedDofaIds.size > 0) && (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-brand bg-brand/10 p-3">
+          <span className="text-sm font-semibold text-brand-dark">
+            {selectedFactorKeys.size + selectedDofaIds.size} {selectedFactorKeys.size + selectedDofaIds.size === 1 ? "elemento marcado" : "elementos marcados"}
+          </span>
+          <button className={btnPrimary} onClick={createStrategyFromSelection}>
+            + Crear estrategia con la selección
+          </button>
+          <button
+            className="text-xs text-muted hover:underline"
+            onClick={() => {
+              setSelectedFactorKeys(new Set());
+              setSelectedDofaIds(new Set());
+            }}
+          >
+            limpiar selección
+          </button>
         </div>
       )}
 
@@ -383,7 +456,7 @@ export default function PriorizacionQSPM({ activity, session, aspirations, parti
         {activeFactors.length === 0 ? (
           <p className="text-sm text-muted">Activa al menos un factor arriba para poder calificar estrategias.</p>
         ) : content.strategies.length === 0 ? (
-          <p className="text-sm text-muted">Aún no hay estrategias. Créalas desde un factor activo o desde un cruce DOFA arriba.</p>
+          <p className="text-sm text-muted">Aún no hay estrategias. Marca uno o varios factores/cruces arriba y crea la primera.</p>
         ) : (
           <div className="overflow-x-auto rounded-lg border border-border">
             <table className="min-w-full text-sm">
@@ -406,6 +479,11 @@ export default function PriorizacionQSPM({ activity, session, aspirations, parti
                         />
                       ) : (
                         <span className="text-foreground">{s.name}</span>
+                      )}
+                      {s.originLabels && s.originLabels.length > 0 && (
+                        <p className="mt-1 truncate text-[11px] font-normal italic text-muted" title={s.originLabels.join(" + ")}>
+                          Basada en: {s.originLabels.join(" + ")}
+                        </p>
                       )}
                       {canEdit && <DeleteButton label="quitar" onConfirm={() => removeStrategy(s.id)} />}
                     </th>
