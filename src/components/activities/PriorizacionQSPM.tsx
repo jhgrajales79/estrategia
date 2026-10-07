@@ -12,6 +12,7 @@ import {
   inputCls,
   textareaCls,
   btnPrimary,
+  btnGhost,
   SaveIndicator,
   PresenterHint,
   ToggleSwitch,
@@ -363,6 +364,15 @@ export default function PriorizacionQSPM({ activity, session, aspirations, parti
                   <span className="ml-1.5 text-xs text-muted">(peso {f.peso.toFixed(2)})</span>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
+                  {content.activeKeys.includes(f.key) && (
+                    <button
+                      className={btnGhost + " !px-2 !py-1 text-xs"}
+                      title="Crear de inmediato una estrategia a partir de este factor"
+                      onClick={() => addStrategy(`Estrategia para: ${f.factor}`, [f.factor])}
+                    >
+                      + Crear estrategia
+                    </button>
+                  )}
                   <ToggleSwitch checked={content.activeKeys.includes(f.key)} onChange={() => toggleFactor(f.key)} label="Activar" />
                 </div>
               </div>
@@ -389,6 +399,13 @@ export default function PriorizacionQSPM({ activity, session, aspirations, parti
                   <span className="ml-1.5 text-xs text-muted">(peso {c.peso.toFixed(2)})</span>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
+                  <button
+                    className={btnGhost + " !px-2 !py-1 text-xs"}
+                    title="Crear de inmediato una estrategia a partir de este factor"
+                    onClick={() => addStrategy(`Estrategia para: ${c.factor}`, [c.factor])}
+                  >
+                    + Crear estrategia
+                  </button>
                   {canEdit && <DeleteButton label="quitar" onConfirm={() => removeCustomFactor(c.id)} />}
                 </div>
               </div>
@@ -429,23 +446,34 @@ export default function PriorizacionQSPM({ activity, session, aspirations, parti
               const suggestion = dofaSuggestionText(s);
               const checked = selectedDofaIds.has(s.id);
               return (
-                <button
+                <div
                   key={s.id}
-                  type="button"
-                  className={`flex max-w-xs items-start gap-2 rounded-lg border p-2 text-left text-xs transition-colors ${
-                    checked ? "border-brand bg-brand/10" : "border-border bg-card hover:bg-black/5"
+                  className={`flex max-w-xs flex-col gap-1.5 rounded-lg border p-2 text-xs transition-colors ${
+                    checked ? "border-brand bg-brand/10" : "border-border bg-card"
                   }`}
-                  title="Marcar para incluir en la próxima estrategia"
-                  onClick={() => toggleDofaSelection(s.id)}
                 >
-                  <input type="checkbox" readOnly checked={checked} className="mt-0.5 h-4 w-4 shrink-0 accent-brand" />
-                  <span>
-                    <span className="mr-1 rounded-full bg-brand/15 px-1.5 py-0.5 text-[10px] font-bold text-brand-dark">
-                      {QUADRANT_LABEL[s.quadrant]}
+                  <button
+                    type="button"
+                    className="flex items-start gap-2 text-left hover:opacity-80"
+                    title="Marcar para incluir en la próxima estrategia"
+                    onClick={() => toggleDofaSelection(s.id)}
+                  >
+                    <input type="checkbox" readOnly checked={checked} className="mt-0.5 h-4 w-4 shrink-0 accent-brand" />
+                    <span>
+                      <span className="mr-1 rounded-full bg-brand/15 px-1.5 py-0.5 text-[10px] font-bold text-brand-dark">
+                        {QUADRANT_LABEL[s.quadrant]}
+                      </span>
+                      {suggestion}
                     </span>
-                    {suggestion}
-                  </span>
-                </button>
+                  </button>
+                  <button
+                    className={btnGhost + " !px-2 !py-1 self-start text-xs"}
+                    title="Crear de inmediato una estrategia a partir de este cruce"
+                    onClick={() => addStrategy(suggestion, [suggestion])}
+                  >
+                    + Crear estrategia
+                  </button>
+                </div>
               );
             })}
           </div>
