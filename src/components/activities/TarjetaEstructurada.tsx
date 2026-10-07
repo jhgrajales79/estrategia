@@ -25,6 +25,13 @@ interface MetaSourceContent {
   candidates?: MetaCandidate[];
   votes?: MetaVote[];
 }
+// Estrategia tal como la deja la Priorización QSPM (PriorizacionQSPM.tsx) — solo nos interesan
+// el nombre y la descripción para precargar el registro del consenso final.
+interface QspmStrategy {
+  id: string;
+  name: string;
+  description?: string;
+}
 
 interface FieldDef {
   key: string;
@@ -48,6 +55,9 @@ interface Entry extends Record<string, unknown> {
   // creado con el botón genérico "+ {repeatLabel}" no queda ligado a ninguna. Varios registros
   // pueden compartir la misma meta_id (una meta puede dar más de un objetivo SMART).
   meta_id?: string;
+  // Estrategia de la Priorización QSPM (config.qspmFrom) importada a este registro — se usa solo
+  // para no duplicarla si se vuelve a pulsar "Importar" después de crear más estrategias en QSPM.
+  qspm_strategy_id?: string;
   // Marca un registro como ejemplo ilustrativo precargado (p. ej. en "Cierre: pilares y valores
   // en acción") — se distingue con una insignia, pero el equipo lo puede editar o borrar igual
   // que cualquier otro.
@@ -161,6 +171,35 @@ export default function TarjetaEstructurada({ activity, session, aspirations, pa
     for (const v of metaVotes) totals[v.candidate_id] = (totals[v.candidate_id] ?? 0) + v.points;
     return totals;
   }, [metaVotes]);
+
+  // Estrategias de la Priorización QSPM (config.qspmFrom): se leen en vivo, una consulta por
+  // aspiración (allí viven en submissions separadas, no en una compartida como las metas de la
+  // Subasta), para poder importarlas de un clic como punto de partida del consenso final.
+  const qspmFrom = activity.config.qspmFrom as number | undefined;
+  const [qspmByAsp, setQspmByAsp] = useState<{ aspId: number; strategies: QspmStrategy[] }[]>([]);
+  useEffect(() => {
+    if (!qspmFrom || aspirations.length === 0) return;
+    let cancelled = false;
+    async function load() {
+      const results = await Promise.all(
+        aspirations.map(async (a) => {
+          const { data } = await supabase.from("submissions").select("content").eq("activity_id", qspmFrom!).eq("aspiration_id", a.id).maybeSingle();
+          const strategies = ((data?.content as { strategies?: QspmStrategy[] } | null)?.strategies ?? []).filter((s) => s.name?.trim());
+          return { aspId: a.id, strategies };
+        })
+      );
+      if (!cancelled) setQspmByAsp(results);
+    }
+    load().catch(console.error);
+    const channel = supabase
+      .channel(`qspm-import-${qspmFrom}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "submissions", filter: `activity_id=eq.${qspmFrom}` }, () => load())
+      .subscribe();
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(channel);
+    };
+  }, [qspmFrom, aspirations]);
   // Solo las metas que ya ganaron fichas (puntos > 0) y de la aspiración activa — una meta sin
   // votos no es todavía una meta oficial, no debería poder convertirse en objetivo SMART.
   const availableMetas = metaCandidates.filter((c) => c.aspiration_id === activeAspId && (metaPoints[c.id] ?? 0) > 0);
@@ -283,6 +322,25 @@ export default function TarjetaEstructurada({ activity, session, aspirations, pa
   function removeEntry(id: string) {
     save({ ...content, entries: content.entries.filter((e) => e.id !== id) });
   }
+  function importFromQspm() {
+    const alreadyImported = new Set(content.entries.map((e) => e.qspm_strategy_id).filter(Boolean));
+    const newEntries: Entry[] = [];
+    for (const { aspId, strategies } of qspmByAsp) {
+      const asp = aspirations.find((a) => a.id === aspId);
+      for (const s of strategies) {
+        if (alreadyImported.has(s.id)) continue;
+        const entry: Entry = { id: uid(), aspiration_id: aspId, qspm_strategy_id: s.id };
+        if (fields[0]) entry[fields[0].key] = s.description ? `${s.name}\n\n${s.description}` : s.name;
+        if (fields[1]) entry[fields[1].key] = asp?.name ?? "";
+        newEntries.push(entry);
+      }
+    }
+    if (newEntries.length === 0) return;
+    save(
+      { ...content, entries: [...content.entries, ...newEntries] },
+      { eventType: "registro", summary: `${participant.name} importó ${newEntries.length} estrategia(s) desde QSPM en "${activity.title}"` }
+    );
+  }
 
   // Los registros marcados `ejemplo` (precargados, p. ej. en "Cierre: pilares y valores en
   // acción") se muestran aparte, como insignias compactas arriba de todo — no cuentan para el
@@ -295,21 +353,35 @@ export default function TarjetaEstructurada({ activity, session, aspirations, pa
   // etiquetas de más de una palabra no basta una regla mecánica, así que la actividad puede
   // fijar el plural correcto explícitamente; a falta de eso, se usa el genérico "registros".
   const minEntriesLabel = (activity.config.minEntriesLabel as string) ?? "registros";
+  const alreadyImportedIds = new Set(content.entries.map((e) => e.qspm_strategy_id).filter(Boolean));
+  const pendingQspmCount = qspmByAsp.reduce((a, g) => a + g.strategies.filter((s) => !alreadyImportedIds.has(s.id)).length, 0);
 
   return (
     <div className="space-y-3">
       {presenter && (
         <div className="flex flex-wrap items-center justify-between gap-2">
           <PresenterHint />
-          {Boolean(activity.config.boardRoute) && (
-            <button
-              className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-black/5 transition-colors"
-              title="Ver el tablero de resultados en una pestaña nueva"
-              onClick={() => window.open(`/${activity.config.boardRoute}/${activity.id}`, "_blank", "noopener,noreferrer")}
-            >
-              ⛶ Ver tablero
-            </button>
-          )}
+          <div className="flex flex-wrap items-center gap-2">
+            {Boolean(qspmFrom) && (
+              <button
+                className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-black/5 transition-colors disabled:opacity-50"
+                title="Traer como registros de partida las estrategias ya creadas en la Priorización QSPM"
+                disabled={pendingQspmCount === 0}
+                onClick={importFromQspm}
+              >
+                ⬇ Importar de QSPM{pendingQspmCount > 0 ? ` (${pendingQspmCount})` : ""}
+              </button>
+            )}
+            {Boolean(activity.config.boardRoute) && (
+              <button
+                className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-black/5 transition-colors"
+                title="Ver el tablero de resultados en una pestaña nueva"
+                onClick={() => window.open(`/${activity.config.boardRoute}/${activity.id}`, "_blank", "noopener,noreferrer")}
+              >
+                ⛶ Ver tablero
+              </button>
+            )}
+          </div>
         </div>
       )}
       {aspirationTabs}
