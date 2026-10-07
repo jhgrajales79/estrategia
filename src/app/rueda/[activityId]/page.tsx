@@ -9,8 +9,91 @@ import { useSubmission } from "@/lib/useSubmission";
 import { axisColor } from "@/components/RadarChartView";
 import CapabilityWheelView from "@/components/CapabilityWheelView";
 import { aspClasses, ARCHETYPE_LABEL } from "@/lib/aspirationStyle";
+import QuadrantPoint from "@/components/charts/QuadrantPoint";
+import { computePosture } from "@/components/activities/PeeaVotacion";
 import type { ActivityRow, Aspiration, SessionRow } from "@/lib/types";
 import type { StoredParticipant } from "@/lib/participant";
+
+interface PeeaVote {
+  id: string;
+  axis: "FF" | "VC" | "EE" | "FI";
+  participant_id: string;
+  participant_name: string;
+  score: number;
+  note?: string;
+}
+interface PeeaContent extends Record<string, unknown> {
+  votes: PeeaVote[];
+}
+
+const PEEA_AXIS_LABEL: Record<PeeaVote["axis"], string> = {
+  FF: "Fortaleza financiera",
+  VC: "Ventaja competitiva",
+  EE: "Estabilidad del entorno",
+  FI: "Fortaleza de la industria",
+};
+
+function PeeaBoard({ activity, session, participant, scaleMax }: { activity: ActivityRow; session: SessionRow; participant: StoredParticipant; scaleMax: number }) {
+  const { content, loaded } = useSubmission<PeeaContent>(activity, session, null, participant, { votes: [] });
+  const axes = (activity.config.items as { key: string; axis: PeeaVote["axis"]; label: string }[]) ?? [];
+
+  if (!loaded) return <div className="flex h-[340px] items-center justify-center text-sm text-white/40">Cargando…</div>;
+
+  function axisVotes(axis: PeeaVote["axis"]) {
+    return content.votes.filter((v) => v.axis === axis);
+  }
+  function axisAverage(axis: PeeaVote["axis"]) {
+    const votes = axisVotes(axis);
+    return votes.length > 0 ? votes.reduce((a, v) => a + v.score, 0) / votes.length : 0;
+  }
+  const { x, y, posture } = computePosture(axisAverage);
+  const totalVoters = new Set(content.votes.map((v) => v.participant_id)).size;
+
+  return (
+    <div className="flex flex-col items-center gap-8 md:flex-row md:items-start md:justify-center md:gap-16">
+      <div className="flex flex-col items-center gap-4">
+        <div className="rounded-2xl bg-card p-6">
+          <QuadrantPoint x={x} y={y} range={scaleMax} />
+        </div>
+        <span className="rounded-full bg-brand px-4 py-1.5 text-sm font-bold text-dark">{posture}</span>
+        <p className="text-xs text-white/50">
+          {totalVoters} {totalVoters === 1 ? "persona ha votado" : "personas han votado"}
+        </p>
+      </div>
+      <div className="w-full max-w-lg shrink-0 space-y-3">
+        {axes.map((a) => {
+          const votes = axisVotes(a.axis);
+          const notes = votes.filter((v) => v.note?.trim());
+          return (
+            <div key={a.key} className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <p className="text-sm font-semibold text-white">{a.label}</p>
+                  <p className="text-xs text-white/40">{PEEA_AXIS_LABEL[a.axis]}</p>
+                </div>
+                <span className="shrink-0 text-sm font-bold text-brand">
+                  {axisAverage(a.axis).toFixed(1)}/{scaleMax}
+                </span>
+              </div>
+              <p className="mt-1 text-xs text-white/50">
+                {votes.length} {votes.length === 1 ? "voto" : "votos"}
+              </p>
+              {notes.length > 0 && (
+                <div className="mt-2 max-h-28 space-y-1 overflow-y-auto border-t border-white/10 pt-2">
+                  {notes.map((v) => (
+                    <p key={v.id} className="text-xs text-white/50">
+                      <span className="font-semibold text-white/80">{v.participant_name}</span> ({v.score}/{scaleMax}): {v.note}
+                    </p>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 interface Item {
   id: string;
@@ -149,6 +232,7 @@ export default function RuedaFullscreenPage({ params }: { params: Promise<{ acti
     );
   }
 
+  const peeaMode = Boolean(activity.config.peeaMode);
   const perAspiration = Boolean(activity.config.perAspiration);
   const scaleMax = (activity.config.scaleMax as number) ?? 5;
   const tabs = perAspiration ? aspirations : [];
@@ -165,7 +249,13 @@ export default function RuedaFullscreenPage({ params }: { params: Promise<{ acti
         </div>
       </div>
 
-      {perAspiration && (
+      {peeaMode && (
+        <div className="mx-auto mt-10 max-w-[1400px]">
+          <PeeaBoard activity={activity} session={session} participant={participant} scaleMax={scaleMax} />
+        </div>
+      )}
+
+      {!peeaMode && perAspiration && (
         <div className="mx-auto mt-6 flex max-w-[1400px] flex-wrap gap-2">
           <button
             onClick={() => setView("consolidado")}
@@ -195,7 +285,7 @@ export default function RuedaFullscreenPage({ params }: { params: Promise<{ acti
         </div>
       )}
 
-      <div className="mx-auto mt-10 max-w-[1400px]">
+      {!peeaMode && <div className="mx-auto mt-10 max-w-[1400px]">
         {perAspiration ? (
           view === "consolidado" ? (
             <div className="flex flex-wrap items-start justify-center gap-10">
@@ -239,7 +329,7 @@ export default function RuedaFullscreenPage({ params }: { params: Promise<{ acti
             active
           />
         )}
-      </div>
+      </div>}
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { isPresenter } from "@/lib/presenter";
 import { aspClasses, ARCHETYPE_LABEL } from "@/lib/aspirationStyle";
 import QuadrantPoint from "@/components/charts/QuadrantPoint";
 import { ActivityComponentProps, inputCls, textareaCls, btnPrimary, SaveIndicator, PresenterHint, DeleteButton, uid } from "./shared";
+import PeeaVotacion from "./PeeaVotacion";
 
 interface Item {
   id: string;
@@ -26,7 +27,14 @@ const AXIS_LABEL: Record<string, string> = {
   FI: "Fortaleza de la industria",
 };
 
-export default function RuedaEvaluacion({ activity, session, aspirations, participant }: ActivityComponentProps) {
+export default function RuedaEvaluacion(props: ActivityComponentProps) {
+  if (props.activity.config.peeaMode) {
+    return <PeeaVotacion {...props} />;
+  }
+  return <RuedaEvaluacionClasica {...props} />;
+}
+
+function RuedaEvaluacionClasica({ activity, session, aspirations, participant }: ActivityComponentProps) {
   const scaleMax = (activity.config.scaleMax as number) ?? 5;
   const dynamicItems = Boolean(activity.config.dynamicItems);
   const peeaMode = Boolean(activity.config.peeaMode);
