@@ -132,6 +132,19 @@ export default function PriorizacionQSPM({ activity, session, aspirations, parti
   // resultado de la anterior en vez de partir del mismo punto de partida obsoleto.
   const mutateChain = useRef<Promise<void>>(Promise.resolve());
 
+  // Debe quedar ANTES del "if (!loaded) return" de abajo — un hook después de un return
+  // condicional cambia la cantidad de hooks entre el render de "Cargando…" y el real, y React
+  // revienta con el error #310 (rompió toda la página en producción).
+  useEffect(() => {
+    if (!focusStrategyId) return;
+    const el = strategyInputRefs.current[focusStrategyId];
+    if (el) {
+      el.focus();
+      el.select();
+      setFocusStrategyId(null);
+    }
+  }, [focusStrategyId, content.strategies]);
+
   if (!loaded) return <p className="text-sm text-muted">Cargando…</p>;
 
   function mutateContent(fn: (latest: Content) => Content) {
@@ -142,16 +155,6 @@ export default function PriorizacionQSPM({ activity, session, aspirations, parti
     mutateChain.current = run.catch(() => {});
     return run;
   }
-
-  useEffect(() => {
-    if (!focusStrategyId) return;
-    const el = strategyInputRefs.current[focusStrategyId];
-    if (el) {
-      el.focus();
-      el.select();
-      setFocusStrategyId(null);
-    }
-  }, [focusStrategyId, content.strategies]);
 
   function toggleFactor(key: string) {
     mutateContent((latest) => ({
