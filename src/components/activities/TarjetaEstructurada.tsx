@@ -138,6 +138,11 @@ export default function TarjetaEstructurada({ activity, session, aspirations, pa
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [entryDrafts, setEntryDrafts] = useState<Record<string, Record<string, string>>>({});
   const [draggingMetaId, setDraggingMetaId] = useState<string | null>(null);
+  // Deben quedar ANTES del "if (!repeatable) return" de abajo — un hook después de un return
+  // condicional cambia la cantidad de hooks entre modos y React revienta con el error #310 (ver
+  // el mismo bug ya corregido en PriorizacionQSPM.tsx).
+  const [unifying, setUnifying] = useState(false);
+  const [unifyError, setUnifyError] = useState<string | null>(null);
 
   // Metas de la Subasta (config.metasFrom, p. ej. "De aspiración a objetivos SMART" las toma de
   // "Subasta de nuevas metas"): se leen en vivo de esa otra submission compartida (aspiration_id
@@ -368,8 +373,6 @@ export default function TarjetaEstructurada({ activity, session, aspirations, pa
     const text = buildTemplateSummary(realEntries);
     if (text) saveUnified(text);
   }
-  const [unifying, setUnifying] = useState(false);
-  const [unifyError, setUnifyError] = useState<string | null>(null);
   async function unifyWithAI() {
     setUnifying(true);
     setUnifyError(null);
