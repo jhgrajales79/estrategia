@@ -225,7 +225,7 @@ export default function RuedaFullscreenPage({ params }: { params: Promise<{ acti
       const w = window.innerWidth;
       setSize(Math.round(Math.min(w >= 900 ? w - 480 : w - 32, 520)));
       setCompactSize(w >= 1100 ? 260 : w >= 700 ? 220 : 180);
-      setPeeaSize(Math.round(Math.min(w - 64, 640)));
+      setPeeaSize(Math.round(Math.min(w - 64, 448)));
     }
     computeSize();
     window.addEventListener("resize", computeSize);
