@@ -135,6 +135,10 @@ export default function PriorizacionQSPM({ activity, session, aspirations, parti
   // generaban confusión sobre qué se estaba haciendo.
   const [selectedFactorKeys, setSelectedFactorKeys] = useState<Set<string>>(new Set());
   const [selectedDofaIds, setSelectedDofaIds] = useState<Set<string>>(new Set());
+  // Modo alterno: en vez de marcar primero y crear al final, se crea la estrategia (vacía)
+  // primero y queda como "destino" — cada check que marques después se vincula de una vez a ESA
+  // estrategia, y puedes repetir el ciclo (otra estrategia vacía, volver a marcar) varias veces.
+  const [targetStrategyId, setTargetStrategyId] = useState<string | null>(null);
   const strategyInputRefs = useRef<Record<string, HTMLTextAreaElement | null>>({});
   // Dos clics casi simultáneos (p. ej. doble clic sin querer en "+ Crear estrategia") disparaban
   // dos lecturas concurrentes del mismo estado "latest", y el segundo guardado podía pisar al
@@ -196,15 +200,37 @@ export default function PriorizacionQSPM({ activity, session, aspirations, parti
       };
     });
   }
-  function addStrategy(name: string, originLabels?: string[]) {
-    const trimmed = name.trim();
-    if (!trimmed) return;
+  function createStrategy(name: string, originLabels?: string[]) {
     const id = uid();
-    mutateContent((latest) => ({ ...latest, strategies: [...latest.strategies, { id, name: trimmed, originLabels }] }));
+    mutateContent((latest) => ({ ...latest, strategies: [...latest.strategies, { id, name: name.trim(), originLabels }] }));
     // El nombre autogenerado (desde un factor o un cruce DOFA) es solo un punto de partida, no
     // una redacción final de estrategia — se enfoca y selecciona todo el texto para invitar a
     // reescribirlo de una vez, en vez de obligar a borrarlo a mano antes de poder escribir.
     setFocusStrategyId(id);
+    return id;
+  }
+  function addStrategy(name: string) {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    createStrategy(trimmed);
+  }
+  // Modo alterno a "marcar y crear": una estrategia vacía queda como destino, y cada check que
+  // marques después se vincula de inmediato a ella — útil cuando el equipo primero acuerda el
+  // nombre de la estrategia y luego revisa qué factores la justifican.
+  function addEmptyStrategyAsTarget() {
+    const id = createStrategy("", []);
+    setTargetStrategyId(id);
+  }
+  function toggleItemForTarget(label: string) {
+    if (!targetStrategyId) return;
+    mutateContent((latest) => ({
+      ...latest,
+      strategies: latest.strategies.map((s) => {
+        if (s.id !== targetStrategyId) return s;
+        const origins = s.originLabels ?? [];
+        return { ...s, originLabels: origins.includes(label) ? origins.filter((o) => o !== label) : [...origins, label] };
+      }),
+    }));
   }
   function toggleFactorSelection(key: string) {
     setSelectedFactorKeys((prev) => {
@@ -231,7 +257,7 @@ export default function PriorizacionQSPM({ activity, session, aspirations, parti
     const originLabels = [...factorLabels, ...dofaLabels];
     if (originLabels.length === 0) return;
     const name = factorLabels.length === 0 && dofaLabels.length === 1 ? dofaLabels[0] : `Estrategia para: ${originLabels.join(" + ")}`;
-    addStrategy(name, originLabels);
+    createStrategy(name, originLabels);
     setSelectedFactorKeys(new Set());
     setSelectedDofaIds(new Set());
   }
@@ -257,6 +283,7 @@ export default function PriorizacionQSPM({ activity, session, aspirations, parti
       }
       return { ...latest, strategies: latest.strategies.filter((s) => s.id !== id), ratings };
     });
+    setTargetStrategyId((cur) => (cur === id ? null : cur));
   }
   function setRating(factorKey: string, strategyId: string, value: number) {
     mutateContent((latest) => ({
@@ -278,6 +305,14 @@ export default function PriorizacionQSPM({ activity, session, aspirations, parti
   }));
   const ranked = [...totals].sort((a, b) => b.total - a.total);
   const canEdit = !presenter;
+  const targetStrategy = content.strategies.find((s) => s.id === targetStrategyId) ?? null;
+  function isChecked(label: string, selectionHas: boolean) {
+    return targetStrategy ? (targetStrategy.originLabels ?? []).includes(label) : selectionHas;
+  }
+  function onCheckChange(label: string, toggleSelection: () => void) {
+    if (targetStrategy) toggleItemForTarget(label);
+    else toggleSelection();
+  }
 
   return (
     <div className="space-y-4">
@@ -308,10 +343,11 @@ export default function PriorizacionQSPM({ activity, session, aspirations, parti
         <p className="font-semibold text-foreground">¿Cómo funciona?</p>
         <p className="mt-1">
           1) Activa (interruptor) los factores clave (EFI/EFE) que de verdad definen si una estrategia es viable — eso es
-          independiente de crear estrategias. 2) Marca con el check ☑ uno o varios factores/cruces DOFA y pulsa{" "}
-          <b>&quot;Crear estrategia con la selección&quot;</b> para generar una sola estrategia a partir de todos los que
-          marcaste. 3) Califica qué tan atractiva es cada estrategia frente a cada factor activo (1 a {scaleMax}). El puntaje
-          ponderado (peso × calificación) arma el ranking final.
+          independiente de crear estrategias. 2) Dos formas de crear una estrategia: (a) marca con el check ☑ uno o varios
+          factores/cruces DOFA y pulsa <b>&quot;Crear estrategia con la selección&quot;</b>, o (b) pulsa{" "}
+          <b>&quot;+ Nueva estrategia&quot;</b> primero, escribe el nombre, y luego marca los factores que la justifican —
+          puedes repetir cualquiera de las dos cuantas veces necesites. 3) Califica qué tan atractiva es cada estrategia
+          frente a cada factor activo (1 a {scaleMax}). El puntaje ponderado (peso × calificación) arma el ranking final.
         </p>
         <p className="mt-1 italic">
           Ejemplo: si el factor <b>&quot;Alianzas territoriales consolidadas&quot;</b> (peso 0.15) es clave para la estrategia{" "}
@@ -332,9 +368,9 @@ export default function PriorizacionQSPM({ activity, session, aspirations, parti
                     <input
                       type="checkbox"
                       className="h-4 w-4 shrink-0 accent-brand"
-                      checked={selectedFactorKeys.has(f.key)}
-                      onChange={() => toggleFactorSelection(f.key)}
-                      title="Marcar para incluir en la próxima estrategia"
+                      checked={isChecked(f.factor, selectedFactorKeys.has(f.key))}
+                      onChange={() => onCheckChange(f.factor, () => toggleFactorSelection(f.key))}
+                      title={targetStrategy ? `Vincular a "${targetStrategy.name || "(sin nombre)"}"` : "Marcar para incluir en la próxima estrategia"}
                     />
                   )}
                   <span className="mr-1.5 rounded-full bg-black/5 px-1.5 py-0.5 text-[10px] font-bold text-muted">{f.origin}</span>
@@ -359,9 +395,9 @@ export default function PriorizacionQSPM({ activity, session, aspirations, parti
                   <input
                     type="checkbox"
                     className="h-4 w-4 shrink-0 accent-brand"
-                    checked={selectedFactorKeys.has(`custom:${c.id}`)}
-                    onChange={() => toggleFactorSelection(`custom:${c.id}`)}
-                    title="Marcar para incluir en la próxima estrategia"
+                    checked={isChecked(c.factor, selectedFactorKeys.has(`custom:${c.id}`))}
+                    onChange={() => onCheckChange(c.factor, () => toggleFactorSelection(`custom:${c.id}`))}
+                    title={targetStrategy ? `Vincular a "${targetStrategy.name || "(sin nombre)"}"` : "Marcar para incluir en la próxima estrategia"}
                   />
                   <span className="mr-1.5 rounded-full bg-black/5 px-1.5 py-0.5 text-[10px] font-bold text-muted">Personalizado</span>
                   <span className="text-sm text-foreground">{c.factor}</span>
@@ -406,7 +442,7 @@ export default function PriorizacionQSPM({ activity, session, aspirations, parti
           <div className="flex flex-wrap gap-2">
             {dofaSelections.map((s) => {
               const suggestion = dofaSuggestionText(s);
-              const checked = selectedDofaIds.has(s.id);
+              const checked = isChecked(suggestion, selectedDofaIds.has(s.id));
               return (
                 <button
                   key={s.id}
@@ -414,8 +450,8 @@ export default function PriorizacionQSPM({ activity, session, aspirations, parti
                   className={`flex max-w-xs items-start gap-2 rounded-lg border p-2 text-left text-xs transition-colors ${
                     checked ? "border-brand bg-brand/10" : "border-border bg-card hover:bg-black/5"
                   }`}
-                  title="Marcar para incluir en la próxima estrategia"
-                  onClick={() => toggleDofaSelection(s.id)}
+                  title={targetStrategy ? `Vincular a "${targetStrategy.name || "(sin nombre)"}"` : "Marcar para incluir en la próxima estrategia"}
+                  onClick={() => onCheckChange(suggestion, () => toggleDofaSelection(s.id))}
                 >
                   <input type="checkbox" readOnly checked={checked} className="mt-0.5 h-4 w-4 shrink-0 accent-brand" />
                   <span>
@@ -431,7 +467,19 @@ export default function PriorizacionQSPM({ activity, session, aspirations, parti
         </div>
       )}
 
-      {(selectedFactorKeys.size > 0 || selectedDofaIds.size > 0) && (
+      {canEdit && targetStrategy && (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-brand bg-brand/10 p-3">
+          <span className="text-sm font-semibold text-brand-dark">
+            Vinculando checks a: &quot;{targetStrategy.name || "(sin nombre)"}&quot; · {(targetStrategy.originLabels ?? []).length}{" "}
+            {(targetStrategy.originLabels ?? []).length === 1 ? "vinculado" : "vinculados"}
+          </span>
+          <button className="text-xs font-semibold text-brand-dark hover:underline" onClick={() => setTargetStrategyId(null)}>
+            terminar y dejar de vincular
+          </button>
+        </div>
+      )}
+
+      {canEdit && !targetStrategy && (selectedFactorKeys.size > 0 || selectedDofaIds.size > 0) && (
         <div className="flex flex-wrap items-center gap-2 rounded-lg border border-brand bg-brand/10 p-3">
           <span className="text-sm font-semibold text-brand-dark">
             {selectedFactorKeys.size + selectedDofaIds.size} {selectedFactorKeys.size + selectedDofaIds.size === 1 ? "elemento marcado" : "elementos marcados"}
@@ -447,6 +495,14 @@ export default function PriorizacionQSPM({ activity, session, aspirations, parti
             }}
           >
             limpiar selección
+          </button>
+        </div>
+      )}
+
+      {canEdit && !targetStrategy && selectedFactorKeys.size === 0 && selectedDofaIds.size === 0 && (
+        <div>
+          <button className="inline-flex items-center gap-1.5 rounded-md border border-dashed border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-black/5" onClick={addEmptyStrategyAsTarget}>
+            + Nueva estrategia (y marcar sus factores después)
           </button>
         </div>
       )}
@@ -485,7 +541,17 @@ export default function PriorizacionQSPM({ activity, session, aspirations, parti
                           Basada en: {s.originLabels.join(" + ")}
                         </p>
                       )}
-                      {canEdit && <DeleteButton label="quitar" onConfirm={() => removeStrategy(s.id)} />}
+                      {canEdit && (
+                        <div className="mt-1 flex items-center gap-2">
+                          <button
+                            className={`text-xs hover:underline ${targetStrategyId === s.id ? "font-semibold text-brand-dark" : "text-muted"}`}
+                            onClick={() => setTargetStrategyId(targetStrategyId === s.id ? null : s.id)}
+                          >
+                            {targetStrategyId === s.id ? "✓ vinculando…" : "🔗 vincular factores"}
+                          </button>
+                          <DeleteButton label="quitar" onConfirm={() => removeStrategy(s.id)} />
+                        </div>
+                      )}
                     </th>
                   ))}
                 </tr>
