@@ -6,6 +6,7 @@ import { aspClasses, findAspiration } from "@/lib/aspirationStyle";
 import { isPresenter } from "@/lib/presenter";
 import { ActivityComponentProps, textareaCls, inputCls, btnPrimary, SaveIndicator, PostIt, PresenterHint, PinToggle, ToggleSwitch, uid } from "./shared";
 import DofaCruzado from "./DofaCruzado";
+import MatrizIE from "./MatrizIE";
 
 interface StakeholderType {
   key: string;
@@ -36,6 +37,12 @@ export default function MatrizCuadrantes(props: ActivityComponentProps) {
   // Mapa de aliados y la Matriz Interna-Externa, que no las declaran, siguen exactamente igual.
   if (props.activity.config.efiFrom && props.activity.config.efeFrom) {
     return <DofaCruzado {...props} />;
+  }
+  // La Matriz Interna-Externa declara `inputsFrom: [efiId, efeId]` — a diferencia del DOFA
+  // cruzado, aquí no se generan combinaciones para marcar con check, sino una única posición
+  // calculada (Crecer/Mantener/Cosechar) por aspiración.
+  if (Array.isArray(props.activity.config.inputsFrom) && props.activity.config.inputsFrom.length >= 2) {
+    return <MatrizIE {...props} />;
   }
   return <MatrizCuadrantesClasica {...props} />;
 }
