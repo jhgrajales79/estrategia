@@ -33,7 +33,19 @@ const PEEA_AXIS_LABEL: Record<PeeaVote["axis"], string> = {
   FI: "Fortaleza de la industria",
 };
 
-function PeeaBoard({ activity, session, participant, scaleMax }: { activity: ActivityRow; session: SessionRow; participant: StoredParticipant; scaleMax: number }) {
+function PeeaBoard({
+  activity,
+  session,
+  participant,
+  scaleMax,
+  size,
+}: {
+  activity: ActivityRow;
+  session: SessionRow;
+  participant: StoredParticipant;
+  scaleMax: number;
+  size: number;
+}) {
   const { content, loaded } = useSubmission<PeeaContent>(activity, session, null, participant, { votes: [] });
   const axes = (activity.config.items as { key: string; axis: PeeaVote["axis"]; label: string }[]) ?? [];
 
@@ -50,17 +62,15 @@ function PeeaBoard({ activity, session, participant, scaleMax }: { activity: Act
   const totalVoters = new Set(content.votes.map((v) => v.participant_id)).size;
 
   return (
-    <div className="flex flex-col items-center gap-8 md:flex-row md:items-start md:justify-center md:gap-16">
-      <div className="flex flex-col items-center gap-4">
-        <div className="rounded-2xl bg-card p-6">
-          <QuadrantPoint x={x} y={y} range={scaleMax} />
-        </div>
-        <span className="rounded-full bg-brand px-4 py-1.5 text-sm font-bold text-dark">{posture}</span>
-        <p className="text-xs text-white/50">
+    <div className="flex flex-col items-center gap-6">
+      <div className="flex flex-col items-center gap-5 rounded-3xl bg-card p-8 shadow-2xl">
+        <QuadrantPoint x={x} y={y} range={scaleMax} size={size} />
+        <span className="rounded-full bg-brand px-6 py-2 text-xl font-bold text-dark sm:text-2xl">{posture}</span>
+        <p className="text-sm text-dark/60">
           {totalVoters} {totalVoters === 1 ? "persona ha votado" : "personas han votado"}
         </p>
       </div>
-      <div className="w-full max-w-lg shrink-0 space-y-3">
+      <div className="grid w-full max-w-5xl gap-3 sm:grid-cols-2">
         {axes.map((a) => {
           const votes = axisVotes(a.axis);
           const notes = votes.filter((v) => v.note?.trim());
@@ -200,6 +210,7 @@ export default function RuedaFullscreenPage({ params }: { params: Promise<{ acti
   const [view, setView] = useState<"consolidado" | number>("consolidado");
   const [size, setSize] = useState(420);
   const [compactSize, setCompactSize] = useState(220);
+  const [peeaSize, setPeeaSize] = useState(420);
 
   useEffect(() => {
     fetchAspirations().then(setAspirations).catch(console.error);
@@ -214,6 +225,7 @@ export default function RuedaFullscreenPage({ params }: { params: Promise<{ acti
       const w = window.innerWidth;
       setSize(Math.round(Math.min(w >= 900 ? w - 480 : w - 32, 520)));
       setCompactSize(w >= 1100 ? 260 : w >= 700 ? 220 : 180);
+      setPeeaSize(Math.round(Math.min(w - 64, 640)));
     }
     computeSize();
     window.addEventListener("resize", computeSize);
@@ -251,7 +263,7 @@ export default function RuedaFullscreenPage({ params }: { params: Promise<{ acti
 
       {peeaMode && (
         <div className="mx-auto mt-10 max-w-[1400px]">
-          <PeeaBoard activity={activity} session={session} participant={participant} scaleMax={scaleMax} />
+          <PeeaBoard activity={activity} session={session} participant={participant} scaleMax={scaleMax} size={peeaSize} />
         </div>
       )}
 
