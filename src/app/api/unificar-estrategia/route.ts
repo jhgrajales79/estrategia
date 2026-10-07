@@ -42,8 +42,8 @@ export async function POST(req: Request) {
     const { text } = await generateText({
       model: groq("openai/gpt-oss-120b"),
       prompt:
-        `Eres un consultor de planeación estratégica. A continuación hay ${strategies.length} estrategias corporativas, cada una ratificada por consenso para una aspiración distinta de una fundación social:\n\n${listado}\n\n` +
-        "Redacta un ÚNICO párrafo en español (120-180 palabras), en prosa fluida y natural (no uses listas, viñetas ni numeración), que unifique estas estrategias en una sola narrativa estratégica corporativa coherente — mostrando cómo se complementan y refuerzan entre sí hacia un propósito común. No inventes datos ni metas que no estén en el listado. Responde solo con el párrafo, sin título ni comentarios adicionales.",
+        `Eres el director de planeación estratégica de una fundación social. A continuación hay ${strategies.length} estrategias corporativas, cada una ratificada por consenso para una aspiración distinta:\n\n${listado}\n\n` +
+        "Redacta un ÚNICO párrafo en español (120-180 palabras) que unifique estas estrategias en una sola declaración de estrategia corporativa, en TONO ESTRATÉGICO: formal, ejecutivo y orientado a la acción — como el que abre un plan estratégico corporativo o un informe a junta directiva. Usa verbos en futuro/infinitivo de corte institucional (consolidará, fortalecerá, integrará, orientará sus esfuerzos a...), vocabulario propio de planeación estratégica (sinergia, propuesta de valor, ventaja competitiva, sostenibilidad, cierre de brechas), y una estructura de causa-efecto clara entre las estrategias. Evita metáforas, lenguaje poético o emotivo, y evita listas, viñetas o numeración: debe ser un párrafo corrido. No inventes datos ni metas que no estén en el listado. Responde solo con el párrafo, sin título ni comentarios adicionales.",
     });
     return Response.json({ text: text.trim() });
   } catch (err) {
