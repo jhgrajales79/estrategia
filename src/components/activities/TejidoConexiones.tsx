@@ -148,9 +148,20 @@ export default function TejidoConexiones({ activity, session, participant }: Act
       {presenter && (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-card p-3">
           <PresenterHint />
-          <button className={btnGhost} onClick={() => setShowMedia((v) => !v)}>
-            {showMedia ? "Ocultar" : "📷"} fotos y panel visual
-          </button>
+          <div className="flex items-center gap-2">
+            <button className={btnGhost} onClick={() => setShowMedia((v) => !v)}>
+              {showMedia ? "Ocultar" : "📷"} fotos y panel visual
+            </button>
+            {Boolean(activity.config.boardRoute) && (
+              <button
+                className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-black/5 transition-colors"
+                title="Ver la telaraña de hilos en una pestaña nueva"
+                onClick={() => window.open(`/${activity.config.boardRoute}/${activity.id}`, "_blank", "noopener,noreferrer")}
+              >
+                ⛶ Ver tablero
+              </button>
+            )}
+          </div>
         </div>
       )}
 

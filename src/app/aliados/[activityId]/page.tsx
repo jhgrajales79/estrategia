@@ -16,6 +16,7 @@ interface Card {
   aspiration_id: number | null;
   author: string;
   star?: boolean;
+  stakeholderType?: string;
 }
 interface Content extends Record<string, unknown> {
   cards: Card[];
@@ -23,6 +24,11 @@ interface Content extends Record<string, unknown> {
 interface Quadrant {
   key: string;
   label: string;
+}
+interface StakeholderType {
+  key: string;
+  label: string;
+  icon?: string;
 }
 
 // Convención de la metodología interés/influencia: el cuadrante "alto interés + alta
@@ -57,12 +63,19 @@ export default function AliadosFullscreenPage({ params }: { params: Promise<{ ac
   );
 
   const quadrants = useMemo(() => (activity?.config.quadrants as Quadrant[]) ?? [], [activity]);
+  const allowStar = Boolean(activity?.config.allowStar);
   const starLabel = (activity?.config.starLabel as string) ?? "Aliado crítico";
   const useAxisLayout = quadrants.length === 4 && quadrants.every((q) => AXIS_KEYS.has(q.key));
+  const stakeholderTypes = useMemo(() => (activity?.config.stakeholderTypes as StakeholderType[]) ?? [], [activity]);
+  const stakeholderByKey = useMemo(() => Object.fromEntries(stakeholderTypes.map((s) => [s.key, s])), [stakeholderTypes]);
+  const [typeFilter, setTypeFilter] = useState<string | null>(null);
 
   const cards = useMemo(
-    () => (aspFilter === null ? content.cards : content.cards.filter((c) => c.aspiration_id === aspFilter)),
-    [content.cards, aspFilter]
+    () =>
+      content.cards
+        .filter((c) => aspFilter === null || c.aspiration_id === aspFilter)
+        .filter((c) => typeFilter === null || c.stakeholderType === typeFilter),
+    [content.cards, aspFilter, typeFilter]
   );
   const cardsByQuadrant = useMemo(() => {
     const map = new Map<string, Card[]>();
@@ -104,13 +117,22 @@ export default function AliadosFullscreenPage({ params }: { params: Promise<{ ac
         <div className="flex shrink-0 flex-wrap items-center gap-4 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5">
           <div className="text-center">
             <p className="text-xl font-bold leading-none">{totalCards}</p>
-            <p className="mt-0.5 text-[11px] uppercase tracking-wide text-white/40">Aliados mapeados</p>
+            {/* "Aliados mapeados" solo tiene sentido en el Mapa de aliados real (trae
+                stakeholderTypes); otras matrices de cuadrantes (DOFA, Matriz IE) que reusan este
+                mismo tablero reciben la etiqueta genérica "Tarjetas". */}
+            <p className="mt-0.5 text-[11px] uppercase tracking-wide text-white/40">
+              {stakeholderTypes.length > 0 ? "Aliados mapeados" : "Tarjetas"}
+            </p>
           </div>
-          <div className="h-8 w-px bg-white/10" />
-          <div className="text-center">
-            <p className="text-xl font-bold leading-none text-accent-yellow">{totalStars}</p>
-            <p className="mt-0.5 text-[11px] uppercase tracking-wide text-white/40">Críticos ⭐</p>
-          </div>
+          {allowStar && (
+            <>
+              <div className="h-8 w-px bg-white/10" />
+              <div className="text-center">
+                <p className="text-xl font-bold leading-none text-accent-yellow">{totalStars}</p>
+                <p className="mt-0.5 text-[11px] uppercase tracking-wide text-white/40">{starLabel} ⭐</p>
+              </div>
+            </>
+          )}
           {useAxisLayout && (
             <>
               <div className="h-8 w-px bg-white/10" />
@@ -151,6 +173,33 @@ export default function AliadosFullscreenPage({ params }: { params: Promise<{ ac
         </div>
       )}
 
+      {stakeholderTypes.length > 0 && (
+        <div className="mx-auto mt-2 flex max-w-[1500px] flex-wrap gap-2">
+          <button
+            onClick={() => setTypeFilter(null)}
+            className={`rounded-full border px-3.5 py-1 text-xs font-semibold transition-colors ${
+              typeFilter === null ? "border-transparent bg-white text-dark" : "border-white/15 bg-white/[0.03] text-white/50 hover:bg-white/[0.08]"
+            }`}
+          >
+            Todos los tipos
+          </button>
+          {stakeholderTypes.map((s) => {
+            const active = typeFilter === s.key;
+            return (
+              <button
+                key={s.key}
+                onClick={() => setTypeFilter(s.key)}
+                className={`rounded-full border px-3.5 py-1 text-xs font-semibold transition-colors ${
+                  active ? "border-transparent bg-white text-dark" : "border-white/15 bg-white/[0.03] text-white/50 hover:bg-white/[0.08]"
+                }`}
+              >
+                {s.icon} {s.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       <div className="mx-auto mt-8 max-w-[1500px] pb-10">
         {useAxisLayout ? (
           <AxisQuadrantGrid
@@ -158,6 +207,7 @@ export default function AliadosFullscreenPage({ params }: { params: Promise<{ ac
             cardsByQuadrant={cardsByQuadrant}
             aspirations={aspirations}
             starLabel={starLabel}
+            stakeholderByKey={stakeholderByKey}
           />
         ) : (
           <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${Math.min(quadrants.length, 2) || 1}, minmax(0,1fr))` }}>
@@ -168,6 +218,7 @@ export default function AliadosFullscreenPage({ params }: { params: Promise<{ ac
                 cards={cardsByQuadrant.get(q.key) ?? []}
                 aspirations={aspirations}
                 starLabel={starLabel}
+                stakeholderByKey={stakeholderByKey}
               />
             ))}
           </div>
@@ -182,11 +233,13 @@ function AxisQuadrantGrid({
   cardsByQuadrant,
   aspirations,
   starLabel,
+  stakeholderByKey,
 }: {
   quadrants: Quadrant[];
   cardsByQuadrant: Map<string, Card[]>;
   aspirations: Aspiration[];
   starLabel: string;
+  stakeholderByKey: Record<string, StakeholderType>;
 }) {
   const byKey = new Map(quadrants.map((q) => [q.key, q]));
   // Disposición del plano interés (x) × influencia (y): alta influencia arriba, alto
@@ -205,18 +258,43 @@ function AxisQuadrantGrid({
       </div>
       <div className="min-w-0 flex-1">
         <div className="grid grid-cols-2 gap-3">
-          {topLeft && <QuadrantPanel label={topLeft.label} cards={cardsByQuadrant.get(topLeft.key) ?? []} aspirations={aspirations} starLabel={starLabel} />}
+          {topLeft && (
+            <QuadrantPanel
+              label={topLeft.label}
+              cards={cardsByQuadrant.get(topLeft.key) ?? []}
+              aspirations={aspirations}
+              starLabel={starLabel}
+              stakeholderByKey={stakeholderByKey}
+            />
+          )}
           {topRight && (
             <QuadrantPanel
               label={topRight.label}
               cards={cardsByQuadrant.get(topRight.key) ?? []}
               aspirations={aspirations}
               starLabel={starLabel}
+              stakeholderByKey={stakeholderByKey}
               priority
             />
           )}
-          {bottomLeft && <QuadrantPanel label={bottomLeft.label} cards={cardsByQuadrant.get(bottomLeft.key) ?? []} aspirations={aspirations} starLabel={starLabel} />}
-          {bottomRight && <QuadrantPanel label={bottomRight.label} cards={cardsByQuadrant.get(bottomRight.key) ?? []} aspirations={aspirations} starLabel={starLabel} />}
+          {bottomLeft && (
+            <QuadrantPanel
+              label={bottomLeft.label}
+              cards={cardsByQuadrant.get(bottomLeft.key) ?? []}
+              aspirations={aspirations}
+              starLabel={starLabel}
+              stakeholderByKey={stakeholderByKey}
+            />
+          )}
+          {bottomRight && (
+            <QuadrantPanel
+              label={bottomRight.label}
+              cards={cardsByQuadrant.get(bottomRight.key) ?? []}
+              aspirations={aspirations}
+              starLabel={starLabel}
+              stakeholderByKey={stakeholderByKey}
+            />
+          )}
         </div>
         <div className="mt-2 flex items-center justify-between px-1 text-white/40">
           <span className="text-[11px] font-semibold tracking-wide">INTERÉS</span>
@@ -232,12 +310,14 @@ function QuadrantPanel({
   cards,
   aspirations,
   starLabel,
+  stakeholderByKey,
   priority = false,
 }: {
   label: string;
   cards: Card[];
   aspirations: Aspiration[];
   starLabel: string;
+  stakeholderByKey: Record<string, StakeholderType>;
   priority?: boolean;
 }) {
   const stars = cards.filter((c) => c.star).length;
@@ -271,17 +351,28 @@ function QuadrantPanel({
           sorted.map((c) => {
             const asp = findAspiration(aspirations, c.aspiration_id);
             const cls = aspClasses(asp?.number);
+            const type = c.stakeholderType ? stakeholderByKey[c.stakeholderType] : null;
             return (
               <div
                 key={c.id}
-                className={`flex max-w-full items-start gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs ${
+                className={`flex max-w-full flex-col gap-0.5 rounded-lg border px-2.5 py-1.5 text-xs ${
                   c.star ? "border-accent-yellow/50 bg-accent-yellow/10" : "border-white/10 bg-white/[0.04]"
                 }`}
                 title={c.author}
               >
-                {c.star && <span className="shrink-0 text-accent-yellow">⭐</span>}
-                <span className="min-w-0 break-words text-white/90">{c.text}</span>
-                {asp && <span className={`ml-1 h-2 w-2 shrink-0 rounded-full ${cls.bg}`} title={`Aspiración ${asp.number}`} />}
+                {type && (
+                  <span
+                    className="max-w-[9rem] truncate rounded-full bg-white/10 px-1.5 py-0.5 text-[10px] font-bold text-white/70"
+                    title={type.label}
+                  >
+                    {type.icon} {type.label}
+                  </span>
+                )}
+                <div className="flex items-start gap-1.5">
+                  {c.star && <span className="shrink-0 text-accent-yellow">⭐</span>}
+                  <span className="min-w-0 break-words text-white/90">{c.text}</span>
+                  {asp && <span className={`ml-1 h-2 w-2 shrink-0 rounded-full ${cls.bg}`} title={`Aspiración ${asp.number}`} />}
+                </div>
               </div>
             );
           })

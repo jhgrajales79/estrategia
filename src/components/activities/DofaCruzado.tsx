@@ -157,7 +157,20 @@ export default function DofaCruzado({ activity, session, aspirations, participan
 
   return (
     <div className="space-y-4">
-      {presenter && <PresenterHint />}
+      {presenter && (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <PresenterHint />
+          {Boolean(activity.config.boardRoute) && (
+            <button
+              className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-black/5 transition-colors"
+              title="Ver los cruces marcados en una pestaña nueva"
+              onClick={() => window.open(`/${activity.config.boardRoute}/${activity.id}`, "_blank", "noopener,noreferrer")}
+            >
+              ⛶ Ver tablero
+            </button>
+          )}
+        </div>
+      )}
       {aspirations.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {aspirations.map((a) => {
