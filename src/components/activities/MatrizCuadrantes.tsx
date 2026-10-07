@@ -4,8 +4,14 @@ import { useState } from "react";
 import { useSubmission, effectiveAspirationId } from "@/lib/useSubmission";
 import { aspClasses, findAspiration } from "@/lib/aspirationStyle";
 import { isPresenter } from "@/lib/presenter";
-import { ActivityComponentProps, textareaCls, btnPrimary, SaveIndicator, PostIt, PresenterHint, PinToggle, ToggleSwitch, uid } from "./shared";
+import { ActivityComponentProps, textareaCls, inputCls, btnPrimary, SaveIndicator, PostIt, PresenterHint, PinToggle, ToggleSwitch, uid } from "./shared";
+import DofaCruzado from "./DofaCruzado";
 
+interface StakeholderType {
+  key: string;
+  label: string;
+  icon?: string;
+}
 interface Card {
   id: string;
   quadrant: string;
@@ -15,16 +21,34 @@ interface Card {
   author_id?: string;
   star?: boolean;
   highlighted?: boolean;
+  stakeholderType?: string;
 }
 interface Content extends Record<string, unknown> {
   cards: Card[];
   showOnlyHighlighted: boolean;
 }
 
-export default function MatrizCuadrantes({ activity, session, aspirations, participant }: ActivityComponentProps) {
+export default function MatrizCuadrantes(props: ActivityComponentProps) {
+  // El DOFA cruzado (S4 "Tres DOFA cruzados") genera automáticamente TODOS los cruces posibles
+  // entre las Matrices EFI y EFE de la aspiración activa, en vez de que cada equipo escriba las
+  // tarjetas a mano — es un modo de interacción totalmente distinto, así que vive en su propio
+  // componente (DofaCruzado.tsx) y solo se activa si la actividad declara ambas fuentes. El
+  // Mapa de aliados y la Matriz Interna-Externa, que no las declaran, siguen exactamente igual.
+  if (props.activity.config.efiFrom && props.activity.config.efeFrom) {
+    return <DofaCruzado {...props} />;
+  }
+  return <MatrizCuadrantesClasica {...props} />;
+}
+
+function MatrizCuadrantesClasica({ activity, session, aspirations, participant }: ActivityComponentProps) {
   const quadrants = (activity.config.quadrants as { key: string; label: string }[]) ?? [];
   const allowStar = Boolean(activity.config.allowStar);
   const starLabel = (activity.config.starLabel as string) ?? "Destacar";
+  // Opcional (ver Mapa de aliados, S3): si la actividad trae `stakeholderTypes`, cada tarjeta
+  // debe indicar de qué tipo de interesado se trata (comunidades, junta, donantes...) antes de
+  // poder agregarse — así el cuadrante deja de mezclar interesados muy distintos sin distinción.
+  const stakeholderTypes = (activity.config.stakeholderTypes as StakeholderType[]) ?? [];
+  const stakeholderByKey = Object.fromEntries(stakeholderTypes.map((s) => [s.key, s]));
   const presenter = isPresenter(participant);
   const submissionAspId = effectiveAspirationId(activity, participant);
   const { content, save, saving, updatedAt, saveError, loaded } = useSubmission<Content>(
@@ -35,6 +59,7 @@ export default function MatrizCuadrantes({ activity, session, aspirations, parti
     { cards: [], showOnlyHighlighted: false }
   );
   const [draft, setDraft] = useState<Record<string, string>>({});
+  const [stakeholderChoice, setStakeholderChoice] = useState<Record<string, string>>({});
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   if (!loaded) return <p className="text-sm text-muted">Cargando…</p>;
@@ -42,6 +67,8 @@ export default function MatrizCuadrantes({ activity, session, aspirations, parti
   function addCard(quadrantKey: string) {
     const text = (draft[quadrantKey] ?? "").trim();
     if (!text) return;
+    const chosenType = stakeholderChoice[quadrantKey];
+    if (stakeholderTypes.length > 0 && !chosenType) return;
     const card: Card = {
       id: uid(),
       quadrant: quadrantKey,
@@ -49,6 +76,7 @@ export default function MatrizCuadrantes({ activity, session, aspirations, parti
       aspiration_id: participant.aspiration_id,
       author: participant.name,
       author_id: participant.id,
+      stakeholderType: stakeholderTypes.length > 0 ? chosenType : undefined,
     };
     save(
       { ...content, cards: [...content.cards, card] },
@@ -114,8 +142,16 @@ export default function MatrizCuadrantes({ activity, session, aspirations, parti
                   const canDelete = c.author_id ? c.author_id === participant.id : c.author === participant.name;
                   const confirming = confirmDeleteId === c.id;
                   return (
-                    <PostIt key={c.id} bgClass={asp ? cls.bgSoft : undefined} index={i} highlighted={c.highlighted} className="w-32">
-                      <p className="text-foreground">
+                    <PostIt key={c.id} bgClass={asp ? cls.bgSoft : undefined} index={i} highlighted={c.highlighted} className="w-36">
+                      {c.stakeholderType && stakeholderByKey[c.stakeholderType] && (
+                        <span
+                          className="mb-1 block max-w-full truncate rounded-full bg-black/10 px-1.5 py-0.5 text-[10px] font-bold text-foreground"
+                          title={stakeholderByKey[c.stakeholderType].label}
+                        >
+                          {stakeholderByKey[c.stakeholderType].icon} {stakeholderByKey[c.stakeholderType].label}
+                        </span>
+                      )}
+                      <p className="break-words text-foreground">
                         {c.star && "⭐ "}
                         {c.text}
                       </p>
@@ -149,13 +185,32 @@ export default function MatrizCuadrantes({ activity, session, aspirations, parti
               </div>
               {!presenter && (
                 <>
+                  {stakeholderTypes.length > 0 && (
+                    <select
+                      className={inputCls + " mb-2"}
+                      value={stakeholderChoice[q.key] ?? ""}
+                      onChange={(e) => setStakeholderChoice((s) => ({ ...s, [q.key]: e.target.value }))}
+                    >
+                      <option value="">Tipo de interesado…</option>
+                      {stakeholderTypes.map((s) => (
+                        <option key={s.key} value={s.key}>
+                          {s.icon} {s.label}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                   <textarea
                     className={textareaCls}
                     placeholder="Agregar tarjeta…"
                     value={draft[q.key] ?? ""}
                     onChange={(e) => setDraft((d) => ({ ...d, [q.key]: e.target.value }))}
                   />
-                  <button className={btnPrimary + " mt-2"} onClick={() => addCard(q.key)}>
+                  <button
+                    className={btnPrimary + " mt-2"}
+                    disabled={stakeholderTypes.length > 0 && !stakeholderChoice[q.key]}
+                    title={stakeholderTypes.length > 0 && !stakeholderChoice[q.key] ? "Elige primero el tipo de interesado" : undefined}
+                    onClick={() => addCard(q.key)}
+                  >
                     Agregar
                   </button>
                 </>
