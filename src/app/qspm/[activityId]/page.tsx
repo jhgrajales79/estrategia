@@ -23,6 +23,7 @@ interface CustomFactor {
 interface Strategy {
   id: string;
   name: string;
+  description?: string;
   originLabels?: string[];
 }
 interface Content extends Record<string, unknown> {
@@ -40,6 +41,7 @@ interface FactorRow {
 interface StrategyResult {
   aspNumber: number;
   name: string;
+  description?: string;
   total: number;
   pesoSum: number;
   rows: { factor: FactorRow; rating: number }[];
@@ -84,10 +86,14 @@ async function loadAspirationResults(activity: ActivityRow, asp: Aspiration): Pr
   ];
   const activeFactors = allFactors.filter((f) => content.activeKeys.includes(f.key));
   return content.strategies.map((s) => {
-    const rows = activeFactors.map((f) => ({ factor: f, rating: content.ratings[f.key]?.[s.id] ?? 0 }));
+    // El tablero solo muestra los factores que de verdad se calificaron para esta estrategia —
+    // un factor activo que nadie puntuó para ella no aporta información y solo ensucia la tarjeta.
+    const rows = activeFactors
+      .map((f) => ({ factor: f, rating: content.ratings[f.key]?.[s.id] ?? 0 }))
+      .filter((r) => r.rating > 0);
     const total = rows.reduce((a, r) => a + r.factor.peso * r.rating, 0);
-    const pesoSum = activeFactors.reduce((a, f) => a + f.peso, 0);
-    return { aspNumber: asp.number, name: s.name || "(sin nombre)", total, pesoSum, rows };
+    const pesoSum = rows.reduce((a, r) => a + r.factor.peso, 0);
+    return { aspNumber: asp.number, name: s.name || "(sin nombre)", description: s.description, total, pesoSum, rows };
   });
 }
 
@@ -205,12 +211,13 @@ export default function QspmFullscreenPage({ params }: { params: Promise<{ activ
                         <div key={i} className="overflow-hidden rounded-lg bg-card text-foreground">
                           <div className={`h-1.5 ${cls.bg}`} />
                           <div className="p-3">
-                            <div className="mb-2 flex items-start justify-between gap-2">
-                              <h3 className="text-sm font-bold leading-snug">{r.name}</h3>
+                            <div className="mb-1 flex items-start justify-between gap-2">
+                              <h3 className={`text-sm font-bold leading-snug ${cls.text}`}>{r.name}</h3>
                               {i === 0 && (
                                 <span className={`shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-bold ${cls.bgSoft} ${cls.text}`}>🏆 #1</span>
                               )}
                             </div>
+                            {r.description && <p className="mb-2 text-xs leading-snug text-muted">{r.description}</p>}
                             <div className="flex items-center gap-2">
                               <Gauge value={r.total} max={max} colorClass={cls.text} />
                               <div>
@@ -221,7 +228,7 @@ export default function QspmFullscreenPage({ params }: { params: Promise<{ activ
                                 <p className="text-[10px] text-muted">puntaje total ponderado</p>
                               </div>
                             </div>
-                            {r.rows.length > 0 && (
+                            {r.rows.length > 0 ? (
                               <div className="mt-2 overflow-x-auto rounded border border-border">
                                 <table className="w-full text-[11px]">
                                   <thead className="bg-black/[0.03] text-muted">
@@ -239,12 +246,14 @@ export default function QspmFullscreenPage({ params }: { params: Promise<{ activ
                                           {row.factor.factor}
                                         </td>
                                         <td className="p-1 text-right tabular-nums">{row.factor.peso.toFixed(2)}</td>
-                                        <td className="p-1 text-right tabular-nums">{row.rating || "—"}</td>
+                                        <td className="p-1 text-right tabular-nums">{row.rating}</td>
                                       </tr>
                                     ))}
                                   </tbody>
                                 </table>
                               </div>
+                            ) : (
+                              <p className="mt-2 text-[11px] italic text-muted">Aún sin factores calificados.</p>
                             )}
                           </div>
                         </div>

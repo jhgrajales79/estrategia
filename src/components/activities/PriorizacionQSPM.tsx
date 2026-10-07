@@ -41,6 +41,7 @@ interface CustomFactor {
 interface Strategy {
   id: string;
   name: string;
+  description?: string;
   // Texto de los factores y/o cruces DOFA con los que se creó — solo para mostrar "Basada en…"
   // en la tabla de calificación y evitar que la gente se confunda calificando sin saber de dónde
   // salió cada estrategia. No afecta el cálculo (igual se califica frente a todos los factores
@@ -131,6 +132,7 @@ export default function PriorizacionQSPM({ activity, session, aspirations, parti
   const [newStrategyName, setNewStrategyName] = useState("");
   const [showEjemplo, setShowEjemplo] = useState(false);
   const [nameDrafts, setNameDrafts] = useState<Record<string, string>>({});
+  const [descDrafts, setDescDrafts] = useState<Record<string, string>>({});
   const [focusStrategyId, setFocusStrategyId] = useState<string | null>(null);
   // Selección temporal (solo de este navegador, no se guarda) para armar UNA estrategia a partir
   // de uno o varios factores/cruces marcados — separa "elegir con qué se arma la estrategia" de
@@ -250,6 +252,18 @@ export default function PriorizacionQSPM({ activity, session, aspirations, parti
     });
     if (value !== undefined && value !== s.name) renameStrategy(s.id, value);
   }
+  function setStrategyDescription(id: string, description: string) {
+    mutateContent((latest) => ({ ...latest, strategies: latest.strategies.map((s) => (s.id === id ? { ...s, description } : s)) }));
+  }
+  function commitStrategyDescription(s: Strategy) {
+    const value = descDrafts[s.id];
+    setDescDrafts((d) => {
+      const next = { ...d };
+      delete next[s.id];
+      return next;
+    });
+    if (value !== undefined && value !== (s.description ?? "")) setStrategyDescription(s.id, value);
+  }
   function removeStrategy(id: string) {
     mutateContent((latest) => {
       const ratings: Content["ratings"] = {};
@@ -281,6 +295,8 @@ export default function PriorizacionQSPM({ activity, session, aspirations, parti
   }));
   const ranked = [...totals].sort((a, b) => b.total - a.total);
   const canEdit = !presenter;
+  const activeAsp = aspirations.find((a) => a.id === activeAspId);
+  const activeAspCls = aspClasses(activeAsp?.number);
 
   return (
     <div className="space-y-4">
@@ -519,7 +535,7 @@ export default function PriorizacionQSPM({ activity, session, aspirations, parti
                           ref={(el) => {
                             strategyInputRefs.current[s.id] = el;
                           }}
-                          className={textareaCls + " min-h-12 text-sm font-normal"}
+                          className={textareaCls + ` min-h-12 text-sm font-bold ${activeAspCls.text}`}
                           rows={2}
                           value={nameDrafts[s.id] ?? s.name}
                           placeholder="p. ej. Fortalecer alianzas territoriales (FO)"
@@ -527,7 +543,19 @@ export default function PriorizacionQSPM({ activity, session, aspirations, parti
                           onBlur={() => commitStrategyName(s)}
                         />
                       ) : (
-                        <span className="text-foreground">{s.name}</span>
+                        <span className={`font-bold ${activeAspCls.text}`}>{s.name}</span>
+                      )}
+                      {canEdit ? (
+                        <textarea
+                          className={textareaCls + " mt-1 min-h-10 text-xs font-normal text-foreground"}
+                          rows={2}
+                          value={descDrafts[s.id] ?? s.description ?? ""}
+                          placeholder="Descripción de la estrategia…"
+                          onChange={(e) => setDescDrafts((d) => ({ ...d, [s.id]: e.target.value }))}
+                          onBlur={() => commitStrategyDescription(s)}
+                        />
+                      ) : (
+                        s.description && <p className="mt-1 text-xs font-normal text-muted">{s.description}</p>
                       )}
                       {s.originLabels && s.originLabels.length > 0 && (
                         <p className="mt-1 truncate text-[11px] font-normal italic text-muted" title={s.originLabels.join(" + ")}>
