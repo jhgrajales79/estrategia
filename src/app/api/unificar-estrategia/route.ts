@@ -38,6 +38,18 @@ export async function POST(req: Request) {
     return Response.json({ text: text.trim() });
   } catch (err) {
     console.error(err);
-    return Response.json({ error: "No se pudo generar el texto con IA. Intenta de nuevo." }, { status: 502 });
+    // El AI Gateway de Vercel exige una tarjeta de crédito registrada en la cuenta para atender
+    // solicitudes (incluso para gastar el crédito gratuito) — es la causa más probable de un
+    // primer fallo, así que se señala explícitamente en vez de un mensaje genérico.
+    const message = err instanceof Error ? err.message : String(err);
+    const needsBilling = /credit card|customer_verification_required/i.test(message);
+    return Response.json(
+      {
+        error: needsBilling
+          ? "El proveedor de IA de Vercel requiere una tarjeta de crédito registrada en la cuenta (así sea para usar el crédito gratuito). Agrégala en el panel de Vercel y vuelve a intentar."
+          : "No se pudo generar el texto con IA. Intenta de nuevo.",
+      },
+      { status: 502 }
+    );
   }
 }

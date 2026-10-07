@@ -32,6 +32,7 @@ export default function PilaresFullscreenPage({ params }: { params: Promise<{ ac
   const [session, setSession] = useState<SessionRow | null>(null);
   const [aspirations, setAspirations] = useState<Aspiration[]>([]);
   const [entries, setEntries] = useState<Entry[]>([]);
+  const [unifiedText, setUnifiedText] = useState("");
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
@@ -45,8 +46,11 @@ export default function PilaresFullscreenPage({ params }: { params: Promise<{ ac
   useEffect(() => {
     async function load() {
       const subs = await fetchSubmissionsByActivityIds([Number(activityId)]);
-      const content = subs.find((s) => s.aspiration_id === null)?.content as { entries?: Entry[] } | undefined;
+      const content = subs.find((s) => s.aspiration_id === null)?.content as
+        | { entries?: Entry[]; values?: Record<string, string> }
+        | undefined;
       setEntries(content?.entries ?? []);
+      setUnifiedText(content?.values?.unificada ?? "");
       setLoaded(true);
     }
     load().catch(console.error);
@@ -116,6 +120,13 @@ export default function PilaresFullscreenPage({ params }: { params: Promise<{ ac
               );
             })}
           </div>
+        </div>
+      )}
+
+      {unifiedText && (
+        <div className="mx-auto mt-6 max-w-[1500px] rounded-2xl border border-brand/30 bg-brand/[0.08] p-6">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-brand">🌐 Estrategia corporativa unificada</p>
+          <p className="text-lg leading-relaxed text-white">{unifiedText}</p>
         </div>
       )}
 
