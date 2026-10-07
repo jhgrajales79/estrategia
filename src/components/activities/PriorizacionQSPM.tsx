@@ -285,7 +285,16 @@ export default function PriorizacionQSPM({ activity, session, aspirations, parti
     <div className="space-y-4">
       {presenter && <PresenterHint />}
 
-      <div className="flex justify-end">
+      <div className="flex flex-wrap justify-end gap-2">
+        {presenter && Boolean(activity.config.boardRoute) && (
+          <button
+            className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-black/5"
+            title="Ver todas las estrategias y la calificación global en una pestaña nueva"
+            onClick={() => window.open(`/${activity.config.boardRoute}/${activity.id}`, "_blank", "noopener,noreferrer")}
+          >
+            ⛶ Ver tablero
+          </button>
+        )}
         <button
           className="inline-flex items-center gap-1.5 rounded-md border border-brand/40 bg-brand/10 px-3 py-1.5 text-sm font-semibold text-brand-dark hover:bg-brand/20"
           onClick={() => setShowEjemplo(true)}
