@@ -39,10 +39,11 @@ interface CustomFactor {
 interface Strategy {
   id: string;
   name: string;
-  // Texto de los factores y/o cruces DOFA con los que se creó — solo para mostrar "Basada en…"
-  // en la tabla de calificación y evitar que la gente se confunda calificando sin saber de dónde
-  // salió cada estrategia. No afecta el cálculo (igual se califica frente a todos los factores
-  // activos, como exige la metodología QSPM).
+  // Texto exacto de los factores (EFI/EFE/personalizados) con los que se creó o se vinculó esta
+  // estrategia — un cruce DOFA aporta los DOS factores que lo componen, no el texto combinado.
+  // Si tiene al menos un elemento, la tabla de calificación SOLO pide calificar esta estrategia
+  // frente a esos factores (no frente a todos los activos): no tiene sentido evaluar una
+  // estrategia contra un factor que nadie marcó como relevante para ella.
   originLabels?: string[];
 }
 interface Content extends Record<string, unknown> {
@@ -221,14 +222,18 @@ export default function PriorizacionQSPM({ activity, session, aspirations, parti
     const id = createStrategy("", []);
     setTargetStrategyId(id);
   }
-  function toggleItemForTarget(label: string) {
+  // Un factor se vincula/desvincula de a uno; un cruce DOFA aporta sus DOS factores juntos (si ya
+  // están ambos vinculados, se quitan los dos; si falta alguno, se agregan los dos).
+  function toggleItemsForTarget(labels: string[]) {
     if (!targetStrategyId) return;
     mutateContent((latest) => ({
       ...latest,
       strategies: latest.strategies.map((s) => {
         if (s.id !== targetStrategyId) return s;
         const origins = s.originLabels ?? [];
-        return { ...s, originLabels: origins.includes(label) ? origins.filter((o) => o !== label) : [...origins, label] };
+        const allPresent = labels.every((l) => origins.includes(l));
+        const next = allPresent ? origins.filter((o) => !labels.includes(o)) : Array.from(new Set([...origins, ...labels]));
+        return { ...s, originLabels: next };
       }),
     }));
   }
@@ -246,17 +251,22 @@ export default function PriorizacionQSPM({ activity, session, aspirations, parti
       return next;
     });
   }
-  function dofaSuggestionText(s: DofaSelection) {
+  function dofaFactorLabels(s: DofaSelection): string[] {
     const textA = s.custom ? s.custom.textA : dofaFactorText.get(s.factorAId) ?? "—";
     const textB = s.custom ? s.custom.textB : dofaFactorText.get(s.factorBId) ?? "—";
-    return `${textA} + ${textB}`;
+    return [textA, textB].filter((t) => t !== "—");
+  }
+  function dofaSuggestionText(s: DofaSelection) {
+    return dofaFactorLabels(s).join(" + ");
   }
   function createStrategyFromSelection() {
     const factorLabels = allFactors.filter((f) => selectedFactorKeys.has(f.key)).map((f) => f.factor);
-    const dofaLabels = dofaSelections.filter((s) => selectedDofaIds.has(s.id)).map(dofaSuggestionText);
-    const originLabels = [...factorLabels, ...dofaLabels];
+    const dofaNameLabels = dofaSelections.filter((s) => selectedDofaIds.has(s.id)).map(dofaSuggestionText);
+    const dofaOriginLabels = dofaSelections.filter((s) => selectedDofaIds.has(s.id)).flatMap(dofaFactorLabels);
+    const originLabels = Array.from(new Set([...factorLabels, ...dofaOriginLabels]));
     if (originLabels.length === 0) return;
-    const name = factorLabels.length === 0 && dofaLabels.length === 1 ? dofaLabels[0] : `Estrategia para: ${originLabels.join(" + ")}`;
+    const nameParts = [...factorLabels, ...dofaNameLabels];
+    const name = factorLabels.length === 0 && dofaNameLabels.length === 1 ? dofaNameLabels[0] : `Estrategia para: ${nameParts.join(" + ")}`;
     createStrategy(name, originLabels);
     setSelectedFactorKeys(new Set());
     setSelectedDofaIds(new Set());
@@ -298,19 +308,26 @@ export default function PriorizacionQSPM({ activity, session, aspirations, parti
     ...content.customFactors.map((c) => ({ key: `custom:${c.id}`, factor: c.factor, peso: c.peso, origin: "Personalizado", custom: true, customId: c.id })),
   ];
   const activeFactors = allFactors.filter((f) => content.activeKeys.includes(f.key));
+  // Si la estrategia tiene factores vinculados, solo esos son relevantes para calificarla — no
+  // tiene sentido pedir que se evalúe frente a un factor que nadie marcó para ella. Sin vínculos
+  // (p. ej. una estrategia agregada a mano) se mantiene el comportamiento clásico: frente a todos
+  // los factores activos.
+  function isRelevant(s: Strategy, f: { factor: string }) {
+    return !s.originLabels || s.originLabels.length === 0 || s.originLabels.includes(f.factor);
+  }
   const totals = content.strategies.map((s) => ({
     id: s.id,
     name: s.name,
-    total: activeFactors.reduce((a, f) => a + f.peso * (content.ratings[f.key]?.[s.id] ?? 0), 0),
+    total: activeFactors.filter((f) => isRelevant(s, f)).reduce((a, f) => a + f.peso * (content.ratings[f.key]?.[s.id] ?? 0), 0),
   }));
   const ranked = [...totals].sort((a, b) => b.total - a.total);
   const canEdit = !presenter;
   const targetStrategy = content.strategies.find((s) => s.id === targetStrategyId) ?? null;
-  function isChecked(label: string, selectionHas: boolean) {
-    return targetStrategy ? (targetStrategy.originLabels ?? []).includes(label) : selectionHas;
+  function isChecked(labels: string[], selectionHas: boolean) {
+    return targetStrategy ? labels.every((l) => (targetStrategy.originLabels ?? []).includes(l)) : selectionHas;
   }
-  function onCheckChange(label: string, toggleSelection: () => void) {
-    if (targetStrategy) toggleItemForTarget(label);
+  function onCheckChange(labels: string[], toggleSelection: () => void) {
+    if (targetStrategy) toggleItemsForTarget(labels);
     else toggleSelection();
   }
 
@@ -346,8 +363,9 @@ export default function PriorizacionQSPM({ activity, session, aspirations, parti
           independiente de crear estrategias. 2) Dos formas de crear una estrategia: (a) marca con el check ☑ uno o varios
           factores/cruces DOFA y pulsa <b>&quot;Crear estrategia con la selección&quot;</b>, o (b) pulsa{" "}
           <b>&quot;+ Nueva estrategia&quot;</b> primero, escribe el nombre, y luego marca los factores que la justifican —
-          puedes repetir cualquiera de las dos cuantas veces necesites. 3) Califica qué tan atractiva es cada estrategia
-          frente a cada factor activo (1 a {scaleMax}). El puntaje ponderado (peso × calificación) arma el ranking final.
+          puedes repetir cualquiera de las dos cuantas veces necesites. 3) Cada estrategia solo se califica frente a los
+          factores que le vinculaste (el resto aparece como &quot;no aplica&quot;) — (1 a {scaleMax}). El puntaje ponderado
+          (peso × calificación) arma el ranking final.
         </p>
         <p className="mt-1 italic">
           Ejemplo: si el factor <b>&quot;Alianzas territoriales consolidadas&quot;</b> (peso 0.15) es clave para la estrategia{" "}
@@ -368,8 +386,8 @@ export default function PriorizacionQSPM({ activity, session, aspirations, parti
                     <input
                       type="checkbox"
                       className="h-4 w-4 shrink-0 accent-brand"
-                      checked={isChecked(f.factor, selectedFactorKeys.has(f.key))}
-                      onChange={() => onCheckChange(f.factor, () => toggleFactorSelection(f.key))}
+                      checked={isChecked([f.factor], selectedFactorKeys.has(f.key))}
+                      onChange={() => onCheckChange([f.factor], () => toggleFactorSelection(f.key))}
                       title={targetStrategy ? `Vincular a "${targetStrategy.name || "(sin nombre)"}"` : "Marcar para incluir en la próxima estrategia"}
                     />
                   )}
@@ -395,8 +413,8 @@ export default function PriorizacionQSPM({ activity, session, aspirations, parti
                   <input
                     type="checkbox"
                     className="h-4 w-4 shrink-0 accent-brand"
-                    checked={isChecked(c.factor, selectedFactorKeys.has(`custom:${c.id}`))}
-                    onChange={() => onCheckChange(c.factor, () => toggleFactorSelection(`custom:${c.id}`))}
+                    checked={isChecked([c.factor], selectedFactorKeys.has(`custom:${c.id}`))}
+                    onChange={() => onCheckChange([c.factor], () => toggleFactorSelection(`custom:${c.id}`))}
                     title={targetStrategy ? `Vincular a "${targetStrategy.name || "(sin nombre)"}"` : "Marcar para incluir en la próxima estrategia"}
                   />
                   <span className="mr-1.5 rounded-full bg-black/5 px-1.5 py-0.5 text-[10px] font-bold text-muted">Personalizado</span>
@@ -442,7 +460,8 @@ export default function PriorizacionQSPM({ activity, session, aspirations, parti
           <div className="flex flex-wrap gap-2">
             {dofaSelections.map((s) => {
               const suggestion = dofaSuggestionText(s);
-              const checked = isChecked(suggestion, selectedDofaIds.has(s.id));
+              const labels = dofaFactorLabels(s);
+              const checked = isChecked(labels, selectedDofaIds.has(s.id));
               return (
                 <button
                   key={s.id}
@@ -451,7 +470,7 @@ export default function PriorizacionQSPM({ activity, session, aspirations, parti
                     checked ? "border-brand bg-brand/10" : "border-border bg-card hover:bg-black/5"
                   }`}
                   title={targetStrategy ? `Vincular a "${targetStrategy.name || "(sin nombre)"}"` : "Marcar para incluir en la próxima estrategia"}
-                  onClick={() => onCheckChange(suggestion, () => toggleDofaSelection(s.id))}
+                  onClick={() => onCheckChange(labels, () => toggleDofaSelection(s.id))}
                 >
                   <input type="checkbox" readOnly checked={checked} className="mt-0.5 h-4 w-4 shrink-0 accent-brand" />
                   <span>
@@ -563,23 +582,29 @@ export default function PriorizacionQSPM({ activity, session, aspirations, parti
                       <span className="mr-1 rounded-full bg-black/5 px-1.5 py-0.5 text-[10px] font-bold text-muted">{f.origin}</span>
                       {f.factor} <span className="text-xs text-muted">({f.peso.toFixed(2)})</span>
                     </td>
-                    {content.strategies.map((s) => (
-                      <td key={s.id} className="p-2">
-                        <select
-                          className={inputCls}
-                          disabled={presenter}
-                          value={content.ratings[f.key]?.[s.id] ?? ""}
-                          onChange={(e) => setRating(f.key, s.id, Number(e.target.value))}
-                        >
-                          <option value="">—</option>
-                          {ratingLabels.map((rl) => (
-                            <option key={rl.value} value={rl.value}>
-                              {rl.value} — {rl.label}
-                            </option>
-                          ))}
-                        </select>
-                      </td>
-                    ))}
+                    {content.strategies.map((s) =>
+                      isRelevant(s, f) ? (
+                        <td key={s.id} className="p-2">
+                          <select
+                            className={inputCls}
+                            disabled={presenter}
+                            value={content.ratings[f.key]?.[s.id] ?? ""}
+                            onChange={(e) => setRating(f.key, s.id, Number(e.target.value))}
+                          >
+                            <option value="">—</option>
+                            {ratingLabels.map((rl) => (
+                              <option key={rl.value} value={rl.value}>
+                                {rl.value} — {rl.label}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+                      ) : (
+                        <td key={s.id} className="p-2 text-center text-xs text-muted" title="Este factor no está vinculado a esta estrategia">
+                          — no aplica —
+                        </td>
+                      )
+                    )}
                   </tr>
                 ))}
                 <tr className="border-t border-border bg-black/[0.03] font-semibold">
