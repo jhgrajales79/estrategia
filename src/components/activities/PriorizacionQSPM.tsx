@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSubmission, fetchLatestContent } from "@/lib/useSubmission";
 import { aspClasses, ARCHETYPE_LABEL } from "@/lib/aspirationStyle";
 import { isPresenter } from "@/lib/presenter";
@@ -9,6 +9,7 @@ import BarChart from "@/components/charts/BarChart";
 import {
   ActivityComponentProps,
   inputCls,
+  textareaCls,
   btnPrimary,
   btnGhost,
   SaveIndicator,
@@ -122,13 +123,35 @@ export default function PriorizacionQSPM({ activity, session, aspirations, parti
   );
   const [newFactorDraft, setNewFactorDraft] = useState({ factor: "", peso: "" });
   const [newStrategyName, setNewStrategyName] = useState("");
+  const [nameDrafts, setNameDrafts] = useState<Record<string, string>>({});
+  const [focusStrategyId, setFocusStrategyId] = useState<string | null>(null);
+  const strategyInputRefs = useRef<Record<string, HTMLTextAreaElement | null>>({});
+  // Dos clics casi simultáneos (p. ej. doble clic sin querer en "+ Crear estrategia") disparaban
+  // dos lecturas concurrentes del mismo estado "latest", y el segundo guardado podía pisar al
+  // primero — se encadenan todas las mutaciones de este cliente para que cada una lea el
+  // resultado de la anterior en vez de partir del mismo punto de partida obsoleto.
+  const mutateChain = useRef<Promise<void>>(Promise.resolve());
 
   if (!loaded) return <p className="text-sm text-muted">Cargando…</p>;
 
-  async function mutateContent(fn: (latest: Content) => Content) {
-    const latest = await fetchLatestContent<Content>(activity.id, activeAspId, emptyContent);
-    await save(fn(latest));
+  function mutateContent(fn: (latest: Content) => Content) {
+    const run = mutateChain.current.then(async () => {
+      const latest = await fetchLatestContent<Content>(activity.id, activeAspId, emptyContent);
+      await save(fn(latest));
+    });
+    mutateChain.current = run.catch(() => {});
+    return run;
   }
+
+  useEffect(() => {
+    if (!focusStrategyId) return;
+    const el = strategyInputRefs.current[focusStrategyId];
+    if (el) {
+      el.focus();
+      el.select();
+      setFocusStrategyId(null);
+    }
+  }, [focusStrategyId, content.strategies]);
 
   function toggleFactor(key: string) {
     mutateContent((latest) => ({
@@ -163,10 +186,24 @@ export default function PriorizacionQSPM({ activity, session, aspirations, parti
   function addStrategy(name: string) {
     const trimmed = name.trim();
     if (!trimmed) return;
-    mutateContent((latest) => ({ ...latest, strategies: [...latest.strategies, { id: uid(), name: trimmed }] }));
+    const id = uid();
+    mutateContent((latest) => ({ ...latest, strategies: [...latest.strategies, { id, name: trimmed }] }));
+    // El nombre autogenerado (desde un factor o un cruce DOFA) es solo un punto de partida, no
+    // una redacción final de estrategia — se enfoca y selecciona todo el texto para invitar a
+    // reescribirlo de una vez, en vez de obligar a borrarlo a mano antes de poder escribir.
+    setFocusStrategyId(id);
   }
   function renameStrategy(id: string, name: string) {
     mutateContent((latest) => ({ ...latest, strategies: latest.strategies.map((s) => (s.id === id ? { ...s, name } : s)) }));
+  }
+  function commitStrategyName(s: Strategy) {
+    const value = nameDrafts[s.id];
+    setNameDrafts((d) => {
+      const next = { ...d };
+      delete next[s.id];
+      return next;
+    });
+    if (value !== undefined && value !== s.name) renameStrategy(s.id, value);
   }
   function removeStrategy(id: string) {
     mutateContent((latest) => {
@@ -351,22 +388,23 @@ export default function PriorizacionQSPM({ activity, session, aspirations, parti
                 <tr>
                   <th className="p-2 text-left font-medium">Factor (peso)</th>
                   {content.strategies.map((s) => (
-                    <th key={s.id} className="p-2 text-left font-medium min-w-52">
+                    <th key={s.id} className="p-2 text-left font-medium min-w-72">
                       {canEdit ? (
-                        <input
-                          className={inputCls}
-                          value={s.name}
+                        <textarea
+                          ref={(el) => {
+                            strategyInputRefs.current[s.id] = el;
+                          }}
+                          className={textareaCls + " min-h-12 text-sm font-normal"}
+                          rows={2}
+                          value={nameDrafts[s.id] ?? s.name}
                           placeholder="p. ej. Fortalecer alianzas territoriales (FO)"
-                          onChange={(e) => renameStrategy(s.id, e.target.value)}
+                          onChange={(e) => setNameDrafts((d) => ({ ...d, [s.id]: e.target.value }))}
+                          onBlur={() => commitStrategyName(s)}
                         />
                       ) : (
                         <span className="text-foreground">{s.name}</span>
                       )}
-                      {canEdit && (
-                        <button className="mt-1 text-xs text-red-600 hover:underline" onClick={() => removeStrategy(s.id)}>
-                          quitar
-                        </button>
-                      )}
+                      {canEdit && <DeleteButton label="quitar" onConfirm={() => removeStrategy(s.id)} />}
                     </th>
                   ))}
                 </tr>
