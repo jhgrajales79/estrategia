@@ -22,7 +22,10 @@ export async function fetchSessionByCode(code: string): Promise<SessionRow | nul
 export async function fetchActivities(sessionId: number): Promise<ActivityRow[]> {
   const { data, error } = await supabase.from("activities").select("*").eq("session_id", sessionId).order("order_index");
   if (error) throw error;
-  return data as ActivityRow[];
+  // `config.hidden` es distinto de `is_enabled`: una actividad deshabilitada sigue viéndose
+  // (candado 🔒) porque todavía está en el roadmap; una oculta no se va a desarrollar y no debe
+  // aparecer para nadie, ni facilitador ni participantes.
+  return (data as ActivityRow[]).filter((a) => !a.config?.hidden);
 }
 
 export async function fetchActivityById(id: number): Promise<ActivityRow | null> {
