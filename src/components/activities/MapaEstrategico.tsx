@@ -114,16 +114,14 @@ export default function MapaEstrategico({ activity, session, aspirations, partic
                     <PostIt key={c.id} bgClass={asp ? cls.bgSoft : undefined} index={i} highlighted={c.highlighted} className="w-48">
                       <p className="text-foreground">{c.text}</p>
                       {cardsAbove.length > 0 && (
-                        <div className="mt-1 flex flex-wrap gap-1">
+                        <div className="mt-1.5 space-y-1">
                           {cardsAbove.map((above) => (
-                            <label key={above.id} className="flex items-center gap-1 text-[11px] text-muted">
-                              <input
-                                type="checkbox"
-                                checked={c.leads_to.includes(above.id)}
-                                onChange={() => toggleLeadsTo(c.id, above.id)}
-                              />
-                              lleva a: {above.text.slice(0, 24)}
-                            </label>
+                            <ToggleSwitch
+                              key={above.id}
+                              checked={c.leads_to.includes(above.id)}
+                              onChange={() => toggleLeadsTo(c.id, above.id)}
+                              label={`lleva a: ${above.text.slice(0, 24)}`}
+                            />
                           ))}
                         </div>
                       )}
