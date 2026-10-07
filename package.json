@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.4",
+    "ai": "^7.0.131",
     "heic2any": "^0.0.4",
     "next": "16.3.3",
     "react": "19.2.8",

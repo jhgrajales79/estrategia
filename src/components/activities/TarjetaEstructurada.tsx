@@ -5,7 +5,7 @@ import { useSubmission } from "@/lib/useSubmission";
 import { supabase } from "@/lib/supabase";
 import { aspClasses, findAspiration, ARCHETYPE_LABEL } from "@/lib/aspirationStyle";
 import { isPresenter } from "@/lib/presenter";
-import { ActivityComponentProps, inputCls, textareaCls, btnPrimary, btnDanger, SaveIndicator, PresenterHint, uid } from "./shared";
+import { ActivityComponentProps, inputCls, textareaCls, btnPrimary, btnGhost, btnDanger, SaveIndicator, PresenterHint, uid } from "./shared";
 
 // Meta candidata tal como la deja la Subasta de nuevas metas (VotacionFichas) — solo nos
 // interesan las que ya ganaron fichas (puntos > 0), filtradas a la aspiración activa.
@@ -342,6 +342,54 @@ export default function TarjetaEstructurada({ activity, session, aspirations, pa
     );
   }
 
+  // Unificar en un solo párrafo las estrategias ya ratificadas (config.allowUnify): un camino
+  // automático sin IA (plantilla determinística, instantánea) y otro que redacta con un modelo de
+  // lenguaje de verdad (vía /api/unificar-estrategia) — ambos guardan el resultado en el mismo
+  // campo de texto, que el equipo puede editar a mano después.
+  const UNIFIED_KEY = "unificada";
+  function strategyInputsFromEntries(entries: Entry[]) {
+    return entries.map((e) => ({
+      aspiracion: fields[1] ? ((e[fields[1].key] as string) ?? "") : "",
+      estrategia: fields[0] ? ((e[fields[0].key] as string) ?? "") : "",
+    }));
+  }
+  function buildTemplateSummary(entries: Entry[]): string {
+    const parts = strategyInputsFromEntries(entries)
+      .filter((s) => s.estrategia.trim())
+      .map((s) => `en ${s.aspiracion || "una de sus aspiraciones"}, mediante ${s.estrategia.trim().replace(/\.+$/, "").toLowerCase()}`);
+    if (parts.length === 0) return "";
+    return `La organización avanzará de forma simultánea en sus aspiraciones estratégicas: ${parts.join("; ")}.`;
+  }
+  function saveUnified(text: string) {
+    setDrafts((d) => ({ ...d, [UNIFIED_KEY]: text }));
+    save({ ...content, values: { ...content.values, [UNIFIED_KEY]: text } });
+  }
+  function applyTemplateSummary() {
+    const text = buildTemplateSummary(realEntries);
+    if (text) saveUnified(text);
+  }
+  const [unifying, setUnifying] = useState(false);
+  const [unifyError, setUnifyError] = useState<string | null>(null);
+  async function unifyWithAI() {
+    setUnifying(true);
+    setUnifyError(null);
+    try {
+      const strategies = strategyInputsFromEntries(realEntries);
+      const res = await fetch("/api/unificar-estrategia", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ strategies }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Error desconocido");
+      saveUnified(data.text as string);
+    } catch (err) {
+      setUnifyError(err instanceof Error ? err.message : "No se pudo generar el párrafo.");
+    } finally {
+      setUnifying(false);
+    }
+  }
+
   // Los registros marcados `ejemplo` (precargados, p. ej. en "Cierre: pilares y valores en
   // acción") se muestran aparte, como insignias compactas arriba de todo — no cuentan para el
   // mínimo ni se mezclan con los registros reales del equipo en la lista editable de abajo.
@@ -511,6 +559,36 @@ export default function TarjetaEstructurada({ activity, session, aspirations, pa
           + {repeatLabel}
         </button>
       )}
+
+      {presenter && Boolean(activity.config.allowUnify) && (
+        <div className="rounded-lg border border-dashed border-brand/40 bg-brand/5 p-3">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-brand-dark">🌐 Estrategia corporativa unificada</p>
+            <div className="flex flex-wrap gap-2">
+              <button className={btnGhost} disabled={realEntries.length === 0} onClick={applyTemplateSummary} title="Arma un borrador instantáneo sin IA, uniendo las estrategias con una estructura fija">
+                📝 Borrador automático
+              </button>
+              <button className={btnPrimary} disabled={realEntries.length === 0 || unifying} onClick={unifyWithAI} title="Redacta un párrafo con un modelo de lenguaje real, a partir de las estrategias ratificadas">
+                {unifying ? "Redactando…" : "🪄 Unificar con IA"}
+              </button>
+            </div>
+          </div>
+          {realEntries.length === 0 && <p className="mb-2 text-xs text-muted">Agrega al menos una estrategia ratificada para poder unificarlas.</p>}
+          {unifyError && <p className="mb-2 text-xs text-red-600">{unifyError}</p>}
+          <textarea
+            className={textareaCls + " min-h-24"}
+            placeholder="Pulsa uno de los botones de arriba, o redacta aquí mismo el párrafo unificado…"
+            value={drafts[UNIFIED_KEY] ?? content.values[UNIFIED_KEY] ?? ""}
+            onChange={(e) => setDrafts((d) => ({ ...d, [UNIFIED_KEY]: e.target.value }))}
+            onBlur={() => {
+              const value = drafts[UNIFIED_KEY];
+              if (value === undefined) return;
+              if (value !== (content.values[UNIFIED_KEY] ?? "")) save({ ...content, values: { ...content.values, [UNIFIED_KEY]: value } });
+            }}
+          />
+        </div>
+      )}
+
       <SaveIndicator saving={saving} updatedAt={updatedAt} error={saveError} />
     </div>
   );
