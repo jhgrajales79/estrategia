@@ -51,7 +51,8 @@ export type ActivityType =
   | "tejido_conexiones"
   | "notas_matriz"
   | "crazy8"
-  | "compromiso_personal";
+  | "compromiso_personal"
+  | "plan_presupuesto";
 
 export interface ActivityRow {
   id: number;
@@ -119,4 +120,186 @@ export interface ActivityFeedRow {
   event_type: string;
   summary: string;
   created_at: string;
+}
+
+// --- Módulo de Presupuesto Financiero de la Planeación ---
+// Jerarquía: Aspiración (existente) → Acción (plan_actions, nace en el taller S6
+// "De objetivo a proyecto estratégico") → Actividad del plan (plan_activities — distinta de
+// `activities`, que son los ejercicios de taller) → Concepto de costo (budget_items, por año)
+// → Ejecución real (budget_executions, mes a mes).
+
+export type PlanActionStatus = "activa" | "pausada" | "cerrada";
+
+export interface PlanActionRow {
+  id: number;
+  aspiration_id: number;
+  name: string;
+  scope: string | null;
+  owner: string | null;
+  source_activity_id: number | null;
+  source_project_id: string | null;
+  status: PlanActionStatus;
+  created_at: string;
+}
+
+export type PlanActivityStatus = "pendiente" | "en_curso" | "completada" | "cancelada";
+
+export interface PlanActivityRow {
+  id: number;
+  action_id: number;
+  name: string;
+  owner: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  progress_pct: number;
+  status: PlanActivityStatus;
+  cost_center: string | null;
+  funding_source: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BudgetItemRow {
+  id: number;
+  plan_activity_id: number;
+  concept: string;
+  year: number;
+  estimated: number;
+  approved: number;
+  funding_source: string | null;
+  cost_center: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BudgetExecutionRow {
+  id: number;
+  budget_item_id: number;
+  month: string; // fecha del día 1 del mes, p. ej. "2027-03-01"
+  amount: number;
+  registered_by: string | null;
+  registered_at: string;
+  notes: string | null;
+}
+
+export interface BudgetAuditRow {
+  id: number;
+  entity_type: "budget_item" | "budget_execution" | "plan_activity" | "plan_action";
+  entity_id: string;
+  plan_activity_id: number | null;
+  participant_id: string | null;
+  field: string;
+  old_value: string | null;
+  new_value: string | null;
+  reason: string | null;
+  created_at: string;
+}
+
+// --- Vistas de consolidación (solo lectura, nunca se escriben) ---
+
+export interface BudgetItemTotals {
+  budget_item_id: number;
+  plan_activity_id: number;
+  concept: string;
+  year: number;
+  estimated: number;
+  approved: number;
+  executed: number;
+  saldo: number;
+  pct_ejecucion: number;
+  funding_source: string | null;
+  cost_center: string | null;
+}
+
+export interface BudgetByActivity {
+  plan_activity_id: number;
+  action_id: number;
+  name: string;
+  owner: string | null;
+  progress_pct: number;
+  status: PlanActivityStatus;
+  start_date: string | null;
+  end_date: string | null;
+  cost_center: string | null;
+  funding_source: string | null;
+  estimated: number;
+  approved: number;
+  executed: number;
+  saldo: number;
+  pct_ejecucion: number;
+}
+
+export interface BudgetByAction {
+  action_id: number;
+  aspiration_id: number;
+  name: string;
+  owner: string | null;
+  status: PlanActionStatus;
+  estimated: number;
+  approved: number;
+  executed: number;
+  saldo: number;
+  pct_ejecucion: number;
+  num_actividades: number;
+}
+
+export interface BudgetByAspiration {
+  aspiration_id: number;
+  number: number;
+  name: string;
+  estimated: number;
+  approved: number;
+  executed: number;
+  saldo: number;
+  pct_ejecucion: number;
+  num_acciones: number;
+}
+
+export interface BudgetTotal {
+  estimated: number;
+  approved: number;
+  executed: number;
+  saldo: number;
+  pct_ejecucion: number;
+  num_actividades: number;
+  num_actividades_con_presupuesto: number;
+}
+
+export interface BudgetByYear {
+  year: number;
+  estimated: number;
+  approved: number;
+  executed: number;
+}
+
+export interface BudgetByMonth {
+  month: string;
+  year: number;
+  executed: number;
+}
+
+export interface BudgetByOwner {
+  owner: string;
+  estimated: number;
+  approved: number;
+  executed: number;
+}
+
+export interface BudgetBySource {
+  funding_source: string;
+  estimated: number;
+  approved: number;
+  executed: number;
+}
+
+export interface BudgetVsProgress {
+  plan_activity_id: number;
+  name: string;
+  owner: string | null;
+  avance_fisico_pct: number;
+  ejecucion_presupuestal_pct: number;
+  brecha: number;
+  desviacion_significativa: boolean;
 }

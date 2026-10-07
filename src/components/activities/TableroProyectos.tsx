@@ -1,6 +1,6 @@
 "use client";
 
-import { useSubmission, effectiveAspirationId } from "@/lib/useSubmission";
+import { useSubmission, effectiveAspirationId, fetchLatestContent } from "@/lib/useSubmission";
 import { supabase } from "@/lib/supabase";
 import { isPresenter } from "@/lib/presenter";
 import { ActivityComponentProps, inputCls, textareaCls, btnPrimary, btnDanger, SaveIndicator, PresenterHint, uid } from "./shared";
@@ -22,26 +22,39 @@ export default function TableroProyectos({ activity, session, aspirationId, part
   const updatesTrackingBoard = Boolean(activity.config.updatesTrackingBoard);
   const presenter = isPresenter(participant);
   const submissionAspId = effectiveAspirationId(activity, participant);
+  const emptyContent: Content = { projects: [] };
   const { content, save, saving, updatedAt, saveError, loaded } = useSubmission<Content>(
     activity,
     session,
     submissionAspId,
     participant,
-    { projects: [] }
+    emptyContent
   );
 
   if (!loaded) return <p className="text-sm text-muted">Cargando…</p>;
 
+  // Varios equipos editan proyectos de la misma submission casi al mismo tiempo — releer la
+  // fila más reciente antes de aplicar cada cambio evita que un guardado pise en silencio el de
+  // otra persona (mismo bug que se corrigió en VotacionFichas.tsx: content desactualizado +
+  // guardado optimista = pérdida de datos cuando dos guardados se cruzan).
+  async function mutateContent(fn: (latest: Content) => Content, opts?: { eventType?: string; summary?: string }) {
+    const latest = await fetchLatestContent<Content>(activity.id, submissionAspId, emptyContent);
+    await save(fn(latest), opts);
+  }
+
   function addProject() {
     const project: Project = { id: uid() };
     fields.forEach((f) => (project[f.key] = ""));
-    save({ projects: [...content.projects, project] }, { eventType: "proyecto", summary: `${participant.name} agregó un proyecto en "${activity.title}"` });
+    mutateContent((latest) => ({ projects: [...latest.projects, project] }), {
+      eventType: "proyecto",
+      summary: `${participant.name} agregó un proyecto en "${activity.title}"`,
+    });
   }
   function setField(id: string, key: string, value: string) {
-    save({ projects: content.projects.map((p) => (p.id === id ? { ...p, [key]: value } : p)) });
+    mutateContent((latest) => ({ projects: latest.projects.map((p) => (p.id === id ? { ...p, [key]: value } : p)) }));
   }
   function removeProject(id: string) {
-    save({ projects: content.projects.filter((p) => p.id !== id) });
+    mutateContent((latest) => ({ projects: latest.projects.filter((p) => p.id !== id) }));
   }
 
   async function pushToTrackingBoard() {

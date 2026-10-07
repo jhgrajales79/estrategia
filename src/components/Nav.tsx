@@ -12,6 +12,7 @@ const LINKS = [
   { href: "/nuestro-trabajo", label: "Nuestro trabajo" },
   { href: "/metas", label: "Metas" },
   { href: "/tablero", label: "Tablero" },
+  { href: "/presupuesto", label: "Presupuesto" },
 ];
 
 export default function Nav() {
