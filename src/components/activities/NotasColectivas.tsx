@@ -11,7 +11,7 @@ import RotationBoard, { Rotation, EMPTY_ROTATION } from "@/components/RotationBo
 import { exportRotationNotesToExcel } from "@/lib/exportExcel";
 import ConsolidacionImpacto from "./ConsolidacionImpacto";
 import SintesisEntorno from "./SintesisEntorno";
-import EjemploValidacionCausalidad from "./EjemploValidacionCausalidad";
+import ValidacionCausal from "./ValidacionCausal";
 import {
   ActivityComponentProps,
   inputCls,
@@ -69,6 +69,12 @@ export default function NotasColectivas(props: ActivityComponentProps) {
   if (props.activity.config.topFrom) {
     return <SintesisEntorno {...props} />;
   }
+  // La Validación cruzada de causalidad también reutiliza "notas" pero, en vez del flujo de texto
+  // libre, pre-diligencia las relaciones causa-efecto ya trazadas en el paredón (`causalFrom`) y
+  // el trabajo pasa a ser votar/marcar cada una — ver ValidacionCausal.tsx.
+  if (props.activity.config.causalFrom) {
+    return <ValidacionCausal {...props} />;
+  }
   return <NotasColectivasClasico {...props} />;
 }
 
@@ -112,7 +118,6 @@ function NotasColectivasClasico({ activity, session, aspirations, participant }:
   const [aspirationChoice, setAspirationChoice] = useState<Record<string, string>>({});
   const [uploading, setUploading] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
-  const [showExample, setShowExample] = useState(false);
 
   // Al llegar a la última ronda ("done") nada se borra del tablero — las notas siguen en
   // `content.notes` igual que siempre — pero el facilitador se lleva además una copia en Excel
@@ -272,17 +277,6 @@ function NotasColectivasClasico({ activity, session, aspirations, participant }:
           </div>
         </div>
       )}
-      {Boolean(activity.config.example) && (
-        <div className="flex justify-end">
-          <button
-            className="inline-flex items-center gap-1.5 rounded-md border border-brand/40 bg-brand/10 px-3 py-1.5 text-sm font-semibold text-brand-dark hover:bg-brand/20"
-            onClick={() => setShowExample(true)}
-          >
-            💡 Ver ejemplo: cómo debería quedar
-          </button>
-        </div>
-      )}
-      {showExample && <EjemploValidacionCausalidad onClose={() => setShowExample(false)} />}
       {rotationMinutes > 0 && categories.length > 0 && (
         <RotationBoard
           rotation={rotation}
