@@ -15,9 +15,10 @@ const PROPOSITO = "Tejemos conexiones para incidir en el cuidado del ser humano 
 
 // Mismas fuentes de datos que /metas (metas vigentes + nuevas ganadoras de la Subasta, actividad
 // 18) y el tablero de proyectos estratégicos (actividad 31, "De objetivo a proyecto estratégico",
-// ya separado por aspiración). No existe hoy un vínculo de datos entre una meta puntual y el
-// proyecto que la implementa, así que "Metas" y "Plan de acción" se muestran como dos ramas
-// hermanas bajo cada aspiración, no una anidada dentro de la otra.
+// ya separado por aspiración). Cada proyecto lleva un `meta_id` (ver TableroProyectos.tsx) que
+// dice a qué meta responde — el plan de acción se anida como hijo de esa meta, no como rama
+// aparte. El id de la meta lleva el mismo prefijo que usa TableroProyectos para armar el
+// selector ("goal:"/"cand:"), porque viene de dos tablas con formatos de id distintos.
 const METAS_SUBASTA_ACTIVITY_ID = 18;
 const PROYECTOS_ACTIVITY_ID = 31;
 
@@ -35,6 +36,7 @@ interface Project {
   nombre?: string;
   alcance?: string;
   responsable?: string;
+  meta_id?: string;
 }
 
 interface OrgNode {
@@ -105,34 +107,54 @@ export default function EstrategiaGeneralPage() {
       const vigentes = goals.filter((g) => g.aspiration_id === a.id && !g.is_new);
       const nuevas = winningCandidates.filter((c) => c.aspiration_id === a.id);
       const proyectos = projectsByAsp[a.id] ?? [];
+      function proyectoNode(p: Project): OrgNode {
+        return { id: `proy-${p.id}`, title: `🚀 ${p.nombre ?? ""}`, subtitle: p.responsable ? `Responsable: ${p.responsable}` : undefined, tone: cls };
+      }
+      const metaNodes: OrgNode[] = [
+        ...vigentes.map((g) => {
+          const metaId = `goal:${g.id}`;
+          const proyectosDeMeta = proyectos.filter((p) => p.meta_id === metaId);
+          return {
+            id: `meta-${metaId}`,
+            title: g.description,
+            tone: cls,
+            children: proyectosDeMeta.length > 0 ? proyectosDeMeta.map(proyectoNode) : undefined,
+          };
+        }),
+        ...nuevas.map((c) => {
+          const metaId = `cand:${c.id}`;
+          const proyectosDeMeta = proyectos.filter((p) => p.meta_id === metaId);
+          return {
+            id: `meta-${metaId}`,
+            title: c.text,
+            badge: "NUEVA",
+            tone: cls,
+            children: proyectosDeMeta.length > 0 ? proyectosDeMeta.map(proyectoNode) : undefined,
+          };
+        }),
+      ];
+      // Proyectos sin meta asignada (o cuya meta ya no existe) — se muestran aparte para no
+      // perderlos, nunca se descartan en silencio.
+      const metaIds = new Set(metaNodes.map((n) => n.id.replace("meta-", "")));
+      const sinMeta = proyectos.filter((p) => !p.meta_id || !metaIds.has(p.meta_id));
       return {
         id: `asp-${a.id}`,
         title: `Aspiración ${a.number} · ${ARCHETYPE_LABEL[a.number]}`,
         subtitle: a.name,
         tone: cls,
         children: [
-          {
-            id: `asp-${a.id}-metas`,
-            title: "🎯 Metas y acciones",
-            badge: String(vigentes.length + nuevas.length),
-            tone: cls,
-            children: [
-              ...vigentes.map((g) => ({ id: `meta-${g.id}`, title: g.description, tone: cls })),
-              ...nuevas.map((c) => ({ id: `meta-cand-${c.id}`, title: c.text, badge: "NUEVA", tone: cls })),
-            ],
-          },
-          {
-            id: `asp-${a.id}-plan`,
-            title: "🚀 Plan de acción",
-            badge: String(proyectos.length),
-            tone: cls,
-            children: proyectos.map((p) => ({
-              id: `proy-${p.id}`,
-              title: p.nombre ?? "",
-              subtitle: p.responsable ? `Responsable: ${p.responsable}` : undefined,
-              tone: cls,
-            })),
-          },
+          ...metaNodes,
+          ...(sinMeta.length > 0
+            ? [
+                {
+                  id: `asp-${a.id}-sin-meta`,
+                  title: "🚀 Plan de acción sin meta asignada",
+                  badge: String(sinMeta.length),
+                  tone: cls,
+                  children: sinMeta.map(proyectoNode),
+                },
+              ]
+            : []),
         ],
       };
     }),

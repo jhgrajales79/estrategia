@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSubmission, fetchLatestContent } from "@/lib/useSubmission";
 import { supabase } from "@/lib/supabase";
+import { fetchGoals } from "@/lib/data";
 import { isPresenter } from "@/lib/presenter";
 import { aspClasses, ARCHETYPE_LABEL } from "@/lib/aspirationStyle";
 import { ActivityComponentProps, inputCls, textareaCls, btnPrimary, btnDanger, SaveIndicator, PresenterHint, uid } from "./shared";
@@ -18,6 +19,27 @@ interface Project extends Record<string, string> {
 interface Content extends Record<string, unknown> {
   projects: Project[];
 }
+
+// Meta u objetivo al que un proyecto estratégico responde — se usa para que el organigrama de
+// "Estrategia general" (/estrategia) pueda anidar el plan de acción como hijo de la meta, en vez
+// de mostrarlo como una rama aparte. Combina las metas vigentes/nuevas de `goals` con las
+// candidatas que ya ganaron fichas en la Subasta (actividad 18), igual que hace /metas y
+// /estrategia — el id lleva un prefijo ("goal:"/"cand:") porque ambas fuentes usan ids con
+// formato distinto (numérico vs. string corto).
+interface MetaOption {
+  id: string;
+  label: string;
+}
+interface MetaCandidate {
+  id: string;
+  text: string;
+  aspiration_id?: number | null;
+}
+interface MetaVote {
+  candidate_id: string;
+  points: number;
+}
+const METAS_SUBASTA_ACTIVITY_ID = 18;
 
 export default function TableroProyectos({ activity, session, aspirationId, aspirations, participant }: ActivityComponentProps) {
   const fields = (activity.config.fields as FieldDef[]) ?? [];
@@ -43,6 +65,43 @@ export default function TableroProyectos({ activity, session, aspirationId, aspi
     participant,
     emptyContent
   );
+
+  // Metas por aspiración, para el selector "Meta que atiende" de cada proyecto — mismas fuentes
+  // que /metas y /estrategia (goals + ganadoras de la Subasta), en vivo.
+  const [metaOptionsByAsp, setMetaOptionsByAsp] = useState<Record<number, MetaOption[]>>({});
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      const goals = await fetchGoals();
+      const { data } = await supabase.from("submissions").select("content").eq("activity_id", METAS_SUBASTA_ACTIVITY_ID);
+      const rows = (data as { content: { candidates?: MetaCandidate[]; votes?: MetaVote[] } }[] | null) ?? [];
+      const candidates = rows.flatMap((r) => r.content?.candidates ?? []);
+      const votes = rows.flatMap((r) => r.content?.votes ?? []);
+      const pointsByCandidate: Record<string, number> = {};
+      for (const v of votes) pointsByCandidate[v.candidate_id] = (pointsByCandidate[v.candidate_id] ?? 0) + v.points;
+      const winning = candidates.filter((c) => (pointsByCandidate[c.id] ?? 0) > 0);
+      const map: Record<number, MetaOption[]> = {};
+      for (const g of goals) {
+        (map[g.aspiration_id] ??= []).push({ id: `goal:${g.id}`, label: g.description });
+      }
+      for (const c of winning) {
+        if (c.aspiration_id === null || c.aspiration_id === undefined) continue;
+        (map[c.aspiration_id] ??= []).push({ id: `cand:${c.id}`, label: c.text });
+      }
+      if (!cancelled) setMetaOptionsByAsp(map);
+    }
+    load().catch(console.error);
+    const channel = supabase
+      .channel(`proyectos-metas-${activity.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "goals" }, () => load())
+      .on("postgres_changes", { event: "*", schema: "public", table: "submissions", filter: `activity_id=eq.${METAS_SUBASTA_ACTIVITY_ID}` }, () => load())
+      .subscribe();
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(channel);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (!loaded) return <p className="text-sm text-muted">Cargando…</p>;
 
@@ -115,7 +174,10 @@ export default function TableroProyectos({ activity, session, aspirationId, aspi
           })}
         </div>
       )}
-      {content.projects.map((p) => (
+      {content.projects.map((p) => {
+        const metaOptions = metaOptionsByAsp[activeAspId ?? -1] ?? [];
+        const metaLabel = metaOptions.find((m) => m.id === p.meta_id)?.label;
+        return (
         <div key={p.id} className="rounded-lg border border-border bg-card p-3">
           {!presenter && (
             <div className="mb-2 flex justify-end">
@@ -124,6 +186,21 @@ export default function TableroProyectos({ activity, session, aspirationId, aspi
               </button>
             </div>
           )}
+          <div className="mb-3">
+            <label className="mb-1 block text-xs font-medium text-muted">Meta que atiende</label>
+            {presenter ? (
+              <p className="rounded-md bg-black/[0.03] px-3 py-1.5 text-sm text-foreground min-h-8">{metaLabel || "—"}</p>
+            ) : (
+              <select className={inputCls} value={p.meta_id ?? ""} onChange={(e) => setField(p.id, "meta_id", e.target.value)}>
+                <option value="">Sin meta asignada…</option>
+                {metaOptions.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
           <div className="grid gap-3 sm:grid-cols-2">
             {fields.map((f) => (
               <div key={f.key} className={f.type === "textarea" ? "sm:col-span-2" : ""}>
@@ -139,7 +216,8 @@ export default function TableroProyectos({ activity, session, aspirationId, aspi
             ))}
           </div>
         </div>
-      ))}
+        );
+      })}
       {!presenter && (
         <div className="flex gap-2">
           <button className={btnPrimary} onClick={addProject}>
