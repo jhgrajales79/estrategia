@@ -5,6 +5,7 @@ import { useSubmission, effectiveAspirationId } from "@/lib/useSubmission";
 import { aspClasses, findAspiration } from "@/lib/aspirationStyle";
 import { isPresenter } from "@/lib/presenter";
 import { ActivityComponentProps, inputCls, btnPrimary, btnDanger, SaveIndicator, PostIt, PresenterHint, PinToggle, ToggleSwitch, uid } from "./shared";
+import EjemploParedon from "./EjemploParedon";
 
 interface Card {
   id: string;
@@ -32,6 +33,7 @@ export default function MapaEstrategico({ activity, session, aspirations, partic
     { cards: [], showOnlyHighlighted: false }
   );
   const [draft, setDraft] = useState<Record<string, string>>({});
+  const [showExample, setShowExample] = useState(false);
 
   if (!loaded) return <p className="text-sm text-muted">Cargando…</p>;
 
@@ -93,6 +95,17 @@ export default function MapaEstrategico({ activity, session, aspirations, partic
           </div>
         </div>
       )}
+      {Boolean(activity.config.example) && (
+        <div className="flex justify-end">
+          <button
+            className="inline-flex items-center gap-1.5 rounded-md border border-brand/40 bg-brand/10 px-3 py-1.5 text-sm font-semibold text-brand-dark hover:bg-brand/20"
+            onClick={() => setShowExample(true)}
+          >
+            💡 Ver ejemplo: cómo debería quedar
+          </button>
+        </div>
+      )}
+      {showExample && <EjemploParedon onClose={() => setShowExample(false)} />}
       <p className="text-xs text-muted">Perspectivas de abajo hacia arriba, tal como en el paredón estratégico.</p>
       <div className="space-y-3">
         {orderedPerspectives.map((p) => {
