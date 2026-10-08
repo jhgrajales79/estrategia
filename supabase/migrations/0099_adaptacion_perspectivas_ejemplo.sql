@@ -1,0 +1,5 @@
+-- Agrega las preguntas guía (helper) por campo y activa el botón "💡 Ver ejemplo"
+-- (config.example) en "Adaptación de perspectivas al modelo Socya" (S5 id26).
+update activities
+set config = '{"diagram": "bsc_socya_perspectives", "example": "adaptacion_perspectivas", "fields": [{"key": "nota_gente", "type": "textarea", "label": "Notas · Gente y cultura Socya (antes: Aprendizaje y crecimiento)", "helper": "¿Qué capacidades, cultura y bienestar del equipo sostienen la operación?"}, {"key": "nota_procesos", "type": "textarea", "label": "Notas · Procesos internos", "helper": "¿Qué procesos debemos fortalecer para ejecutar con calidad?"}, {"key": "nota_territorios", "type": "textarea", "label": "Notas · Territorios y comunidades (antes: Clientes)", "helper": "¿Qué valor entregamos a las comunidades y territorios donde trabajamos?"}, {"key": "nota_autosostenibilidad", "type": "textarea", "label": "Notas · Autosostenibilidad y uso de recursos (antes: Financiera)", "helper": "¿Cómo garantizamos la sostenibilidad financiera de la Fundación?"}]}'::jsonb
+where id = 26;
