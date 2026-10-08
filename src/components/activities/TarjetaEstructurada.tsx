@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, type ComponentType } from "react";
 import { useSubmission } from "@/lib/useSubmission";
 import { supabase } from "@/lib/supabase";
+import { fetchActivityById } from "@/lib/data";
 import { aspClasses, findAspiration, ARCHETYPE_LABEL } from "@/lib/aspirationStyle";
 import { isPresenter } from "@/lib/presenter";
 import { ActivityComponentProps, inputCls, textareaCls, btnPrimary, btnGhost, btnDanger, SaveIndicator, PresenterHint, uid } from "./shared";
@@ -45,6 +46,63 @@ interface QspmStrategy {
   id: string;
   name: string;
   description?: string;
+}
+
+// Tarjeta tal como la deja "El paredón estratégico" (MapaEstrategico.tsx) — solo nos interesan
+// `text`, `perspective`, `aspiration_id` y `leads_to` para reconstruir las cadenas causa-efecto.
+interface RelatoCard {
+  id: string;
+  perspective: string;
+  aspiration_id: number | null;
+  text: string;
+  leads_to: string[];
+}
+type RelatoJudgment = { status: "valida" | "ajuste"; ajuste?: string };
+
+// Arma un borrador mecánico del relato recorriendo, desde cada tarjeta de la perspectiva base
+// (la primera en `perspectives`, p. ej. Gente y cultura Socya), la cadena de `leads_to` hasta
+// donde llegue — una cadena por tarjeta base con relación trazada. Si una relación quedó marcada
+// "ajuste" en la Validación cruzada de causalidad (judgments), se anota el ajuste acordado en esa
+// misma frase, para que el relato ya refleje el mapa corregido y no el borrador original.
+function buildRelatoTemplate(
+  cards: RelatoCard[],
+  perspectives: { key: string; label: string }[],
+  judgments: Record<string, RelatoJudgment>
+): string {
+  if (cards.length === 0 || perspectives.length === 0) return "";
+  const labelByKey = new Map(perspectives.map((p) => [p.key, p.label]));
+  const byId = new Map(cards.map((c) => [c.id, c]));
+  const basePerspectiveKey = perspectives[0].key;
+  const baseCards = cards.filter((c) => c.perspective === basePerspectiveKey);
+  const chains: string[] = [];
+  for (const start of baseCards) {
+    const steps: { label: string; text: string; ajuste?: string }[] = [
+      { label: labelByKey.get(start.perspective) ?? start.perspective, text: start.text },
+    ];
+    let current = start;
+    const visited = new Set([current.id]);
+    while (current.leads_to.length > 0) {
+      const nextId = current.leads_to[0];
+      if (visited.has(nextId)) break;
+      const next = byId.get(nextId);
+      if (!next) break;
+      const judgment = judgments[`${current.id}->${next.id}`];
+      steps.push({
+        label: labelByKey.get(next.perspective) ?? next.perspective,
+        text: next.text,
+        ajuste: judgment?.status === "ajuste" ? judgment.ajuste : undefined,
+      });
+      visited.add(next.id);
+      current = next;
+    }
+    if (steps.length < 2) continue;
+    const parts = steps.map((s, i) => {
+      const ajusteNote = s.ajuste ? ` (ajustado tras la validación cruzada: ${s.ajuste})` : "";
+      return i === 0 ? `En ${s.label}, "${s.text}"${ajusteNote}` : ` lleva a que, en ${s.label}, se logre "${s.text}"${ajusteNote}`;
+    });
+    chains.push(parts.join("") + ".");
+  }
+  return chains.join("\n\n");
 }
 
 interface FieldDef {
@@ -158,6 +216,69 @@ export default function TarjetaEstructurada({ activity, session, aspirations, pa
   const [unifying, setUnifying] = useState(false);
   const [unifyError, setUnifyError] = useState<string | null>(null);
   const [showExample, setShowExample] = useState(false);
+  const [relatoBusy, setRelatoBusy] = useState(false);
+  const [relatoError, setRelatoError] = useState<string | null>(null);
+
+  // Relato estratégico (config.relatoFrom): trae en vivo las tarjetas y perspectivas de "El
+  // paredón estratégico" para poder armar el borrador automático del relato — mismo patrón de
+  // lectura en vivo que ratifiedStrategies en MapaEstrategico.tsx.
+  const relatoFrom = activity.config.relatoFrom as number | undefined;
+  const relatoFieldKey = (activity.config.relatoFieldKey as string) ?? "relato";
+  const validacionFrom = activity.config.validacionFrom as number | undefined;
+  const [relatoCards, setRelatoCards] = useState<RelatoCard[]>([]);
+  const [relatoPerspectives, setRelatoPerspectives] = useState<{ key: string; label: string }[]>([]);
+  const [relatoJudgments, setRelatoJudgments] = useState<Record<string, RelatoJudgment>>({});
+  useEffect(() => {
+    if (!relatoFrom) return;
+    let cancelled = false;
+    async function load() {
+      const sourceActivity = await fetchActivityById(relatoFrom!);
+      const perspectives = (sourceActivity?.config.perspectives as { key: string; label: string }[] | undefined) ?? [];
+      const { data } = await supabase
+        .from("submissions")
+        .select("content")
+        .eq("activity_id", relatoFrom!)
+        .is("aspiration_id", null)
+        .maybeSingle();
+      const cards = ((data?.content as { cards?: RelatoCard[] } | null)?.cards) ?? [];
+      if (!cancelled) {
+        setRelatoPerspectives(perspectives);
+        setRelatoCards(cards);
+      }
+    }
+    load().catch(console.error);
+    const channel = supabase
+      .channel(`relato-fuente-${relatoFrom}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "submissions", filter: `activity_id=eq.${relatoFrom}` }, () => load())
+      .subscribe();
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(channel);
+    };
+  }, [relatoFrom]);
+  useEffect(() => {
+    if (!validacionFrom) return;
+    let cancelled = false;
+    async function load() {
+      const { data } = await supabase
+        .from("submissions")
+        .select("content")
+        .eq("activity_id", validacionFrom!)
+        .is("aspiration_id", null)
+        .maybeSingle();
+      const judgments = ((data?.content as { judgments?: Record<string, RelatoJudgment> } | null)?.judgments) ?? {};
+      if (!cancelled) setRelatoJudgments(judgments);
+    }
+    load().catch(console.error);
+    const channel = supabase
+      .channel(`relato-validacion-${validacionFrom}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "submissions", filter: `activity_id=eq.${validacionFrom}` }, () => load())
+      .subscribe();
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(channel);
+    };
+  }, [validacionFrom]);
 
   // Metas de la Subasta (config.metasFrom, p. ej. "De aspiración a objetivos SMART" las toma de
   // "Subasta de nuevas metas"): se leen en vivo de esa otra submission compartida (aspiration_id
@@ -269,6 +390,39 @@ export default function TarjetaEstructurada({ activity, session, aspirations, pa
         save({ ...content, values: { ...content.values, [key]: value } });
       }
     }
+    function saveRelato(text: string) {
+      setDrafts((d) => ({ ...d, [relatoFieldKey]: text }));
+      save({ ...content, values: { ...content.values, [relatoFieldKey]: text } });
+    }
+    function applyRelatoTemplate() {
+      const text = buildRelatoTemplate(relatoCards, relatoPerspectives, relatoJudgments);
+      if (text) saveRelato(text);
+    }
+    async function polishRelatoWithAI() {
+      setRelatoBusy(true);
+      setRelatoError(null);
+      try {
+        const base =
+          (drafts[relatoFieldKey] ?? content.values[relatoFieldKey] ?? "").trim() ||
+          buildRelatoTemplate(relatoCards, relatoPerspectives, relatoJudgments);
+        if (!base) {
+          setRelatoError("Primero genera el borrador automático, o escribe el relato a mano.");
+          return;
+        }
+        const res = await fetch("/api/redactar-relato", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ draft: base }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Error desconocido");
+        saveRelato(data.text as string);
+      } catch (err) {
+        setRelatoError(err instanceof Error ? err.message : "No se pudo redactar el relato.");
+      } finally {
+        setRelatoBusy(false);
+      }
+    }
     const activeAspiration = findAspiration(aspirations, activeAspId);
     return (
       <div className="space-y-3">
@@ -306,6 +460,35 @@ export default function TarjetaEstructurada({ activity, session, aspirations, pa
             const Example = EXAMPLES[activity.config.example as string];
             return Example ? <Example onClose={() => setShowExample(false)} /> : null;
           })()}
+        {Boolean(relatoFrom) && !presenter && (
+          <div className="rounded-lg border border-dashed border-brand/40 bg-brand/5 p-3">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-brand-dark">📖 Relato a partir del paredón</p>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  className={btnGhost}
+                  disabled={relatoCards.length === 0}
+                  onClick={applyRelatoTemplate}
+                  title="Arma un borrador instantáneo sin IA, recorriendo las cadenas causa-efecto ya trazadas en el paredón"
+                >
+                  📝 Borrador automático
+                </button>
+                <button
+                  className={btnPrimary}
+                  disabled={relatoBusy}
+                  onClick={polishRelatoWithAI}
+                  title="Redacta el relato en prosa con un modelo de lenguaje real, a partir del borrador"
+                >
+                  {relatoBusy ? "Redactando…" : "🪄 Pulir con IA"}
+                </button>
+              </div>
+            </div>
+            {relatoCards.length === 0 && (
+              <p className="text-xs text-muted">Aún no hay tarjetas con relaciones trazadas en "El paredón estratégico".</p>
+            )}
+            {relatoError && <p className="text-xs text-red-600">{relatoError}</p>}
+          </div>
+        )}
         <div className="grid gap-3 sm:grid-cols-2">
           {fields.map((f) => (
             <div key={f.key} className={f.type === "textarea" || f.type === "aspiration_name" ? "sm:col-span-2" : ""}>
