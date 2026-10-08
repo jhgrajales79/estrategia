@@ -347,6 +347,8 @@ export default function VotacionFichas({ activity, session, aspirations, partici
         {totals.map(({ c, total, voters }, idx) => {
           const myPoints = myVotes.find((v) => v.candidate_id === c.id)?.points ?? 0;
           const canDeleteOwn = c.author_id ? c.author_id === participant.id : c.author === participant.name;
+          // El facilitador puede eliminar cualquier candidata desde su sesión (p. ej. duplicadas,
+          // mal clasificadas o de prueba) — a diferencia del autor, sin exigir que esté en 0 votos.
           const medal = idx < 3 && total > 0 ? RANK_MEDAL[idx] : null;
           return (
             <div
@@ -414,7 +416,7 @@ export default function VotacionFichas({ activity, session, aspirations, partici
                     />
                   )
                 )}
-                {canDeleteOwn && total === 0 && <DeleteButton onConfirm={() => removeCandidate(c.id)} />}
+                {((canDeleteOwn && total === 0) || presenter) && <DeleteButton onConfirm={() => removeCandidate(c.id)} />}
               </div>
             </div>
           );
