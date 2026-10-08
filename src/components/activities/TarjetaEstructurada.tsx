@@ -1,11 +1,19 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ComponentType } from "react";
 import { useSubmission } from "@/lib/useSubmission";
 import { supabase } from "@/lib/supabase";
 import { aspClasses, findAspiration, ARCHETYPE_LABEL } from "@/lib/aspirationStyle";
 import { isPresenter } from "@/lib/presenter";
 import { ActivityComponentProps, inputCls, textareaCls, btnPrimary, btnGhost, btnDanger, SaveIndicator, PresenterHint, uid } from "./shared";
+import BscSocyaDiagram from "./BscSocyaDiagram";
+
+// Diagramas estáticos de apoyo que una actividad "tarjeta_estructurada" puede pedir con
+// config.diagram — un registro simple en vez de un dispatch de componente completo, porque son
+// solo contenido visual fijo, no un modo de interacción distinto.
+const DIAGRAMS: Record<string, ComponentType> = {
+  bsc_socya_perspectives: BscSocyaDiagram,
+};
 
 // Meta candidata tal como la deja la Subasta de nuevas metas (VotacionFichas) — solo nos
 // interesan las que ya ganaron fichas (puntos > 0), filtradas a la aspiración activa.
@@ -272,6 +280,10 @@ export default function TarjetaEstructurada({ activity, session, aspirations, pa
           </div>
         )}
         {aspirationTabs}
+        {(() => {
+          const Diagram = activity.config.diagram ? DIAGRAMS[activity.config.diagram as string] : undefined;
+          return Diagram ? <Diagram /> : null;
+        })()}
         <div className="grid gap-3 sm:grid-cols-2">
           {fields.map((f) => (
             <div key={f.key} className={f.type === "textarea" || f.type === "aspiration_name" ? "sm:col-span-2" : ""}>
