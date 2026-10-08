@@ -4,10 +4,8 @@ import { useEffect, useState } from "react";
 import { useRequireParticipant } from "@/lib/useRequireParticipant";
 import { fetchAspirations, fetchGoals } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
-import { logActivity } from "@/lib/feed";
 import type { Aspiration, GoalRow, Participant } from "@/lib/types";
 import { aspClasses } from "@/lib/aspirationStyle";
-import { inputCls, btnPrimary } from "@/components/activities/shared";
 import AspirationBadge from "@/components/AspirationBadge";
 
 export default function MetasPage() {
@@ -15,11 +13,6 @@ export default function MetasPage() {
   const [aspirations, setAspirations] = useState<Aspiration[]>([]);
   const [goals, setGoals] = useState<GoalRow[]>([]);
   const [owners, setOwners] = useState<Record<string, string>>({});
-  const [form, setForm] = useState<{ aspiration_id: string; description: string; target_date: string }>({
-    aspiration_id: "",
-    description: "",
-    target_date: "",
-  });
 
   function reload() {
     fetchGoals().then(setGoals).catch(console.error);
@@ -49,25 +42,6 @@ export default function MetasPage() {
   }, []);
 
   if (!participant) return null;
-
-  async function addGoal() {
-    if (!form.aspiration_id || !form.description.trim()) return;
-    await supabase.from("goals").insert({
-      aspiration_id: Number(form.aspiration_id),
-      description: form.description.trim(),
-      is_new: true,
-      owner_participant_id: participant!.id,
-      target_date: form.target_date || null,
-    });
-    await logActivity({
-      aspiration_id: Number(form.aspiration_id),
-      participant_id: participant!.id,
-      event_type: "meta",
-      summary: `${participant!.name} registró una nueva meta`,
-    });
-    setForm({ aspiration_id: "", description: "", target_date: "" });
-    reload();
-  }
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">
@@ -99,30 +73,6 @@ export default function MetasPage() {
             </div>
           );
         })}
-      </div>
-
-      <div className="rounded-xl border border-border bg-card p-4">
-        <h2 className="mb-3 text-sm font-semibold text-foreground">Registrar nueva meta</h2>
-        <div className="grid gap-3 sm:grid-cols-4">
-          <select className={inputCls} value={form.aspiration_id} onChange={(e) => setForm((f) => ({ ...f, aspiration_id: e.target.value }))}>
-            <option value="">Aspiración…</option>
-            {aspirations.map((a) => (
-              <option key={a.id} value={a.id}>
-                Asp. {a.number}
-              </option>
-            ))}
-          </select>
-          <input
-            className={inputCls + " sm:col-span-2"}
-            placeholder="Descripción de la meta"
-            value={form.description}
-            onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-          />
-          <input type="date" className={inputCls} value={form.target_date} onChange={(e) => setForm((f) => ({ ...f, target_date: e.target.value }))} />
-        </div>
-        <button className={btnPrimary + " mt-3"} onClick={addGoal}>
-          Agregar meta
-        </button>
       </div>
     </div>
   );
