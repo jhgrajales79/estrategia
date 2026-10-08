@@ -142,6 +142,17 @@ export interface PlanActionRow {
   created_at: string;
 }
 
+// Catálogo de centros y subcentros de costos (cargado desde "CENTRO DE COSTOS (55).xlsx") para
+// relacionar cada actividad del plan con un centro de costo real, en vez de texto libre.
+export interface CostCenterRow {
+  id: number;
+  centro: string;
+  subcentro_codigo: string;
+  descripcion: string | null;
+  responsable: string | null;
+  estado: string | null;
+}
+
 export type PlanActivityStatus = "pendiente" | "en_curso" | "completada" | "cancelada";
 
 export interface PlanActivityRow {

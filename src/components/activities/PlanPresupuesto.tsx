@@ -23,7 +23,8 @@ import {
   updatePlanActivity,
   upsertBudgetExecution,
 } from "@/lib/budget";
-import type { BudgetByAction, BudgetExecutionRow, BudgetItemRow, BudgetItemTotals, PlanActionRow, PlanActivityRow } from "@/lib/types";
+import { fetchCostCenters } from "@/lib/data";
+import type { BudgetByAction, BudgetExecutionRow, BudgetItemRow, BudgetItemTotals, CostCenterRow, PlanActionRow, PlanActivityRow } from "@/lib/types";
 import { ActivityComponentProps, inputCls, btnPrimary, btnDanger, btnGhost, PresenterHint, DeleteButton } from "./shared";
 
 // "Acción" tal como la deja el taller S6 "De objetivo a proyecto estratégico"
@@ -171,12 +172,83 @@ function BudgetItemRowView({
   );
 }
 
+// Centro de costo guardado como "{subcentro_codigo} · {centro}" (p. ej. "001101 ·
+// 011-DIRECCION EJECUTIVA") — el código va primero porque es el identificador único del
+// catálogo (ver cost_centers / "CENTRO DE COSTOS (55).xlsx"), el nombre del centro es solo para
+// que se lea de un vistazo. Selección en cascada: primero el centro (proyecto), luego su
+// subcentro — evita tener que buscar entre 318 códigos sueltos.
+function parseCostCenterValue(value: string | null, costCenters: CostCenterRow[]): { centro: string; codigo: string } {
+  if (!value) return { centro: "", codigo: "" };
+  const [codigo, ...rest] = value.split(" · ");
+  const centro = rest.join(" · ") || costCenters.find((c) => c.subcentro_codigo === codigo)?.centro || "";
+  return { centro, codigo };
+}
+
+function CostCenterPicker({
+  value,
+  costCenters,
+  disabled,
+  onChange,
+}: {
+  value: string | null;
+  costCenters: CostCenterRow[];
+  disabled: boolean;
+  onChange: (next: string | null) => void;
+}) {
+  const saved = parseCostCenterValue(value, costCenters);
+  const [draftCentro, setDraftCentro] = useState<string | null>(null);
+  const activeCentro = draftCentro ?? saved.centro;
+  const centros = [...new Set(costCenters.map((c) => c.centro))].sort((a, b) => a.localeCompare(b));
+  const subcentros = costCenters.filter((c) => c.centro === activeCentro);
+
+  if (disabled) {
+    return <p className="rounded-md bg-black/[0.03] px-3 py-1.5 text-sm text-foreground min-h-8">{value || "—"}</p>;
+  }
+  return (
+    <div className="grid gap-2 sm:grid-cols-2">
+      <select
+        className={inputCls}
+        value={activeCentro}
+        onChange={(e) => {
+          setDraftCentro(e.target.value);
+          onChange(null);
+        }}
+      >
+        <option value="">Centro…</option>
+        {centros.map((c) => (
+          <option key={c} value={c}>
+            {c}
+          </option>
+        ))}
+      </select>
+      <select
+        className={inputCls}
+        value={saved.codigo && saved.centro === activeCentro ? saved.codigo : ""}
+        disabled={!activeCentro}
+        onChange={(e) => {
+          const sub = subcentros.find((s) => s.subcentro_codigo === e.target.value);
+          onChange(sub ? `${sub.subcentro_codigo} · ${sub.centro}` : null);
+        }}
+      >
+        <option value="">Subcentro…</option>
+        {subcentros.map((s) => (
+          <option key={s.subcentro_codigo} value={s.subcentro_codigo}>
+            {s.subcentro_codigo} — {s.descripcion || s.centro}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
 function PlanActivityCard({
   activity,
+  costCenters,
   presenter,
   onChanged,
 }: {
   activity: PlanActivityRow;
+  costCenters: CostCenterRow[];
   presenter: boolean;
   onChanged: () => void;
 }) {
@@ -272,13 +344,14 @@ function PlanActivityCard({
           disabled={presenter}
           onBlur={(e) => e.target.value !== activity.funding_source && updatePlanActivity(activity.id, { funding_source: e.target.value || null }).then(onChanged)}
         />
-        <input
-          className={inputCls}
-          placeholder="Centro de costo"
-          defaultValue={activity.cost_center ?? ""}
-          disabled={presenter}
-          onBlur={(e) => e.target.value !== activity.cost_center && updatePlanActivity(activity.id, { cost_center: e.target.value || null }).then(onChanged)}
-        />
+        <div className="sm:col-span-2">
+          <CostCenterPicker
+            value={activity.cost_center}
+            costCenters={costCenters}
+            disabled={presenter}
+            onChange={(next) => next !== activity.cost_center && updatePlanActivity(activity.id, { cost_center: next }).then(onChanged)}
+          />
+        </div>
       </div>
       <textarea
         className={inputCls + " mt-2 min-h-14 resize-y"}
@@ -324,10 +397,12 @@ function PlanActivityCard({
 
 function PlanActionCard({
   action,
+  costCenters,
   presenter,
   onChanged,
 }: {
   action: PlanActionRow;
+  costCenters: CostCenterRow[];
   presenter: boolean;
   onChanged: () => void;
 }) {
@@ -375,6 +450,7 @@ function PlanActionCard({
           <PlanActivityCard
             key={a.id}
             activity={a}
+            costCenters={costCenters}
             presenter={presenter}
             onChanged={() => {
               load();
@@ -400,7 +476,12 @@ export default function PlanPresupuesto({ activity, aspirations, aspirationId, p
   const [activeAspId, setActiveAspId] = useState<number | null>(() => aspirationId ?? aspirations[0]?.id ?? null);
   const [actions, setActions] = useState<PlanActionRow[]>([]);
   const [sourceProjects, setSourceProjects] = useState<SourceProject[]>([]);
+  const [costCenters, setCostCenters] = useState<CostCenterRow[]>([]);
   const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    fetchCostCenters().then(setCostCenters).catch(console.error);
+  }, []);
 
   // De qué actividad de taller vienen las Acciones a promover — por defecto, la primera de
   // config.inputsFrom (en S6, "De objetivo a proyecto estratégico").
@@ -526,7 +607,7 @@ export default function PlanPresupuesto({ activity, aspirations, aspirationId, p
       ) : (
         <div className="space-y-3">
           {actions.map((a) => (
-            <PlanActionCard key={a.id} action={a} presenter={presenter} onChanged={loadActions} />
+            <PlanActionCard key={a.id} action={a} costCenters={costCenters} presenter={presenter} onChanged={loadActions} />
           ))}
         </div>
       )}

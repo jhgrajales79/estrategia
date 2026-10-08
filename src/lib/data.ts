@@ -1,5 +1,5 @@
 import { supabase } from "./supabase";
-import type { ActivityRow, Aspiration, GoalRow, OutputRow, SessionRow, TrackingBoardRow } from "./types";
+import type { ActivityRow, Aspiration, CostCenterRow, GoalRow, OutputRow, SessionRow, TrackingBoardRow } from "./types";
 
 export async function fetchAspirations(): Promise<Aspiration[]> {
   const { data, error } = await supabase.from("aspirations").select("*").order("number");
@@ -52,6 +52,12 @@ export async function fetchGoals(): Promise<GoalRow[]> {
   const { data, error } = await supabase.from("goals").select("*").order("created_at");
   if (error) throw error;
   return data as GoalRow[];
+}
+
+export async function fetchCostCenters(): Promise<CostCenterRow[]> {
+  const { data, error } = await supabase.from("cost_centers").select("*").order("centro").order("subcentro_codigo");
+  if (error) throw error;
+  return data as CostCenterRow[];
 }
 
 export async function fetchTrackingBoard(): Promise<TrackingBoardRow[]> {
