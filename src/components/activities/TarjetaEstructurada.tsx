@@ -7,12 +7,18 @@ import { aspClasses, findAspiration, ARCHETYPE_LABEL } from "@/lib/aspirationSty
 import { isPresenter } from "@/lib/presenter";
 import { ActivityComponentProps, inputCls, textareaCls, btnPrimary, btnGhost, btnDanger, SaveIndicator, PresenterHint, uid } from "./shared";
 import BscSocyaDiagram from "./BscSocyaDiagram";
+import EjemploAdaptacionPerspectivas from "./EjemploAdaptacionPerspectivas";
 
 // Diagramas estáticos de apoyo que una actividad "tarjeta_estructurada" puede pedir con
 // config.diagram — un registro simple en vez de un dispatch de componente completo, porque son
 // solo contenido visual fijo, no un modo de interacción distinto.
 const DIAGRAMS: Record<string, ComponentType> = {
   bsc_socya_perspectives: BscSocyaDiagram,
+};
+// Mismo principio para el modal "💡 Ver ejemplo" (config.example) — igual patrón que EjemploQSPM
+// dentro de PriorizacionQSPM.tsx: ventana flotante en la propia actividad, nunca otra pestaña.
+const EXAMPLES: Record<string, ComponentType<{ onClose: () => void }>> = {
+  adaptacion_perspectivas: EjemploAdaptacionPerspectivas,
 };
 
 // Meta candidata tal como la deja la Subasta de nuevas metas (VotacionFichas) — solo nos
@@ -151,6 +157,7 @@ export default function TarjetaEstructurada({ activity, session, aspirations, pa
   // el mismo bug ya corregido en PriorizacionQSPM.tsx).
   const [unifying, setUnifying] = useState(false);
   const [unifyError, setUnifyError] = useState<string | null>(null);
+  const [showExample, setShowExample] = useState(false);
 
   // Metas de la Subasta (config.metasFrom, p. ej. "De aspiración a objetivos SMART" las toma de
   // "Subasta de nuevas metas"): se leen en vivo de esa otra submission compartida (aspiration_id
@@ -280,10 +287,25 @@ export default function TarjetaEstructurada({ activity, session, aspirations, pa
           </div>
         )}
         {aspirationTabs}
+        {Boolean(activity.config.example) && (
+          <div className="flex justify-end">
+            <button
+              className="inline-flex items-center gap-1.5 rounded-md border border-brand/40 bg-brand/10 px-3 py-1.5 text-sm font-semibold text-brand-dark hover:bg-brand/20"
+              onClick={() => setShowExample(true)}
+            >
+              💡 Ver ejemplo: cómo debería quedar
+            </button>
+          </div>
+        )}
         {(() => {
           const Diagram = activity.config.diagram ? DIAGRAMS[activity.config.diagram as string] : undefined;
           return Diagram ? <Diagram /> : null;
         })()}
+        {showExample &&
+          (() => {
+            const Example = EXAMPLES[activity.config.example as string];
+            return Example ? <Example onClose={() => setShowExample(false)} /> : null;
+          })()}
         <div className="grid gap-3 sm:grid-cols-2">
           {fields.map((f) => (
             <div key={f.key} className={f.type === "textarea" || f.type === "aspiration_name" ? "sm:col-span-2" : ""}>
