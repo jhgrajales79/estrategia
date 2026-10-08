@@ -460,7 +460,7 @@ export default function TarjetaEstructurada({ activity, session, aspirations, pa
             const Example = EXAMPLES[activity.config.example as string];
             return Example ? <Example onClose={() => setShowExample(false)} /> : null;
           })()}
-        {Boolean(relatoFrom) && !presenter && (
+        {Boolean(relatoFrom) && presenter && (
           <div className="rounded-lg border border-dashed border-brand/40 bg-brand/5 p-3">
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
               <p className="text-xs font-semibold uppercase tracking-wide text-brand-dark">📖 Relato a partir del paredón</p>
