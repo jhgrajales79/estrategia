@@ -1,6 +1,7 @@
 "use client";
 
-import { useSubmission, effectiveAspirationId } from "@/lib/useSubmission";
+import { useState } from "react";
+import { useSubmission, effectiveAspirationId, fetchLatestContent } from "@/lib/useSubmission";
 import { aspClasses, findAspiration } from "@/lib/aspirationStyle";
 import { isPresenter } from "@/lib/presenter";
 import { ActivityComponentProps, inputCls, btnPrimary, btnDanger, SaveIndicator, PresenterHint, uid } from "./shared";
@@ -22,15 +23,28 @@ interface Content extends Record<string, unknown> {
 export default function FichaKPI({ activity, session, aspirations, participant }: ActivityComponentProps) {
   const presenter = isPresenter(participant);
   const submissionAspId = effectiveAspirationId(activity, participant);
+  const emptyContent: Content = { kpis: [] };
   const { content, save, saving, updatedAt, saveError, loaded } = useSubmission<Content>(
     activity,
     session,
     submissionAspId,
     participant,
-    { kpis: [] }
+    emptyContent
   );
+  // Borrador local por campo: mientras se escribe no se guarda nada, solo al salir del campo
+  // (blur) se persiste — antes `setField` guardaba en cada tecla (una escritura a la base de
+  // datos por letra). Mismo patrón que TarjetaEstructurada.tsx.
+  const [fieldDrafts, setFieldDrafts] = useState<Record<string, Record<string, string>>>({});
 
   if (!loaded) return <p className="text-sm text-muted">Cargando…</p>;
+
+  // Varios equipos pueden tener KPIs distintos activos a la vez — releer la fila más reciente
+  // antes de aplicar cada cambio evita que un guardado pise en silencio el de otra persona
+  // (mismo patrón que TableroProyectos.tsx / VotacionFichas.tsx).
+  async function mutateContent(fn: (latest: Content) => Content, opts?: { eventType?: string; summary?: string }) {
+    const latest = await fetchLatestContent<Content>(activity.id, submissionAspId, emptyContent);
+    await save(fn(latest), opts);
+  }
 
   function addKpi() {
     const kpi: Kpi = {
@@ -43,13 +57,27 @@ export default function FichaKPI({ activity, session, aspirations, participant }
       frecuencia: "",
       responsable: "",
     };
-    save({ kpis: [...content.kpis, kpi] }, { eventType: "kpi", summary: `${participant.name} agregó un indicador` });
+    mutateContent((latest) => ({ kpis: [...latest.kpis, kpi] }), { eventType: "kpi", summary: `${participant.name} agregó un indicador` });
   }
-  function setField(id: string, key: keyof Kpi, value: string) {
-    save({ kpis: content.kpis.map((k) => (k.id === id ? { ...k, [key]: value } : k)) });
+  function draftValue(kpiId: string, key: keyof Kpi, fallback: string) {
+    return fieldDrafts[kpiId]?.[key] ?? fallback;
+  }
+  function updateDraft(kpiId: string, key: keyof Kpi, value: string) {
+    setFieldDrafts((d) => ({ ...d, [kpiId]: { ...d[kpiId], [key]: value } }));
+  }
+  function commitField(kpiId: string, key: keyof Kpi) {
+    const value = fieldDrafts[kpiId]?.[key];
+    if (value === undefined) return;
+    setFieldDrafts((d) => {
+      if (!d[kpiId]) return d;
+      const inner = { ...d[kpiId] };
+      delete inner[key];
+      return { ...d, [kpiId]: inner };
+    });
+    mutateContent((latest) => ({ kpis: latest.kpis.map((k) => (k.id === kpiId ? { ...k, [key]: value } : k)) }));
   }
   function removeKpi(id: string) {
-    save({ kpis: content.kpis.filter((k) => k.id !== id) });
+    mutateContent((latest) => ({ kpis: latest.kpis.filter((k) => k.id !== id) }));
   }
 
   const fields: { key: keyof Kpi; label: string }[] = [
@@ -96,7 +124,12 @@ export default function FichaKPI({ activity, session, aspirations, participant }
                   {presenter ? (
                     <p className="rounded-md bg-black/[0.03] px-3 py-1.5 text-sm text-foreground min-h-8">{k[f.key] || "—"}</p>
                   ) : (
-                    <input className={inputCls} value={k[f.key] as string} onChange={(e) => setField(k.id, f.key, e.target.value)} />
+                    <input
+                      className={inputCls}
+                      value={draftValue(k.id, f.key, k[f.key] as string)}
+                      onChange={(e) => updateDraft(k.id, f.key, e.target.value)}
+                      onBlur={() => commitField(k.id, f.key)}
+                    />
                   )}
                 </div>
               ))}

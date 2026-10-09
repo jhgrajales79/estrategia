@@ -57,6 +57,7 @@ export default function TableroProyectos({ activity, session, aspirationId, aspi
     }
   }, [aspirations, activeAspId]);
   const submissionAspId = perAspiration ? activeAspId : null;
+  const [fieldDrafts, setFieldDrafts] = useState<Record<string, Record<string, string>>>({});
   const emptyContent: Content = { projects: [] };
   const { content, save, saving, updatedAt, saveError, loaded } = useSubmission<Content>(
     activity,
@@ -105,6 +106,29 @@ export default function TableroProyectos({ activity, session, aspirationId, aspi
 
   if (!loaded) return <p className="text-sm text-muted">Cargando…</p>;
 
+  // Borrador local por campo: mientras se escribe no se guarda nada, solo al salir del campo
+  // (blur) se persiste — mismo patrón que TarjetaEstructurada.tsx. Antes `setField` guardaba en
+  // cada tecla (una escritura a la base de datos por letra).
+  function draftValue(projectId: string, key: string, fallback: string) {
+    return fieldDrafts[projectId]?.[key] ?? fallback;
+  }
+  function updateDraft(projectId: string, key: string, value: string) {
+    setFieldDrafts((d) => ({ ...d, [projectId]: { ...d[projectId], [key]: value } }));
+  }
+  function commitField(projectId: string, key: string) {
+    const value = fieldDrafts[projectId]?.[key];
+    if (value === undefined) return;
+    setFieldDrafts((d) => {
+      if (!d[projectId]) return d;
+      const inner = { ...d[projectId] };
+      delete inner[key];
+      return { ...d, [projectId]: inner };
+    });
+    mutateContent((latest) => ({
+      projects: latest.projects.map((p) => (p.id === projectId ? { ...p, [key]: value } : p)),
+    }));
+  }
+
   // Varios equipos editan proyectos de la misma submission casi al mismo tiempo — releer la
   // fila más reciente antes de aplicar cada cambio evita que un guardado pise en silencio el de
   // otra persona (mismo bug que se corrigió en VotacionFichas.tsx: content desactualizado +
@@ -121,9 +145,6 @@ export default function TableroProyectos({ activity, session, aspirationId, aspi
       eventType: "proyecto",
       summary: `${participant.name} agregó un proyecto en "${activity.title}"`,
     });
-  }
-  function setField(id: string, key: string, value: string) {
-    mutateContent((latest) => ({ projects: latest.projects.map((p) => (p.id === id ? { ...p, [key]: value } : p)) }));
   }
   function removeProject(id: string) {
     mutateContent((latest) => ({ projects: latest.projects.filter((p) => p.id !== id) }));
@@ -191,7 +212,11 @@ export default function TableroProyectos({ activity, session, aspirationId, aspi
             {presenter ? (
               <p className="rounded-md bg-black/[0.03] px-3 py-1.5 text-sm text-foreground min-h-8">{metaLabel || "—"}</p>
             ) : (
-              <select className={inputCls} value={p.meta_id ?? ""} onChange={(e) => setField(p.id, "meta_id", e.target.value)}>
+              <select
+                className={inputCls}
+                value={p.meta_id ?? ""}
+                onChange={(e) => mutateContent((latest) => ({ projects: latest.projects.map((pr) => (pr.id === p.id ? { ...pr, meta_id: e.target.value } : pr)) }))}
+              >
                 <option value="">Sin meta asignada…</option>
                 {metaOptions.map((m) => (
                   <option key={m.id} value={m.id}>
@@ -208,9 +233,19 @@ export default function TableroProyectos({ activity, session, aspirationId, aspi
                 {presenter ? (
                   <p className="rounded-md bg-black/[0.03] px-3 py-1.5 text-sm text-foreground min-h-8">{p[f.key] || "—"}</p>
                 ) : f.type === "textarea" ? (
-                  <textarea className={textareaCls} value={p[f.key] ?? ""} onChange={(e) => setField(p.id, f.key, e.target.value)} />
+                  <textarea
+                    className={textareaCls}
+                    value={draftValue(p.id, f.key, p[f.key] ?? "")}
+                    onChange={(e) => updateDraft(p.id, f.key, e.target.value)}
+                    onBlur={() => commitField(p.id, f.key)}
+                  />
                 ) : (
-                  <input className={inputCls} value={p[f.key] ?? ""} onChange={(e) => setField(p.id, f.key, e.target.value)} />
+                  <input
+                    className={inputCls}
+                    value={draftValue(p.id, f.key, p[f.key] ?? "")}
+                    onChange={(e) => updateDraft(p.id, f.key, e.target.value)}
+                    onBlur={() => commitField(p.id, f.key)}
+                  />
                 )}
               </div>
             ))}
