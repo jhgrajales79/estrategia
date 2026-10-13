@@ -60,6 +60,11 @@ export async function createPlanAction(input: {
   return data as PlanActionRow;
 }
 
+export async function deletePlanAction(id: number): Promise<void> {
+  const { error } = await supabase.from("plan_actions").delete().eq("id", id);
+  if (error) throw error;
+}
+
 export async function fetchPlanActivities(actionId?: number): Promise<PlanActivityRow[]> {
   let query = supabase.from("plan_activities").select("*").order("created_at");
   if (actionId !== undefined) query = query.eq("action_id", actionId);

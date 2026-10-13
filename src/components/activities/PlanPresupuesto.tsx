@@ -9,6 +9,7 @@ import {
   createPlanAction,
   createPlanActivity,
   deleteBudgetItem,
+  deletePlanAction,
   deletePlanActivity,
   fetchBudgetItemTotals,
   fetchBudgetItems,
@@ -371,14 +372,17 @@ function PlanActionCard({
           {action.scope && <p className="text-xs text-muted">{action.scope}</p>}
           {action.owner && <p className="text-xs text-muted">Responsable: {action.owner}</p>}
         </div>
-        {totals && (
-          <div className="text-right text-xs">
-            <p className="font-semibold text-foreground">{formatMoney(totals.approved)} aprobado</p>
-            <p className="text-muted">
-              {formatMoney(totals.executed)} ejecutado · {formatPct(totals.pct_ejecucion)}
-            </p>
-          </div>
-        )}
+        <div className="flex items-start gap-3">
+          {totals && (
+            <div className="text-right text-xs">
+              <p className="font-semibold text-foreground">{formatMoney(totals.approved)} aprobado</p>
+              <p className="text-muted">
+                {formatMoney(totals.executed)} ejecutado · {formatPct(totals.pct_ejecucion)}
+              </p>
+            </div>
+          )}
+          {!presenter && <DeleteButton label="eliminar acción" onConfirm={() => deletePlanAction(action.id).then(onChanged)} />}
+        </div>
       </div>
       <div className="space-y-2">
         {activities.map((a) => (
