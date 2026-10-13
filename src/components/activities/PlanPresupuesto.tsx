@@ -64,21 +64,13 @@ function BudgetItemRowView({
 }) {
   return (
     <div className="rounded-md border border-border bg-card p-2.5">
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         <input
           className={inputCls + " sm:col-span-2"}
           placeholder="Concepto (p. ej. Licenciamiento)"
           defaultValue={item.concept}
           disabled={presenter}
           onBlur={(e) => e.target.value !== item.concept && updateBudgetItem(item.id, { concept: e.target.value }).then(onChanged)}
-        />
-        <input
-          type="number"
-          className={inputCls}
-          placeholder="Año"
-          defaultValue={item.year}
-          disabled={presenter}
-          onBlur={(e) => Number(e.target.value) !== item.year && updateBudgetItem(item.id, { year: Number(e.target.value) }).then(onChanged)}
         />
         {!presenter ? (
           <MoneyField value={item.approved} placeholder="Presupuesto" onCommit={(n) => updateBudgetItem(item.id, { approved: n }).then(onChanged)} />
