@@ -129,7 +129,13 @@ export interface ActivityFeedRow {
 // → Ejecución real (budget_executions, mes a mes).
 
 export type PlanActionStatus = "activa" | "pausada" | "cerrada";
+export type MedicionFrecuencia = "semanal" | "mensual" | "trimestral" | "semestral" | "anual";
+export type MedicionTipo = "valor" | "porcentaje" | "binario";
+export type MedicionPolaridad = "ascendente" | "descendente";
 
+// "Proyecto estratégico" según la especificación de la plataforma de planeación — mapeado a la
+// Acción existente (plan_actions): name = Nombre, scope = Descripción y alcance, owner =
+// Responsable, status = Estado. Los campos de abajo son los que agrega esa especificación.
 export interface PlanActionRow {
   id: number;
   aspiration_id: number;
@@ -139,6 +145,16 @@ export interface PlanActionRow {
   source_activity_id: number | null;
   source_project_id: string | null;
   status: PlanActionStatus;
+  objetivo_estrategico: string | null;
+  meta_descripcion: string | null;
+  kpi: string | null;
+  frecuencia_medicion: MedicionFrecuencia | null;
+  tipo_medida: MedicionTipo | null;
+  polaridad: MedicionPolaridad | null;
+  linea_base: string | null;
+  valor_meta: string | null;
+  start_date: string | null;
+  end_date: string | null;
   created_at: string;
 }
 

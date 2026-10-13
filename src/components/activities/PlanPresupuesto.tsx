@@ -20,6 +20,7 @@ import {
   formatPct,
   parseMoney,
   updateBudgetItem,
+  updatePlanAction,
   updatePlanActivity,
 } from "@/lib/budget";
 import { fetchCostCenters } from "@/lib/data";
@@ -345,6 +346,11 @@ function PlanActionCard({
   const [activities, setActivities] = useState<PlanActivityRow[]>([]);
   const [totals, setTotals] = useState<BudgetByAction | undefined>();
   const [newActivityName, setNewActivityName] = useState("");
+  // Fechas del proyecto estratégico en estado local (controlado): a diferencia de los campos de
+  // texto de abajo (defaultValue + onBlur), estas sí necesitan validarse entre sí al vuelo — la
+  // fecha final no puede quedar antes que la de inicio (regla 8.3 de la especificación).
+  const [startDraft, setStartDraft] = useState(action.start_date ?? "");
+  const [endDraft, setEndDraft] = useState(action.end_date ?? "");
 
   async function load() {
     const [acts, allTotals] = await Promise.all([fetchPlanActivities(action.id), fetchBudgetByAction()]);
@@ -362,6 +368,23 @@ function PlanActionCard({
     setNewActivityName("");
     load();
     onChanged();
+  }
+
+  function setStartDate(value: string) {
+    if (endDraft && value && endDraft < value) {
+      alert("La fecha de inicio no puede quedar después de la fecha final. Ajusta primero la fecha final.");
+      return;
+    }
+    setStartDraft(value);
+    updatePlanAction(action.id, { start_date: value || null }).then(onChanged);
+  }
+  function setEndDate(value: string) {
+    if (startDraft && value && value < startDraft) {
+      alert("La fecha final no puede ser anterior a la fecha de inicio del proyecto.");
+      return;
+    }
+    setEndDraft(value);
+    updatePlanAction(action.id, { end_date: value || null }).then(onChanged);
   }
 
   return (
@@ -384,6 +407,110 @@ function PlanActionCard({
           {!presenter && <DeleteButton label="eliminar acción" onConfirm={() => deletePlanAction(action.id).then(onChanged)} />}
         </div>
       </div>
+
+      <div className="mb-3 space-y-3 rounded-lg border border-dashed border-border bg-black/[0.015] p-3">
+        <SectionLabel>Detalle del proyecto estratégico</SectionLabel>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Objetivo estratégico al que contribuye">
+            <input
+              className={inputCls}
+              defaultValue={action.objetivo_estrategico ?? ""}
+              disabled={presenter}
+              onBlur={(e) =>
+                e.target.value !== action.objetivo_estrategico &&
+                updatePlanAction(action.id, { objetivo_estrategico: e.target.value || null }).then(onChanged)
+              }
+            />
+          </Field>
+          <Field label="Meta que se pretende alcanzar">
+            <input
+              className={inputCls}
+              defaultValue={action.meta_descripcion ?? ""}
+              disabled={presenter}
+              onBlur={(e) =>
+                e.target.value !== action.meta_descripcion && updatePlanAction(action.id, { meta_descripcion: e.target.value || null }).then(onChanged)
+              }
+            />
+          </Field>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="KPI o indicador de medición">
+            <input
+              className={inputCls}
+              defaultValue={action.kpi ?? ""}
+              disabled={presenter}
+              onBlur={(e) => e.target.value !== action.kpi && updatePlanAction(action.id, { kpi: e.target.value || null }).then(onChanged)}
+            />
+          </Field>
+          <Field label="Frecuencia de medición">
+            <select
+              className={inputCls}
+              defaultValue={action.frecuencia_medicion ?? ""}
+              disabled={presenter}
+              onChange={(e) => updatePlanAction(action.id, { frecuencia_medicion: (e.target.value || null) as PlanActionRow["frecuencia_medicion"] }).then(onChanged)}
+            >
+              <option value="">Sin definir…</option>
+              <option value="semanal">Semanal</option>
+              <option value="mensual">Mensual</option>
+              <option value="trimestral">Trimestral</option>
+              <option value="semestral">Semestral</option>
+              <option value="anual">Anual</option>
+            </select>
+          </Field>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Field label="Tipo de medida">
+            <select
+              className={inputCls}
+              defaultValue={action.tipo_medida ?? ""}
+              disabled={presenter}
+              onChange={(e) => updatePlanAction(action.id, { tipo_medida: (e.target.value || null) as PlanActionRow["tipo_medida"] }).then(onChanged)}
+            >
+              <option value="">Sin definir…</option>
+              <option value="valor">Valor o monto</option>
+              <option value="porcentaje">Porcentaje</option>
+              <option value="binario">Binario (Sí/No)</option>
+            </select>
+          </Field>
+          <Field label="Polaridad">
+            <select
+              className={inputCls}
+              defaultValue={action.polaridad ?? ""}
+              disabled={presenter}
+              onChange={(e) => updatePlanAction(action.id, { polaridad: (e.target.value || null) as PlanActionRow["polaridad"] }).then(onChanged)}
+            >
+              <option value="">Sin definir…</option>
+              <option value="ascendente">Ascendente (mayor es mejor)</option>
+              <option value="descendente">Descendente (menor es mejor)</option>
+            </select>
+          </Field>
+          <Field label="Línea base">
+            <input
+              className={inputCls}
+              defaultValue={action.linea_base ?? ""}
+              disabled={presenter}
+              onBlur={(e) => e.target.value !== action.linea_base && updatePlanAction(action.id, { linea_base: e.target.value || null }).then(onChanged)}
+            />
+          </Field>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Field label="Valor de la meta">
+            <input
+              className={inputCls}
+              defaultValue={action.valor_meta ?? ""}
+              disabled={presenter}
+              onBlur={(e) => e.target.value !== action.valor_meta && updatePlanAction(action.id, { valor_meta: e.target.value || null }).then(onChanged)}
+            />
+          </Field>
+          <Field label="Fecha inicio">
+            <input type="date" className={inputCls} value={startDraft} disabled={presenter} onChange={(e) => setStartDate(e.target.value)} />
+          </Field>
+          <Field label="Fecha final">
+            <input type="date" className={inputCls} value={endDraft} disabled={presenter} onChange={(e) => setEndDate(e.target.value)} />
+          </Field>
+        </div>
+      </div>
+
       <div className="space-y-2">
         {activities.map((a) => (
           <PlanActivityCard
@@ -412,6 +539,11 @@ function PlanActionCard({
 
 export default function PlanPresupuesto({ activity, aspirations, aspirationId, participant }: ActivityComponentProps) {
   const presenter = isPresenter(participant);
+  // "General" = lo que ya existía (acciones/actividades/conceptos por aspiración). "Planeación de
+  // acciones" es el cronograma tipo Gantt de la especificación — consolidado entre las 3
+  // aspiraciones, no por pestaña de aspiración (así se acordó): se construye en una siguiente
+  // iteración; por ahora queda el tab y un aviso de qué va a mostrar.
+  const [mainTab, setMainTab] = useState<"general" | "gantt">("general");
   const [activeAspId, setActiveAspId] = useState<number | null>(() => aspirationId ?? aspirations[0]?.id ?? null);
   const [actions, setActions] = useState<PlanActionRow[]>([]);
   const [sourceProjects, setSourceProjects] = useState<SourceProject[]>([]);
@@ -496,6 +628,37 @@ export default function PlanPresupuesto({ activity, aspirations, aspirationId, p
         </div>
       )}
 
+      <div className="flex gap-1 border-b border-border">
+        <button
+          type="button"
+          onClick={() => setMainTab("general")}
+          className={`rounded-t-md px-3 py-2 text-sm font-semibold transition-colors ${
+            mainTab === "general" ? "border-b-2 border-brand text-brand-dark" : "text-muted hover:text-foreground"
+          }`}
+        >
+          General
+        </button>
+        <button
+          type="button"
+          onClick={() => setMainTab("gantt")}
+          className={`rounded-t-md px-3 py-2 text-sm font-semibold transition-colors ${
+            mainTab === "gantt" ? "border-b-2 border-brand text-brand-dark" : "text-muted hover:text-foreground"
+          }`}
+        >
+          Planeación de acciones
+        </button>
+      </div>
+
+      {mainTab === "gantt" ? (
+        <div className="rounded-lg border border-dashed border-border bg-black/[0.015] p-6 text-center">
+          <p className="text-sm font-semibold text-foreground">📅 Cronograma tipo Gantt</p>
+          <p className="mt-1 text-xs text-muted">
+            Aquí se programará en el tiempo cada concepto de costo (fecha de inicio/fin dentro del rango de su
+            actividad, responsable, estado), consolidado entre las 3 aspiraciones. En construcción.
+          </p>
+        </div>
+      ) : (
+        <>
       {aspirations.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {aspirations.map((a) => {
@@ -549,6 +712,8 @@ export default function PlanPresupuesto({ activity, aspirations, aspirationId, p
             <PlanActionCard key={a.id} action={a} costCenters={costCenters} presenter={presenter} onChanged={loadActions} />
           ))}
         </div>
+      )}
+        </>
       )}
     </div>
   );

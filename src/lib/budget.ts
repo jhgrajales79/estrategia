@@ -60,6 +60,11 @@ export async function createPlanAction(input: {
   return data as PlanActionRow;
 }
 
+export async function updatePlanAction(id: number, patch: Partial<PlanActionRow>): Promise<void> {
+  const { error } = await supabase.from("plan_actions").update(patch).eq("id", id);
+  if (error) throw error;
+}
+
 export async function deletePlanAction(id: number): Promise<void> {
   const { error } = await supabase.from("plan_actions").delete().eq("id", id);
   if (error) throw error;
