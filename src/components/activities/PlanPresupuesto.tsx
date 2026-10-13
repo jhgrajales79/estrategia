@@ -330,15 +330,7 @@ function PlanActivityCard({
           </Field>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-3">
-          <Field label="Responsable de la actividad">
-            <input
-              className={inputCls}
-              defaultValue={activity.owner ?? ""}
-              disabled={presenter}
-              onBlur={(e) => e.target.value !== activity.owner && updatePlanActivity(activity.id, { owner: e.target.value || null }).then(onChanged)}
-            />
-          </Field>
+        <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Fecha inicio">
             <input
               type="date"
