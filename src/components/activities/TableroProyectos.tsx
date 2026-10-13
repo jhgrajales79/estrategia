@@ -28,6 +28,9 @@ interface Content extends Record<string, unknown> {
 interface MetaOption {
   id: string;
   label: string;
+  // Solo las candidatas de la Subasta (prefijo "cand:") traen puntaje — las metas vigentes de
+  // `goals` no se votan, así que quedan sin este dato.
+  points?: number;
 }
 interface MetaCandidate {
   id: string;
@@ -91,7 +94,7 @@ export default function TableroProyectos({ activity, session, aspirationId, aspi
       }
       for (const c of winning) {
         if (c.aspiration_id === null || c.aspiration_id === undefined) continue;
-        (map[c.aspiration_id] ??= []).push({ id: `cand:${c.id}`, label: c.text });
+        (map[c.aspiration_id] ??= []).push({ id: `cand:${c.id}`, label: c.text, points: pointsByCandidate[c.id] });
       }
       if (!cancelled) {
         setMetaOptionsByAsp(map);
@@ -204,7 +207,10 @@ export default function TableroProyectos({ activity, session, aspirationId, aspi
       )}
       {content.projects.map((p) => {
         const metaOptions = metaOptionsByAsp[activeAspId ?? -1] ?? [];
-        const metaLabel = metaOptions.find((m) => m.id === p.meta_id)?.label;
+        const selectedMeta = metaOptions.find((m) => m.id === p.meta_id);
+        const metaLabel = selectedMeta
+          ? `${selectedMeta.label}${selectedMeta.points !== undefined ? ` (${selectedMeta.points} ${selectedMeta.points === 1 ? "punto" : "puntos"})` : ""}`
+          : undefined;
         return (
         <div key={p.id} className="rounded-lg border border-border bg-card p-3">
           {!presenter && (
@@ -234,6 +240,7 @@ export default function TableroProyectos({ activity, session, aspirationId, aspi
                 {metaOptions.map((m) => (
                   <option key={m.id} value={m.id}>
                     {m.label}
+                    {m.points !== undefined ? ` (${m.points} ${m.points === 1 ? "punto" : "puntos"})` : ""}
                   </option>
                 ))}
               </select>
