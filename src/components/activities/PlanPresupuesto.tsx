@@ -10,7 +10,6 @@ import {
   createPlanActivity,
   deleteBudgetItem,
   deletePlanActivity,
-  fetchBudgetExecutions,
   fetchBudgetItemTotals,
   fetchBudgetItems,
   fetchBudgetByAction,
@@ -21,10 +20,9 @@ import {
   parseMoney,
   updateBudgetItem,
   updatePlanActivity,
-  upsertBudgetExecution,
 } from "@/lib/budget";
 import { fetchCostCenters } from "@/lib/data";
-import type { BudgetByAction, BudgetExecutionRow, BudgetItemRow, BudgetItemTotals, CostCenterRow, PlanActionRow, PlanActivityRow } from "@/lib/types";
+import type { BudgetByAction, BudgetItemRow, BudgetItemTotals, CostCenterRow, PlanActionRow, PlanActivityRow } from "@/lib/types";
 import { ActivityComponentProps, inputCls, btnPrimary, btnDanger, btnGhost, PresenterHint, DeleteButton } from "./shared";
 
 // "Acción" tal como la deja el taller S6 "De objetivo a proyecto estratégico"
@@ -66,39 +64,12 @@ function BudgetItemRowView({
   presenter: boolean;
   onChanged: () => void;
 }) {
-  const [showExec, setShowExec] = useState(false);
-  const [executions, setExecutions] = useState<BudgetExecutionRow[]>([]);
-  const [month, setMonth] = useState("");
-  const [amount, setAmount] = useState("");
-
-  async function loadExecutions() {
-    setExecutions(await fetchBudgetExecutions(item.id));
-  }
-  useEffect(() => {
-    if (showExec) loadExecutions();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showExec]);
-
-  async function addExecution() {
-    if (!month || !amount) return;
-    try {
-      await upsertBudgetExecution({ budget_item_id: item.id, month: `${month}-01`, amount: parseMoney(amount) });
-      setMonth("");
-      setAmount("");
-      await loadExecutions();
-      onChanged();
-    } catch (err) {
-      alert(err instanceof Error ? err.message : "No se pudo registrar la ejecución (¿supera lo aprobado?)");
-    }
-  }
-
   const executed = totals?.executed ?? 0;
   const saldo = totals?.saldo ?? item.approved;
-  const pct = totals?.pct_ejecucion ?? 0;
 
   return (
     <div className="rounded-md border border-border bg-card p-2.5">
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-6">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
         <input
           className={inputCls + " sm:col-span-2"}
           placeholder="Concepto (p. ej. Licenciamiento)"
@@ -115,15 +86,9 @@ function BudgetItemRowView({
           onBlur={(e) => Number(e.target.value) !== item.year && updateBudgetItem(item.id, { year: Number(e.target.value) }).then(onChanged)}
         />
         {!presenter ? (
-          <>
-            <MoneyField value={item.estimated} placeholder="Estimado" onCommit={(n) => updateBudgetItem(item.id, { estimated: n }).then(onChanged)} />
-            <MoneyField value={item.approved} placeholder="Aprobado" onCommit={(n) => updateBudgetItem(item.id, { approved: n }).then(onChanged)} />
-          </>
+          <MoneyField value={item.approved} placeholder="Presupuesto" onCommit={(n) => updateBudgetItem(item.id, { approved: n }).then(onChanged)} />
         ) : (
-          <>
-            <p className="rounded-md bg-black/[0.03] px-3 py-1.5 text-right text-sm text-foreground">{formatMoney(item.estimated)}</p>
-            <p className="rounded-md bg-black/[0.03] px-3 py-1.5 text-right text-sm text-foreground">{formatMoney(item.approved)}</p>
-          </>
+          <p className="rounded-md bg-black/[0.03] px-3 py-1.5 text-right text-sm text-foreground">{formatMoney(item.approved)}</p>
         )}
         <div className="flex items-center justify-end gap-1">
           {!presenter && <DeleteButton onConfirm={() => deleteBudgetItem(item.id).then(onChanged)} />}
@@ -136,38 +101,7 @@ function BudgetItemRowView({
         <span className="text-muted">
           Saldo: <span className={`font-semibold ${saldo < 0 ? "text-red-600" : "text-foreground"}`}>{formatMoney(saldo)}</span>
         </span>
-        <span className="text-muted">
-          Ejecución: <span className="font-semibold text-brand-dark">{formatPct(pct)}</span>
-        </span>
-        <button className="text-brand-dark hover:underline" onClick={() => setShowExec((v) => !v)}>
-          {showExec ? "ocultar meses ▴" : "ver ejecución mensual ▾"}
-        </button>
       </div>
-      {showExec && (
-        <div className="mt-2 space-y-1.5 border-t border-border pt-2">
-          {executions.map((e) => (
-            <div key={e.id} className="flex items-center justify-between text-xs">
-              <span className="text-muted">{e.month.slice(0, 7)}</span>
-              <span className="font-medium text-foreground">{formatMoney(e.amount)}</span>
-            </div>
-          ))}
-          {executions.length === 0 && <p className="text-xs text-muted">Sin ejecución registrada todavía.</p>}
-          {!presenter && (
-            <div className="flex items-center gap-1.5 pt-1">
-              <input type="month" className={inputCls + " w-auto"} value={month} onChange={(e) => setMonth(e.target.value)} />
-              <input
-                className={inputCls + " w-auto"}
-                placeholder="Monto ejecutado"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value.replace(/[^\d]/g, ""))}
-              />
-              <button className={btnGhost} onClick={addExecution}>
-                Registrar mes
-              </button>
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }
