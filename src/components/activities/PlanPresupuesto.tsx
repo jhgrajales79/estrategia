@@ -24,6 +24,7 @@ import {
   updatePlanActivity,
 } from "@/lib/budget";
 import { fetchCostCenters } from "@/lib/data";
+import GanttPlaneacion from "./GanttPlaneacion";
 import type { BudgetByAction, BudgetItemRow, BudgetItemTotals, CostCenterRow, PlanActionRow, PlanActivityRow } from "@/lib/types";
 import { ActivityComponentProps, inputCls, btnPrimary, btnDanger, btnGhost, PresenterHint, DeleteButton } from "./shared";
 
@@ -650,13 +651,7 @@ export default function PlanPresupuesto({ activity, aspirations, aspirationId, p
       </div>
 
       {mainTab === "gantt" ? (
-        <div className="rounded-lg border border-dashed border-border bg-black/[0.015] p-6 text-center">
-          <p className="text-sm font-semibold text-foreground">📅 Cronograma tipo Gantt</p>
-          <p className="mt-1 text-xs text-muted">
-            Aquí se programará en el tiempo cada concepto de costo (fecha de inicio/fin dentro del rango de su
-            actividad, responsable, estado), consolidado entre las 3 aspiraciones. En construcción.
-          </p>
-        </div>
+        <GanttPlaneacion aspirations={aspirations} />
       ) : (
         <>
       {aspirations.length > 0 && (

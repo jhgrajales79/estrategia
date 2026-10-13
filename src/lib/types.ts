@@ -188,6 +188,8 @@ export interface PlanActivityRow {
   updated_at: string;
 }
 
+export type BudgetItemPlanEstado = "pendiente" | "programado" | "completado";
+
 export interface BudgetItemRow {
   id: number;
   plan_activity_id: number;
@@ -198,6 +200,12 @@ export interface BudgetItemRow {
   funding_source: string | null;
   cost_center: string | null;
   notes: string | null;
+  // Programación temporal del concepto — pestaña "Planeación de acciones" (Gantt).
+  plan_start_date: string | null;
+  plan_end_date: string | null;
+  plan_responsable: string | null;
+  plan_estado: BudgetItemPlanEstado | null;
+  plan_notes: string | null;
   created_at: string;
   updated_at: string;
 }
