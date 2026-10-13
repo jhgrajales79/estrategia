@@ -70,6 +70,11 @@ export default function TableroProyectos({ activity, session, aspirationId, aspi
   // Metas por aspiración, para el selector "Meta que atiende" de cada proyecto — mismas fuentes
   // que /metas y /estrategia (goals + ganadoras de la Subasta), en vivo.
   const [metaOptionsByAsp, setMetaOptionsByAsp] = useState<Record<number, MetaOption[]>>({});
+  // El <select> de meta es no controlado (ver más abajo) — si se monta antes de que las opciones
+  // terminen de cargar, su `defaultValue` no encuentra ningún <option> con ese valor y queda en
+  // "Sin meta asignada…" para siempre, aunque la meta sí esté guardada. `metaOptionsLoaded` entra
+  // en la `key` del select para forzar un remount recién hay opciones con las que calzar.
+  const [metaOptionsLoaded, setMetaOptionsLoaded] = useState(false);
   useEffect(() => {
     let cancelled = false;
     async function load() {
@@ -89,7 +94,10 @@ export default function TableroProyectos({ activity, session, aspirationId, aspi
         if (c.aspiration_id === null || c.aspiration_id === undefined) continue;
         (map[c.aspiration_id] ??= []).push({ id: `cand:${c.id}`, label: c.text });
       }
-      if (!cancelled) setMetaOptionsByAsp(map);
+      if (!cancelled) {
+        setMetaOptionsByAsp(map);
+        setMetaOptionsLoaded(true);
+      }
     }
     load().catch(console.error);
     const channel = supabase
@@ -218,7 +226,7 @@ export default function TableroProyectos({ activity, session, aspirationId, aspi
               // cada clic, antes de que la escritura terminara. La `key` fuerza un remount cuando
               // el valor real sí cambia.
               <select
-                key={`${p.id}:${p.meta_id ?? ""}`}
+                key={`${p.id}:${p.meta_id ?? ""}:${metaOptionsLoaded ? "loaded" : "pending"}`}
                 className={inputCls}
                 defaultValue={p.meta_id ?? ""}
                 onChange={(e) => mutateContent((latest) => ({ projects: latest.projects.map((pr) => (pr.id === p.id ? { ...pr, meta_id: e.target.value } : pr)) }))}
