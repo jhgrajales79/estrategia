@@ -212,9 +212,15 @@ export default function TableroProyectos({ activity, session, aspirationId, aspi
             {presenter ? (
               <p className="rounded-md bg-black/[0.03] px-3 py-1.5 text-sm text-foreground min-h-8">{metaLabel || "—"}</p>
             ) : (
+              // No controlado (defaultValue, no value): `save()` no actualiza `content` de forma
+              // optimista — el estado local solo cambia cuando llega el eco de Realtime. Un
+              // <select> controlado por `p.meta_id` volvía de inmediato a "Sin meta asignada…" en
+              // cada clic, antes de que la escritura terminara. La `key` fuerza un remount cuando
+              // el valor real sí cambia.
               <select
+                key={`${p.id}:${p.meta_id ?? ""}`}
                 className={inputCls}
-                value={p.meta_id ?? ""}
+                defaultValue={p.meta_id ?? ""}
                 onChange={(e) => mutateContent((latest) => ({ projects: latest.projects.map((pr) => (pr.id === p.id ? { ...pr, meta_id: e.target.value } : pr)) }))}
               >
                 <option value="">Sin meta asignada…</option>
