@@ -202,7 +202,21 @@ function CostCenterPicker({
   const subcentros = costCenters.filter((c) => c.centro === activeCentro);
 
   if (disabled) {
-    return <p className="rounded-md bg-black/[0.03] px-3 py-1.5 text-sm text-foreground min-h-8">{value || "—"}</p>;
+    const match = costCenters.find((c) => c.subcentro_codigo === saved.codigo);
+    return (
+      <div className="grid gap-2 sm:grid-cols-2">
+        <div>
+          <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted">Centro</p>
+          <p className="rounded-md bg-black/[0.03] px-3 py-1.5 text-sm text-foreground min-h-8">{saved.centro || "—"}</p>
+        </div>
+        <div>
+          <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted">Subcentro</p>
+          <p className="rounded-md bg-black/[0.03] px-3 py-1.5 text-sm text-foreground min-h-8">
+            {saved.codigo ? `${saved.codigo}${match?.descripcion ? ` — ${match.descripcion}` : ""}` : "—"}
+          </p>
+        </div>
+      </div>
+    );
   }
   return (
     <div className="grid gap-2 sm:grid-cols-2">
