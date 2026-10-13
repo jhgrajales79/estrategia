@@ -359,49 +359,6 @@ function PlanActivityCard({
           </Field>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-3">
-          <Field label="Estado">
-            <select
-              className={inputCls}
-              defaultValue={activity.status}
-              disabled={presenter}
-              onChange={(e) => updatePlanActivity(activity.id, { status: e.target.value as PlanActivityRow["status"] }).then(onChanged)}
-            >
-              <option value="pendiente">Pendiente</option>
-              <option value="en_curso">En curso</option>
-              <option value="completada">Completada</option>
-              <option value="cancelada">Cancelada</option>
-            </select>
-          </Field>
-          <Field label="Progreso">
-            <div className="flex items-center gap-1.5">
-              <input
-                type="number"
-                min={0}
-                max={100}
-                className={inputCls}
-                defaultValue={activity.progress_pct}
-                disabled={presenter}
-                onBlur={(e) =>
-                  Number(e.target.value) !== activity.progress_pct &&
-                  updatePlanActivity(activity.id, { progress_pct: Number(e.target.value) }).then(onChanged)
-                }
-              />
-              <span className="text-xs text-muted">%</span>
-            </div>
-          </Field>
-          <Field label="Fuente de financiación">
-            <input
-              className={inputCls}
-              defaultValue={activity.funding_source ?? ""}
-              disabled={presenter}
-              onBlur={(e) =>
-                e.target.value !== activity.funding_source && updatePlanActivity(activity.id, { funding_source: e.target.value || null }).then(onChanged)
-              }
-            />
-          </Field>
-        </div>
-
         <Field label="Código presupuestal">
           <CostCenterPicker
             value={activity.cost_center}
