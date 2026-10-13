@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useSubmission, fetchLatestContent } from "@/lib/useSubmission";
 import { supabase } from "@/lib/supabase";
-import { fetchGoals } from "@/lib/data";
 import { isPresenter } from "@/lib/presenter";
 import { aspClasses, ARCHETYPE_LABEL } from "@/lib/aspirationStyle";
 import { ActivityComponentProps, inputCls, textareaCls, btnPrimary, btnDanger, SaveIndicator, PresenterHint, uid } from "./shared";
@@ -22,10 +21,10 @@ interface Content extends Record<string, unknown> {
 
 // Meta u objetivo al que un proyecto estratégico responde — se usa para que el organigrama de
 // "Estrategia general" (/estrategia) pueda anidar el plan de acción como hijo de la meta, en vez
-// de mostrarlo como una rama aparte. Combina las metas vigentes/nuevas de `goals` con las
-// candidatas que ya ganaron fichas en la Subasta (actividad 18), igual que hace /metas y
-// /estrategia — el id lleva un prefijo ("goal:"/"cand:") porque ambas fuentes usan ids con
-// formato distinto (numérico vs. string corto).
+// de mostrarlo como una rama aparte. Solo entran las candidatas que ya ganaron al menos 1 ficha
+// en la Subasta de nuevas metas (actividad 18) — a propósito no incluye las metas vigentes de
+// `goals`, para forzar a que el proyecto se vincule a una meta ya puntuada, no a cualquier meta
+// histórica. El id lleva el prefijo "cand:" para ser consistente con /estrategia.
 interface MetaOption {
   id: string;
   label: string;
@@ -78,7 +77,6 @@ export default function TableroProyectos({ activity, session, aspirationId, aspi
   useEffect(() => {
     let cancelled = false;
     async function load() {
-      const goals = await fetchGoals();
       const { data } = await supabase.from("submissions").select("content").eq("activity_id", METAS_SUBASTA_ACTIVITY_ID);
       const rows = (data as { content: { candidates?: MetaCandidate[]; votes?: MetaVote[] } }[] | null) ?? [];
       const candidates = rows.flatMap((r) => r.content?.candidates ?? []);
@@ -87,9 +85,6 @@ export default function TableroProyectos({ activity, session, aspirationId, aspi
       for (const v of votes) pointsByCandidate[v.candidate_id] = (pointsByCandidate[v.candidate_id] ?? 0) + v.points;
       const winning = candidates.filter((c) => (pointsByCandidate[c.id] ?? 0) > 0);
       const map: Record<number, MetaOption[]> = {};
-      for (const g of goals) {
-        (map[g.aspiration_id] ??= []).push({ id: `goal:${g.id}`, label: g.description });
-      }
       for (const c of winning) {
         if (c.aspiration_id === null || c.aspiration_id === undefined) continue;
         (map[c.aspiration_id] ??= []).push({ id: `cand:${c.id}`, label: c.text });
@@ -102,7 +97,6 @@ export default function TableroProyectos({ activity, session, aspirationId, aspi
     load().catch(console.error);
     const channel = supabase
       .channel(`proyectos-metas-${activity.id}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "goals" }, () => load())
       .on("postgres_changes", { event: "*", schema: "public", table: "submissions", filter: `activity_id=eq.${METAS_SUBASTA_ACTIVITY_ID}` }, () => load())
       .subscribe();
     return () => {
