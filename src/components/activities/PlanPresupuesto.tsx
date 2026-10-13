@@ -55,18 +55,13 @@ function MoneyField({ value, onCommit, placeholder }: { value: number; onCommit:
 
 function BudgetItemRowView({
   item,
-  totals,
   presenter,
   onChanged,
 }: {
   item: BudgetItemRow;
-  totals: BudgetItemTotals | undefined;
   presenter: boolean;
   onChanged: () => void;
 }) {
-  const executed = totals?.executed ?? 0;
-  const saldo = totals?.saldo ?? item.approved;
-
   return (
     <div className="rounded-md border border-border bg-card p-2.5">
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
@@ -93,14 +88,6 @@ function BudgetItemRowView({
         <div className="flex items-center justify-end gap-1">
           {!presenter && <DeleteButton onConfirm={() => deleteBudgetItem(item.id).then(onChanged)} />}
         </div>
-      </div>
-      <div className="mt-2 flex flex-wrap items-center gap-3 text-xs">
-        <span className="text-muted">
-          Ejecutado: <span className="font-semibold text-foreground">{formatMoney(executed)}</span>
-        </span>
-        <span className="text-muted">
-          Saldo: <span className={`font-semibold ${saldo < 0 ? "text-red-600" : "text-foreground"}`}>{formatMoney(saldo)}</span>
-        </span>
       </div>
     </div>
   );
@@ -323,7 +310,6 @@ function PlanActivityCard({
             <BudgetItemRowView
               key={it.id}
               item={it}
-              totals={totals.find((t) => t.budget_item_id === it.id)}
               presenter={presenter}
               onChanged={() => {
                 load();
