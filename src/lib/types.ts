@@ -160,6 +160,7 @@ export interface PlanActivityRow {
   action_id: number;
   name: string;
   owner: string | null;
+  area_responsable: string | null;
   start_date: string | null;
   end_date: string | null;
   progress_pct: number;

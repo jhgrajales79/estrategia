@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { supabase } from "@/lib/supabase";
 import { isPresenter } from "@/lib/presenter";
 import { aspClasses, ARCHETYPE_LABEL } from "@/lib/aspirationStyle";
@@ -241,6 +241,20 @@ function CostCenterPicker({
   );
 }
 
+// Campo con etiqueta — mismo patrón visual que el mockup "Detalle de Acción Estratégica"
+// (front.jpg): etiqueta corta arriba, el control abajo.
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div>
+      <label className="mb-1 block text-xs font-medium text-muted">{label}</label>
+      {children}
+    </div>
+  );
+}
+function SectionLabel({ children }: { children: ReactNode }) {
+  return <p className="text-[11px] font-bold uppercase tracking-wide text-brand-dark">{children}</p>;
+}
+
 function PlanActivityCard({
   activity,
   costCenters,
@@ -279,117 +293,163 @@ function PlanActivityCard({
   const pctEjec = totalApproved > 0 ? (totalExecuted / totalApproved) * 100 : 0;
 
   return (
-    <div className="rounded-lg border border-border bg-bg/50 p-3">
-      <div className="grid gap-2 sm:grid-cols-3">
-        <input
-          className={inputCls}
-          placeholder="Nombre de la actividad"
-          defaultValue={activity.name}
-          disabled={presenter}
-          onBlur={(e) => e.target.value !== activity.name && updatePlanActivity(activity.id, { name: e.target.value }).then(onChanged)}
-        />
-        <input
-          className={inputCls}
-          placeholder="Responsable"
-          defaultValue={activity.owner ?? ""}
-          disabled={presenter}
-          onBlur={(e) => e.target.value !== activity.owner && updatePlanActivity(activity.id, { owner: e.target.value || null }).then(onChanged)}
-        />
-        <div className="flex items-center gap-2">
-          <input
-            type="date"
-            className={inputCls}
-            defaultValue={activity.start_date ?? ""}
-            disabled={presenter}
-            onBlur={(e) => e.target.value !== activity.start_date && updatePlanActivity(activity.id, { start_date: e.target.value || null }).then(onChanged)}
-          />
-          <input
-            type="date"
-            className={inputCls}
-            defaultValue={activity.end_date ?? ""}
-            disabled={presenter}
-            onBlur={(e) => e.target.value !== activity.end_date && updatePlanActivity(activity.id, { end_date: e.target.value || null }).then(onChanged)}
-          />
+    <div className="overflow-hidden rounded-xl border-2 border-border bg-card">
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border bg-black/[0.02] px-4 py-3">
+        <h4 className="text-sm font-bold uppercase tracking-wide text-foreground">📋 Detalle de la actividad</h4>
+        <div className="rounded-md border border-brand/30 bg-brand/5 px-3 py-1.5 text-right text-xs leading-tight">
+          <p className="font-bold text-foreground">Aprobado: {formatMoney(totalApproved)}</p>
+          <p className="text-muted">
+            Ejecutado: {formatMoney(totalExecuted)} ({formatPct(pctEjec)})
+          </p>
         </div>
       </div>
-      <div className="mt-2 grid gap-2 sm:grid-cols-4">
-        <select
-          className={inputCls}
-          defaultValue={activity.status}
-          disabled={presenter}
-          onChange={(e) => updatePlanActivity(activity.id, { status: e.target.value as PlanActivityRow["status"] }).then(onChanged)}
-        >
-          <option value="pendiente">Pendiente</option>
-          <option value="en_curso">En curso</option>
-          <option value="completada">Completada</option>
-          <option value="cancelada">Cancelada</option>
-        </select>
-        <div className="flex items-center gap-1.5">
-          <input
-            type="number"
-            min={0}
-            max={100}
-            className={inputCls}
-            placeholder="% avance"
-            defaultValue={activity.progress_pct}
-            disabled={presenter}
-            onBlur={(e) => Number(e.target.value) !== activity.progress_pct && updatePlanActivity(activity.id, { progress_pct: Number(e.target.value) }).then(onChanged)}
-          />
-          <span className="text-xs text-muted">%</span>
+
+      <div className="space-y-3 p-4">
+        <SectionLabel>Sección 1 · Identificación de la actividad</SectionLabel>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Nombre de la actividad">
+            <input
+              className={inputCls}
+              defaultValue={activity.name}
+              disabled={presenter}
+              onBlur={(e) => e.target.value !== activity.name && updatePlanActivity(activity.id, { name: e.target.value }).then(onChanged)}
+            />
+          </Field>
+          <Field label="Área responsable">
+            <input
+              className={inputCls}
+              placeholder="p. ej. PYO - Planificación y Operaciones"
+              defaultValue={activity.area_responsable ?? ""}
+              disabled={presenter}
+              onBlur={(e) =>
+                e.target.value !== activity.area_responsable &&
+                updatePlanActivity(activity.id, { area_responsable: e.target.value || null }).then(onChanged)
+              }
+            />
+          </Field>
         </div>
-        <input
-          className={inputCls}
-          placeholder="Fuente de financiación"
-          defaultValue={activity.funding_source ?? ""}
-          disabled={presenter}
-          onBlur={(e) => e.target.value !== activity.funding_source && updatePlanActivity(activity.id, { funding_source: e.target.value || null }).then(onChanged)}
-        />
-        <div className="sm:col-span-2">
+
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Field label="Responsable de la actividad">
+            <input
+              className={inputCls}
+              defaultValue={activity.owner ?? ""}
+              disabled={presenter}
+              onBlur={(e) => e.target.value !== activity.owner && updatePlanActivity(activity.id, { owner: e.target.value || null }).then(onChanged)}
+            />
+          </Field>
+          <Field label="Fecha inicio">
+            <input
+              type="date"
+              className={inputCls}
+              defaultValue={activity.start_date ?? ""}
+              disabled={presenter}
+              onBlur={(e) => e.target.value !== activity.start_date && updatePlanActivity(activity.id, { start_date: e.target.value || null }).then(onChanged)}
+            />
+          </Field>
+          <Field label="Fecha fin">
+            <input
+              type="date"
+              className={inputCls}
+              defaultValue={activity.end_date ?? ""}
+              disabled={presenter}
+              onBlur={(e) => e.target.value !== activity.end_date && updatePlanActivity(activity.id, { end_date: e.target.value || null }).then(onChanged)}
+            />
+          </Field>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Field label="Estado">
+            <select
+              className={inputCls}
+              defaultValue={activity.status}
+              disabled={presenter}
+              onChange={(e) => updatePlanActivity(activity.id, { status: e.target.value as PlanActivityRow["status"] }).then(onChanged)}
+            >
+              <option value="pendiente">Pendiente</option>
+              <option value="en_curso">En curso</option>
+              <option value="completada">Completada</option>
+              <option value="cancelada">Cancelada</option>
+            </select>
+          </Field>
+          <Field label="Progreso">
+            <div className="flex items-center gap-1.5">
+              <input
+                type="number"
+                min={0}
+                max={100}
+                className={inputCls}
+                defaultValue={activity.progress_pct}
+                disabled={presenter}
+                onBlur={(e) =>
+                  Number(e.target.value) !== activity.progress_pct &&
+                  updatePlanActivity(activity.id, { progress_pct: Number(e.target.value) }).then(onChanged)
+                }
+              />
+              <span className="text-xs text-muted">%</span>
+            </div>
+          </Field>
+          <Field label="Fuente de financiación">
+            <input
+              className={inputCls}
+              defaultValue={activity.funding_source ?? ""}
+              disabled={presenter}
+              onBlur={(e) =>
+                e.target.value !== activity.funding_source && updatePlanActivity(activity.id, { funding_source: e.target.value || null }).then(onChanged)
+              }
+            />
+          </Field>
+        </div>
+
+        <Field label="Código presupuestal">
           <CostCenterPicker
             value={activity.cost_center}
             costCenters={costCenters}
             disabled={presenter}
             onChange={(next) => next !== activity.cost_center && updatePlanActivity(activity.id, { cost_center: next }).then(onChanged)}
           />
-        </div>
-      </div>
-      <textarea
-        className={inputCls + " mt-2 min-h-14 resize-y"}
-        placeholder="Observaciones financieras"
-        defaultValue={activity.notes ?? ""}
-        disabled={presenter}
-        onBlur={(e) => e.target.value !== activity.notes && updatePlanActivity(activity.id, { notes: e.target.value || null }).then(onChanged)}
-      />
+        </Field>
 
-      <div className="mt-3 space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-wide text-muted">Conceptos de costo</p>
-        {items.map((it) => (
-          <BudgetItemRowView
-            key={it.id}
-            item={it}
-            totals={totals.find((t) => t.budget_item_id === it.id)}
-            presenter={presenter}
-            onChanged={() => {
-              load();
-              onChanged();
-            }}
+        <Field label="Descripción y objetivos detallados">
+          <textarea
+            className={inputCls + " min-h-14 resize-y"}
+            defaultValue={activity.notes ?? ""}
+            disabled={presenter}
+            onBlur={(e) => e.target.value !== activity.notes && updatePlanActivity(activity.id, { notes: e.target.value || null }).then(onChanged)}
           />
-        ))}
-        {!presenter && (
-          <div className="flex items-center gap-1.5">
-            <input className={inputCls} placeholder="Nuevo concepto (p. ej. Capacitación)" value={newConcept} onChange={(e) => setNewConcept(e.target.value)} />
-            <button className={btnGhost} onClick={addConcept}>
-              + Concepto
-            </button>
-          </div>
-        )}
-      </div>
+        </Field>
 
-      <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-2">
-        <span className="text-sm font-semibold text-foreground">
-          Total actividad: {formatMoney(totalApproved)} · ejecutado {formatMoney(totalExecuted)} ({formatPct(pctEjec)})
-        </span>
-        {!presenter && <DeleteButton onConfirm={() => deletePlanActivity(activity.id).then(onChanged)} />}
+        <SectionLabel>Sección 2 · Conceptos de costo</SectionLabel>
+        <div className="space-y-2">
+          {items.map((it) => (
+            <BudgetItemRowView
+              key={it.id}
+              item={it}
+              totals={totals.find((t) => t.budget_item_id === it.id)}
+              presenter={presenter}
+              onChanged={() => {
+                load();
+                onChanged();
+              }}
+            />
+          ))}
+          {!presenter && (
+            <div className="flex items-center gap-1.5">
+              <input className={inputCls} placeholder="Nuevo concepto (p. ej. Capacitación)" value={newConcept} onChange={(e) => setNewConcept(e.target.value)} />
+              <button className={btnGhost} onClick={addConcept}>
+                + Añadir nuevo concepto
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-2">
+          <span className="text-sm font-semibold text-foreground">
+            Resumen total: {formatMoney(totalApproved)} aprobado · {formatMoney(totalExecuted)} ejecutado ({formatPct(pctEjec)})
+          </span>
+          {!presenter && <DeleteButton onConfirm={() => deletePlanActivity(activity.id).then(onChanged)} />}
+        </div>
       </div>
     </div>
   );
