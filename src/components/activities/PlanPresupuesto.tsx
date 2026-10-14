@@ -181,10 +181,6 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
     </div>
   );
 }
-function SectionLabel({ children }: { children: ReactNode }) {
-  return <p className="text-[11px] font-bold uppercase tracking-wide text-brand-dark">{children}</p>;
-}
-
 function PlanActivityCard({
   activity,
   costCenters,
@@ -218,116 +214,130 @@ function PlanActivityCard({
     onChanged();
   }
 
+  const [showDetail, setShowDetail] = useState(false);
   const totalApproved = items.reduce((a, i) => a + i.approved, 0);
   const totalExecuted = totals.reduce((a, t) => a + t.executed, 0);
   const pctEjec = totalApproved > 0 ? (totalExecuted / totalApproved) * 100 : 0;
+  const summaryBits = [activity.area_responsable, activity.start_date && activity.end_date ? `${activity.start_date} → ${activity.end_date}` : null].filter(
+    Boolean
+  );
 
   return (
-    <div className="overflow-hidden rounded-xl border-2 border-border bg-card">
-      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border bg-black/[0.02] px-4 py-3">
-        <h4 className="text-sm font-bold uppercase tracking-wide text-foreground">📋 Detalle de la actividad</h4>
-        <div className="rounded-md border border-brand/30 bg-brand/5 px-3 py-1.5 text-right text-xs leading-tight">
-          <p className="font-bold text-foreground">Aprobado: {formatMoney(totalApproved)}</p>
-          <p className="text-muted">
-            Ejecutado: {formatMoney(totalExecuted)} ({formatPct(pctEjec)})
+    <div className="overflow-hidden rounded-lg border border-border bg-card">
+      <button
+        type="button"
+        onClick={() => setShowDetail((v) => !v)}
+        className="flex w-full flex-wrap items-center justify-between gap-3 px-3 py-2.5 text-left hover:bg-black/[0.015]"
+      >
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold text-foreground">{activity.name || "Actividad sin nombre"}</p>
+          <p className="truncate text-xs text-muted">
+            {summaryBits.length > 0 ? summaryBits.join(" · ") : "Sin fechas ni área definidas"} · {items.length}{" "}
+            {items.length === 1 ? "concepto" : "conceptos"}
           </p>
         </div>
-      </div>
-
-      <div className="space-y-3 p-4">
-        <SectionLabel>Sección 1 · Identificación de la actividad</SectionLabel>
-
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Nombre de la actividad">
-            <input
-              className={inputCls}
-              defaultValue={activity.name}
-              disabled={presenter}
-              onBlur={(e) => e.target.value !== activity.name && updatePlanActivity(activity.id, { name: e.target.value }).then(onChanged)}
-            />
-          </Field>
-          <Field label="Área responsable">
-            <input
-              className={inputCls}
-              placeholder="p. ej. PYO - Planificación y Operaciones"
-              defaultValue={activity.area_responsable ?? ""}
-              disabled={presenter}
-              onBlur={(e) =>
-                e.target.value !== activity.area_responsable &&
-                updatePlanActivity(activity.id, { area_responsable: e.target.value || null }).then(onChanged)
-              }
-            />
-          </Field>
+        <div className="flex shrink-0 items-center gap-3">
+          <div className="text-right text-xs leading-tight">
+            <p className="font-bold text-foreground">{formatMoney(totalApproved)}</p>
+            <p className="text-muted">ejecutado {formatPct(pctEjec)}</p>
+          </div>
+          <span className="text-muted">{showDetail ? "▾" : "▸"}</span>
         </div>
+      </button>
 
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Fecha inicio">
-            <input
-              type="date"
-              className={inputCls}
-              defaultValue={activity.start_date ?? ""}
+      {showDetail && (
+        <div className="space-y-3 border-t border-border p-3">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Nombre de la actividad">
+              <input
+                className={inputCls}
+                defaultValue={activity.name}
+                disabled={presenter}
+                onBlur={(e) => e.target.value !== activity.name && updatePlanActivity(activity.id, { name: e.target.value }).then(onChanged)}
+              />
+            </Field>
+            <Field label="Área responsable">
+              <input
+                className={inputCls}
+                placeholder="p. ej. PYO - Planificación y Operaciones"
+                defaultValue={activity.area_responsable ?? ""}
+                disabled={presenter}
+                onBlur={(e) =>
+                  e.target.value !== activity.area_responsable &&
+                  updatePlanActivity(activity.id, { area_responsable: e.target.value || null }).then(onChanged)
+                }
+              />
+            </Field>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Fecha inicio">
+              <input
+                type="date"
+                className={inputCls}
+                defaultValue={activity.start_date ?? ""}
+                disabled={presenter}
+                onBlur={(e) => e.target.value !== activity.start_date && updatePlanActivity(activity.id, { start_date: e.target.value || null }).then(onChanged)}
+              />
+            </Field>
+            <Field label="Fecha fin">
+              <input
+                type="date"
+                className={inputCls}
+                defaultValue={activity.end_date ?? ""}
+                disabled={presenter}
+                onBlur={(e) => e.target.value !== activity.end_date && updatePlanActivity(activity.id, { end_date: e.target.value || null }).then(onChanged)}
+              />
+            </Field>
+          </div>
+
+          <Field label="Código presupuestal">
+            <CostCenterPicker
+              value={activity.cost_center}
+              costCenters={costCenters}
               disabled={presenter}
-              onBlur={(e) => e.target.value !== activity.start_date && updatePlanActivity(activity.id, { start_date: e.target.value || null }).then(onChanged)}
+              onChange={(next) => next !== activity.cost_center && updatePlanActivity(activity.id, { cost_center: next }).then(onChanged)}
             />
           </Field>
-          <Field label="Fecha fin">
-            <input
-              type="date"
-              className={inputCls}
-              defaultValue={activity.end_date ?? ""}
+
+          <Field label="Descripción y objetivos detallados">
+            <textarea
+              className={inputCls + " min-h-14 resize-y"}
+              defaultValue={activity.notes ?? ""}
               disabled={presenter}
-              onBlur={(e) => e.target.value !== activity.end_date && updatePlanActivity(activity.id, { end_date: e.target.value || null }).then(onChanged)}
+              onBlur={(e) => e.target.value !== activity.notes && updatePlanActivity(activity.id, { notes: e.target.value || null }).then(onChanged)}
             />
           </Field>
-        </div>
 
-        <Field label="Código presupuestal">
-          <CostCenterPicker
-            value={activity.cost_center}
-            costCenters={costCenters}
-            disabled={presenter}
-            onChange={(next) => next !== activity.cost_center && updatePlanActivity(activity.id, { cost_center: next }).then(onChanged)}
-          />
-        </Field>
-
-        <Field label="Descripción y objetivos detallados">
-          <textarea
-            className={inputCls + " min-h-14 resize-y"}
-            defaultValue={activity.notes ?? ""}
-            disabled={presenter}
-            onBlur={(e) => e.target.value !== activity.notes && updatePlanActivity(activity.id, { notes: e.target.value || null }).then(onChanged)}
-          />
-        </Field>
-
-        <SectionLabel>Sección 2 · Conceptos de costo</SectionLabel>
-        <div className="space-y-2">
-          {items.map((it) => (
-            <BudgetItemRowView
-              key={it.id}
-              item={it}
-              presenter={presenter}
-              onChanged={() => {
-                load();
-                onChanged();
-              }}
-            />
-          ))}
           {!presenter && (
-            <div className="flex items-center gap-1.5">
-              <input className={inputCls} placeholder="Nuevo concepto (p. ej. Capacitación)" value={newConcept} onChange={(e) => setNewConcept(e.target.value)} />
-              <button className={btnGhost} onClick={addConcept}>
-                + Añadir nuevo concepto
-              </button>
+            <div className="flex justify-end">
+              <DeleteButton label="eliminar actividad" onConfirm={() => deletePlanActivity(activity.id).then(onChanged)} />
             </div>
           )}
         </div>
+      )}
 
-        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-2">
-          <span className="text-sm font-semibold text-foreground">
-            Resumen total: {formatMoney(totalApproved)} aprobado · {formatMoney(totalExecuted)} ejecutado ({formatPct(pctEjec)})
-          </span>
-          {!presenter && <DeleteButton onConfirm={() => deletePlanActivity(activity.id).then(onChanged)} />}
-        </div>
+      <div className="space-y-2 border-t border-border bg-black/[0.01] p-3">
+        {items.map((it) => (
+          <BudgetItemRowView
+            key={it.id}
+            item={it}
+            presenter={presenter}
+            onChanged={() => {
+              load();
+              onChanged();
+            }}
+          />
+        ))}
+        {items.length === 0 && <p className="text-xs text-muted">Aún no hay conceptos de costo.</p>}
+        {!presenter && (
+          <div className="flex items-center gap-1.5">
+            <input className={inputCls} placeholder="Nuevo concepto (p. ej. Capacitación)" value={newConcept} onChange={(e) => setNewConcept(e.target.value)} />
+            <button className={btnGhost} onClick={addConcept}>
+              + Concepto
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -347,11 +357,24 @@ function PlanActionCard({
   const [activities, setActivities] = useState<PlanActivityRow[]>([]);
   const [totals, setTotals] = useState<BudgetByAction | undefined>();
   const [newActivityName, setNewActivityName] = useState("");
+  const [showDetail, setShowDetail] = useState(false);
   // Fechas del proyecto estratégico en estado local (controlado): a diferencia de los campos de
   // texto de abajo (defaultValue + onBlur), estas sí necesitan validarse entre sí al vuelo — la
   // fecha final no puede quedar antes que la de inicio (regla 8.3 de la especificación).
   const [startDraft, setStartDraft] = useState(action.start_date ?? "");
   const [endDraft, setEndDraft] = useState(action.end_date ?? "");
+  const detailFieldsFilled = [
+    action.objetivo_estrategico,
+    action.meta_descripcion,
+    action.kpi,
+    action.frecuencia_medicion,
+    action.tipo_medida,
+    action.polaridad,
+    action.linea_base,
+    action.valor_meta,
+    action.start_date,
+    action.end_date,
+  ].filter(Boolean).length;
 
   async function load() {
     const [acts, allTotals] = await Promise.all([fetchPlanActivities(action.id), fetchBudgetByAction()]);
@@ -389,14 +412,19 @@ function PlanActionCard({
   }
 
   return (
-    <div className="rounded-xl border border-border bg-card p-3">
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <p className="text-sm font-bold text-foreground">{action.name}</p>
-          {action.scope && <p className="text-xs text-muted">{action.scope}</p>}
-          {action.owner && <p className="text-xs text-muted">Responsable: {action.owner}</p>}
+    <div className="rounded-xl border-2 border-border bg-card p-3">
+      <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="truncate text-base font-bold text-foreground">{action.name}</p>
+          {(action.scope || action.owner) && (
+            <p className="truncate text-xs text-muted">
+              {action.scope}
+              {action.scope && action.owner ? " · " : ""}
+              {action.owner && `Responsable: ${action.owner}`}
+            </p>
+          )}
         </div>
-        <div className="flex items-start gap-3">
+        <div className="flex shrink-0 items-start gap-3">
           {totals && (
             <div className="text-right text-xs">
               <p className="font-semibold text-foreground">{formatMoney(totals.approved)} aprobado</p>
@@ -409,8 +437,17 @@ function PlanActionCard({
         </div>
       </div>
 
-      <div className="mb-3 space-y-3 rounded-lg border border-dashed border-border bg-black/[0.015] p-3">
-        <SectionLabel>Detalle del proyecto estratégico</SectionLabel>
+      <button
+        type="button"
+        onClick={() => setShowDetail((v) => !v)}
+        className="mb-3 flex w-full items-center justify-between gap-2 rounded-md border border-dashed border-border bg-black/[0.015] px-3 py-2 text-left text-xs font-semibold text-brand-dark hover:bg-brand/5"
+      >
+        <span>{showDetail ? "▾" : "▸"} Detalle estratégico (objetivo, KPI, meta, fechas…)</span>
+        <span className="rounded-full bg-black/5 px-2 py-0.5 font-bold text-muted">{detailFieldsFilled}/10</span>
+      </button>
+
+      {showDetail && (
+        <div className="mb-3 space-y-3 rounded-lg border border-dashed border-border bg-black/[0.015] p-3">
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Objetivo estratégico al que contribuye">
             <input
@@ -510,7 +547,8 @@ function PlanActionCard({
             <input type="date" className={inputCls} value={endDraft} disabled={presenter} onChange={(e) => setEndDate(e.target.value)} />
           </Field>
         </div>
-      </div>
+        </div>
+      )}
 
       <div className="space-y-2">
         {activities.map((a) => (
