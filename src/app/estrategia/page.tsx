@@ -4,8 +4,9 @@ import { useEffect, useState } from "react";
 import { useRequireParticipant } from "@/lib/useRequireParticipant";
 import { fetchAspirations, fetchGoals } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
-import type { Aspiration, GoalRow } from "@/lib/types";
+import type { Aspiration, GoalRow, PlanActionRow, PlanActivityRow, BudgetItemRow } from "@/lib/types";
 import { aspClasses, ARCHETYPE_LABEL } from "@/lib/aspirationStyle";
+import { fetchPlanActions, fetchPlanActivities, fetchBudgetItems, formatMoney } from "@/lib/budget";
 
 // Propósito superior ratificado en la S3 (Direccionamiento) — ver output "Propósito 'Tejemos
 // conexiones...' ratificado como marco del plan" y la Ruta de Planeación Estratégica. No tiene
@@ -55,6 +56,9 @@ export default function EstrategiaGeneralPage() {
   const [candidates, setCandidates] = useState<MetaCandidate[]>([]);
   const [votes, setVotes] = useState<MetaVote[]>([]);
   const [projectsByAsp, setProjectsByAsp] = useState<Record<number, Project[]>>({});
+  const [planActions, setPlanActions] = useState<PlanActionRow[]>([]);
+  const [planActivities, setPlanActivities] = useState<PlanActivityRow[]>([]);
+  const [budgetItems, setBudgetItems] = useState<BudgetItemRow[]>([]);
   const [expanded, setExpanded] = useState<Set<string>>(new Set(["proposito"]));
 
   useEffect(() => {
@@ -81,6 +85,9 @@ export default function EstrategiaGeneralPage() {
       }
       setProjectsByAsp(map);
     })();
+    fetchPlanActions().then(setPlanActions);
+    fetchPlanActivities().then(setPlanActivities);
+    fetchBudgetItems().then(setBudgetItems);
   }, []);
 
   if (!participant) return null;
@@ -98,6 +105,33 @@ export default function EstrategiaGeneralPage() {
   for (const v of votes) pointsByCandidate[v.candidate_id] = (pointsByCandidate[v.candidate_id] ?? 0) + v.points;
   const winningCandidates = candidates.filter((c) => (pointsByCandidate[c.id] ?? 0) > 0);
 
+  // Plan de acción ya costeado (Gantt) — se anida bajo cada proyecto estratégico vía
+  // source_project_id, y cada Actividad muestra su presupuesto aprobado acumulado.
+  const actionsByProject: Record<string, PlanActionRow[]> = {};
+  for (const action of planActions) {
+    if (!action.source_project_id) continue;
+    (actionsByProject[action.source_project_id] ??= []).push(action);
+  }
+  const activitiesByAction: Record<number, PlanActivityRow[]> = {};
+  for (const act of planActivities) (activitiesByAction[act.action_id] ??= []).push(act);
+  const budgetByActivity: Record<number, number> = {};
+  for (const item of budgetItems) budgetByActivity[item.plan_activity_id] = (budgetByActivity[item.plan_activity_id] ?? 0) + item.approved;
+
+  function actividadNode(act: PlanActivityRow, cls: ReturnType<typeof aspClasses>): OrgNode {
+    const total = budgetByActivity[act.id] ?? 0;
+    return { id: `activ-${act.id}`, title: `🗓️ ${act.name}`, subtitle: formatMoney(total), tone: cls };
+  }
+  function accionNode(action: PlanActionRow, cls: ReturnType<typeof aspClasses>): OrgNode {
+    const acts = activitiesByAction[action.id] ?? [];
+    return {
+      id: `accion-${action.id}`,
+      title: `📁 ${action.name}`,
+      subtitle: action.owner ? `Responsable: ${action.owner}` : undefined,
+      tone: cls,
+      children: acts.length > 0 ? acts.map((a) => actividadNode(a, cls)) : undefined,
+    };
+  }
+
   const tree: OrgNode = {
     id: "proposito",
     title: "Propósito superior",
@@ -108,7 +142,14 @@ export default function EstrategiaGeneralPage() {
       const nuevas = winningCandidates.filter((c) => c.aspiration_id === a.id);
       const proyectos = projectsByAsp[a.id] ?? [];
       function proyectoNode(p: Project): OrgNode {
-        return { id: `proy-${p.id}`, title: `🚀 ${p.nombre ?? ""}`, subtitle: p.responsable ? `Responsable: ${p.responsable}` : undefined, tone: cls };
+        const acciones = actionsByProject[p.id] ?? [];
+        return {
+          id: `proy-${p.id}`,
+          title: `🚀 ${p.nombre ?? ""}`,
+          subtitle: p.responsable ? `Responsable: ${p.responsable}` : undefined,
+          tone: cls,
+          children: acciones.length > 0 ? acciones.map((action) => accionNode(action, cls)) : undefined,
+        };
       }
       const metaNodes: OrgNode[] = [
         ...vigentes.map((g) => {
@@ -204,8 +245,8 @@ export default function EstrategiaGeneralPage() {
 
       <h1 className="text-xl font-bold text-dark">Estrategia general</h1>
       <p className="mb-6 text-sm text-muted">
-        Del propósito superior a las aspiraciones, sus metas y el plan de acción — haz clic en cualquier nodo para
-        contraerlo o expandirlo.
+        Del propósito superior a las aspiraciones, sus metas, los proyectos estratégicos y sus actividades (con su
+        presupuesto) — haz clic en cualquier nodo para contraerlo o expandirlo.
       </p>
 
       <div className="overflow-x-auto pb-6">
