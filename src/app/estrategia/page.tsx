@@ -5,8 +5,14 @@ import { useRequireParticipant } from "@/lib/useRequireParticipant";
 import { fetchAspirations, fetchGoals } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
 import type { Aspiration, GoalRow, PlanActionRow, PlanActivityRow, BudgetItemRow } from "@/lib/types";
-import { aspClasses, ARCHETYPE_LABEL } from "@/lib/aspirationStyle";
-import { fetchPlanActions, fetchPlanActivities, fetchBudgetItems, formatMoney } from "@/lib/budget";
+import { ARCHETYPE_LABEL } from "@/lib/aspirationStyle";
+import { fetchPlanActions, fetchPlanActivities, fetchBudgetItems } from "@/lib/budget";
+import { buildStrategyTree, type TableroProject } from "./strategyTree";
+import OrgChartView from "./OrgChartView";
+import CascadeMatrixView from "./CascadeMatrixView";
+import ImpactMapView from "./ImpactMapView";
+import RadialView from "./RadialView";
+import RoadmapGanttView from "./RoadmapGanttView";
 
 // Propósito superior ratificado en la S3 (Direccionamiento) — ver output "Propósito 'Tejemos
 // conexiones...' ratificado como marco del plan" y la Ruta de Planeación Estratégica. No tiene
@@ -32,22 +38,16 @@ interface MetaVote {
   candidate_id: string;
   points: number;
 }
-interface Project {
-  id: string;
-  nombre?: string;
-  alcance?: string;
-  responsable?: string;
-  meta_id?: string;
-}
 
-interface OrgNode {
-  id: string;
-  title: string;
-  subtitle?: string;
-  badge?: string;
-  tone?: { border: string; bg: string; bgSoft: string; text: string };
-  children?: OrgNode[];
-}
+type ViewKey = "organigrama" | "cascada" | "impacto" | "radial" | "gantt";
+
+const VIEWS: { key: ViewKey; label: string; icon: string; description: string }[] = [
+  { key: "organigrama", label: "Organigrama", icon: "🗂️", description: "Jerarquía clásica, de arriba hacia abajo." },
+  { key: "cascada", label: "Matriz cascada", icon: "🪜", description: "Tabla detallada con las celdas fusionadas por nivel." },
+  { key: "impacto", label: "Mapa de impacto", icon: "🎯", description: "Lectura izquierda-derecha: actor → por qué → cómo → qué." },
+  { key: "radial", label: "Visión radial", icon: "☀️", description: "Vista circular proporcional al tamaño de cada rama." },
+  { key: "gantt", label: "Roadmap Gantt", icon: "📅", description: "Línea de tiempo consolidada con fechas reales." },
+];
 
 export default function EstrategiaGeneralPage() {
   const participant = useRequireParticipant();
@@ -55,19 +55,14 @@ export default function EstrategiaGeneralPage() {
   const [goals, setGoals] = useState<GoalRow[]>([]);
   const [candidates, setCandidates] = useState<MetaCandidate[]>([]);
   const [votes, setVotes] = useState<MetaVote[]>([]);
-  const [projectsByAsp, setProjectsByAsp] = useState<Record<number, Project[]>>({});
+  const [projectsByAsp, setProjectsByAsp] = useState<Record<number, TableroProject[]>>({});
   const [planActions, setPlanActions] = useState<PlanActionRow[]>([]);
   const [planActivities, setPlanActivities] = useState<PlanActivityRow[]>([]);
   const [budgetItems, setBudgetItems] = useState<BudgetItemRow[]>([]);
-  const [expanded, setExpanded] = useState<Set<string>>(new Set(["proposito"]));
+  const [view, setView] = useState<ViewKey>("organigrama");
 
   useEffect(() => {
-    fetchAspirations().then((rows) => {
-      setAspirations(rows);
-      // Al cargar, el propósito y las 3 aspiraciones arrancan expandidos — las ramas de
-      // metas/plan de acción arrancan contraídas para no saturar la primera vista.
-      setExpanded((prev) => new Set([...prev, ...rows.map((a) => `asp-${a.id}`)]));
-    });
+    fetchAspirations().then(setAspirations);
     fetchGoals().then(setGoals);
     (async () => {
       const { data } = await supabase.from("submissions").select("content").eq("activity_id", METAS_SUBASTA_ACTIVITY_ID);
@@ -77,8 +72,8 @@ export default function EstrategiaGeneralPage() {
     })();
     (async () => {
       const { data } = await supabase.from("submissions").select("aspiration_id,content").eq("activity_id", PROYECTOS_ACTIVITY_ID);
-      const rows = (data as { aspiration_id: number | null; content: { projects?: Project[] } }[] | null) ?? [];
-      const map: Record<number, Project[]> = {};
+      const rows = (data as { aspiration_id: number | null; content: { projects?: TableroProject[] } }[] | null) ?? [];
+      const map: Record<number, TableroProject[]> = {};
       for (const r of rows) {
         if (r.aspiration_id === null) continue;
         map[r.aspiration_id] = (r.content?.projects ?? []).filter((p) => p.nombre?.trim());
@@ -92,221 +87,55 @@ export default function EstrategiaGeneralPage() {
 
   if (!participant) return null;
 
-  function toggle(id: string) {
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
-
   const pointsByCandidate: Record<string, number> = {};
   for (const v of votes) pointsByCandidate[v.candidate_id] = (pointsByCandidate[v.candidate_id] ?? 0) + v.points;
   const winningCandidates = candidates.filter((c) => (pointsByCandidate[c.id] ?? 0) > 0);
 
-  // Plan de acción ya costeado (Gantt) — se anida bajo cada proyecto estratégico vía
-  // source_project_id, y cada Actividad muestra su presupuesto aprobado acumulado.
-  const actionsByProject: Record<string, PlanActionRow[]> = {};
-  for (const action of planActions) {
-    if (!action.source_project_id) continue;
-    (actionsByProject[action.source_project_id] ??= []).push(action);
-  }
-  const activitiesByAction: Record<number, PlanActivityRow[]> = {};
-  for (const act of planActivities) (activitiesByAction[act.action_id] ??= []).push(act);
-  const budgetByActivity: Record<number, number> = {};
-  for (const item of budgetItems) budgetByActivity[item.plan_activity_id] = (budgetByActivity[item.plan_activity_id] ?? 0) + item.approved;
-
-  function actividadNode(act: PlanActivityRow, cls: ReturnType<typeof aspClasses>): OrgNode {
-    const total = budgetByActivity[act.id] ?? 0;
-    return { id: `activ-${act.id}`, title: `🗓️ ${act.name}`, subtitle: formatMoney(total), tone: cls };
-  }
-  function accionNode(action: PlanActionRow, cls: ReturnType<typeof aspClasses>): OrgNode {
-    const acts = activitiesByAction[action.id] ?? [];
-    return {
-      id: `accion-${action.id}`,
-      title: `📁 ${action.name}`,
-      subtitle: action.owner ? `Responsable: ${action.owner}` : undefined,
-      tone: cls,
-      children: acts.length > 0 ? acts.map((a) => actividadNode(a, cls)) : undefined,
-    };
-  }
-
-  const tree: OrgNode = {
-    id: "proposito",
-    title: "Propósito superior",
-    subtitle: PROPOSITO,
-    children: aspirations.map((a) => {
-      const cls = aspClasses(a.number);
-      const vigentes = goals.filter((g) => g.aspiration_id === a.id && !g.is_new);
-      const nuevas = winningCandidates.filter((c) => c.aspiration_id === a.id);
-      const proyectos = projectsByAsp[a.id] ?? [];
-      function proyectoNode(p: Project): OrgNode {
-        const acciones = actionsByProject[p.id] ?? [];
-        return {
-          id: `proy-${p.id}`,
-          title: `🚀 ${p.nombre ?? ""}`,
-          subtitle: p.responsable ? `Responsable: ${p.responsable}` : undefined,
-          tone: cls,
-          children: acciones.length > 0 ? acciones.map((action) => accionNode(action, cls)) : undefined,
-        };
-      }
-      const metaNodes: OrgNode[] = [
-        ...vigentes.map((g) => {
-          const metaId = `goal:${g.id}`;
-          const proyectosDeMeta = proyectos.filter((p) => p.meta_id === metaId);
-          return {
-            id: `meta-${metaId}`,
-            title: g.description,
-            tone: cls,
-            children: proyectosDeMeta.length > 0 ? proyectosDeMeta.map(proyectoNode) : undefined,
-          };
-        }),
-        ...nuevas.map((c) => {
-          const metaId = `cand:${c.id}`;
-          const proyectosDeMeta = proyectos.filter((p) => p.meta_id === metaId);
-          return {
-            id: `meta-${metaId}`,
-            title: c.text,
-            badge: "NUEVA",
-            tone: cls,
-            children: proyectosDeMeta.length > 0 ? proyectosDeMeta.map(proyectoNode) : undefined,
-          };
-        }),
-      ];
-      // Proyectos sin meta asignada (o cuya meta ya no existe) — se muestran aparte para no
-      // perderlos, nunca se descartan en silencio.
-      const metaIds = new Set(metaNodes.map((n) => n.id.replace("meta-", "")));
-      const sinMeta = proyectos.filter((p) => !p.meta_id || !metaIds.has(p.meta_id));
-      return {
-        id: `asp-${a.id}`,
-        title: `Aspiración ${a.number} · ${ARCHETYPE_LABEL[a.number]}`,
-        subtitle: a.name,
-        tone: cls,
-        children: [
-          ...metaNodes,
-          ...(sinMeta.length > 0
-            ? [
-                {
-                  id: `asp-${a.id}-sin-meta`,
-                  title: "🚀 Plan de acción sin meta asignada",
-                  badge: String(sinMeta.length),
-                  tone: cls,
-                  children: sinMeta.map(proyectoNode),
-                },
-              ]
-            : []),
-        ],
-      };
-    }),
-  };
+  const tree = buildStrategyTree({
+    proposito: PROPOSITO,
+    aspirations,
+    archetypeLabel: ARCHETYPE_LABEL,
+    goalsVigentes: goals.filter((g) => !g.is_new),
+    metasNuevas: winningCandidates,
+    projectsByAsp,
+    planActions,
+    planActivities,
+    budgetItems,
+  });
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
-      <style>{`
-        .ec-tree, .ec-tree ul { display: flex; list-style: none; margin: 0; padding: 0; }
-        .ec-tree { justify-content: center; }
-        .ec-tree ul { padding-top: 28px; }
-        .ec-tree li {
-          position: relative;
-          flex: 1;
-          text-align: center;
-          padding: 28px 10px 0 10px;
-          min-width: 180px;
-        }
-        .ec-tree li::before, .ec-tree li::after {
-          content: "";
-          position: absolute;
-          top: 0;
-          right: 50%;
-          border-top: 2px solid var(--ec-line, #d1d5db);
-          width: 50%;
-          height: 28px;
-        }
-        .ec-tree li::after { right: auto; left: 50%; border-left: 2px solid var(--ec-line, #d1d5db); }
-        .ec-tree li:only-child::before, .ec-tree li:only-child::after { display: none; }
-        .ec-tree li:only-child { padding-top: 0; }
-        .ec-tree li:first-child::before { border: 0 none; }
-        .ec-tree li:last-child::after { border: 0 none; }
-        .ec-tree li:first-child::after { border-radius: 6px 0 0 0; }
-        .ec-tree li:last-child::before { border-radius: 0 6px 0 0; }
-        .ec-tree > li { padding-top: 0; }
-        .ec-tree > li::before, .ec-tree > li::after { display: none; }
-        .ec-tree ul::before {
-          content: "";
-          position: absolute;
-          top: 0;
-          left: 50%;
-          border-left: 2px solid var(--ec-line, #d1d5db);
-          width: 0;
-          height: 28px;
-        }
-      `}</style>
-
       <h1 className="text-xl font-bold text-dark">Estrategia general</h1>
-      <p className="mb-6 text-sm text-muted">
-        Del propósito superior a las aspiraciones, sus metas, los proyectos estratégicos y sus actividades (con su
-        presupuesto) — haz clic en cualquier nodo para contraerlo o expandirlo.
+      <p className="mb-5 text-sm text-muted">
+        Del propósito superior hasta la actividad de menor nivel, con las mismas conexiones reales del sistema — elige
+        la visual que mejor responda a lo que necesitas ver.
       </p>
 
-      <div className="overflow-x-auto pb-6">
-        <ul className="ec-tree min-w-max">
-          <OrgNodeItem node={tree} expanded={expanded} onToggle={toggle} isRoot />
-        </ul>
+      <div className="mb-5 flex flex-wrap gap-1.5 border-b border-border pb-4">
+        {VIEWS.map((v) => {
+          const active = v.key === view;
+          return (
+            <button
+              key={v.key}
+              type="button"
+              onClick={() => setView(v.key)}
+              title={v.description}
+              className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors ${
+                active ? "bg-brand text-dark shadow-sm" : "bg-black/5 text-foreground hover:bg-black/10"
+              }`}
+            >
+              <span>{v.icon}</span>
+              {v.label}
+            </button>
+          );
+        })}
       </div>
-    </div>
-  );
-}
 
-function OrgNodeItem({
-  node,
-  expanded,
-  onToggle,
-  isRoot,
-}: {
-  node: OrgNode;
-  expanded: Set<string>;
-  onToggle: (id: string) => void;
-  isRoot?: boolean;
-}) {
-  const hasChildren = Boolean(node.children && node.children.length > 0);
-  const isOpen = expanded.has(node.id);
-  const tone = node.tone;
-  return (
-    <li>
-      <button
-        type="button"
-        onClick={() => hasChildren && onToggle(node.id)}
-        className={`inline-flex max-w-[260px] flex-col items-start gap-0.5 rounded-lg border px-3 py-2.5 text-left shadow-sm transition-transform ${
-          hasChildren ? "cursor-pointer hover:scale-[1.02]" : "cursor-default"
-        } ${
-          isRoot
-            ? "border-brand bg-brand/10"
-            : tone
-              ? `${tone.border} ${isOpen ? tone.bgSoft : "bg-card"}`
-              : "border-border bg-card"
-        }`}
-      >
-        <div className="flex w-full items-center justify-between gap-2">
-          <span className={`text-sm font-semibold ${isRoot ? "text-brand-dark" : tone ? tone.text : "text-foreground"}`}>
-            {node.title}
-          </span>
-          <span className="flex shrink-0 items-center gap-1">
-            {node.badge && (
-              <span className="rounded-full bg-black/10 px-1.5 py-0.5 text-[10px] font-bold text-foreground">{node.badge}</span>
-            )}
-            {hasChildren && <span className="text-xs text-muted">{isOpen ? "▾" : "▸"}</span>}
-          </span>
-        </div>
-        {node.subtitle && <span className="whitespace-normal break-words text-xs text-muted">{node.subtitle}</span>}
-      </button>
-      {hasChildren && isOpen && (
-        <ul>
-          {node.children!.map((child) => (
-            <OrgNodeItem key={child.id} node={child} expanded={expanded} onToggle={onToggle} />
-          ))}
-        </ul>
-      )}
-    </li>
+      {view === "organigrama" && <OrgChartView tree={tree} />}
+      {view === "cascada" && <CascadeMatrixView tree={tree} />}
+      {view === "impacto" && <ImpactMapView tree={tree} />}
+      {view === "radial" && <RadialView tree={tree} />}
+      {view === "gantt" && <RoadmapGanttView tree={tree} />}
+    </div>
   );
 }
