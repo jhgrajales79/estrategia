@@ -88,12 +88,10 @@ function parseCostCenterValue(value: string | null, costCenters: CostCenterRow[]
 function CostCenterPicker({
   value,
   costCenters,
-  disabled,
   onChange,
 }: {
   value: string | null;
   costCenters: CostCenterRow[];
-  disabled: boolean;
   onChange: (next: string | null) => void;
 }) {
   const saved = parseCostCenterValue(value, costCenters);
@@ -102,17 +100,6 @@ function CostCenterPicker({
   const centros = [...new Set(costCenters.map((c) => c.centro))].sort((a, b) => a.localeCompare(b));
   const subcentros = costCenters.filter((c) => c.centro === activeCentro);
 
-  if (disabled) {
-    const match = costCenters.find((c) => c.subcentro_codigo === saved.codigo);
-    return (
-      <div className="grid gap-2 sm:grid-cols-2">
-        <p className="rounded-md bg-black/[0.03] px-3 py-1.5 text-sm text-foreground min-h-8">{saved.centro || "—"}</p>
-        <p className="rounded-md bg-black/[0.03] px-3 py-1.5 text-sm text-foreground min-h-8">
-          {saved.codigo ? `${saved.codigo}${match?.descripcion ? ` — ${match.descripcion}` : ""}` : "—"}
-        </p>
-      </div>
-    );
-  }
   return (
     <div className="grid gap-2 sm:grid-cols-2">
       <select
@@ -377,7 +364,7 @@ export default function GanttPlaneacion({ activity, aspirations, presenter }: { 
 
   return (
     <div className="space-y-3">
-      {!presenter && pendingProjects.length > 0 && (
+      {pendingProjects.length > 0 && (
         <div className="rounded-lg border border-dashed border-brand/40 bg-brand/5 p-3">
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-brand-dark">
             📋 Proyectos del taller sin costear todavía — toca para promoverlos a proyecto estratégico
@@ -595,7 +582,7 @@ export default function GanttPlaneacion({ activity, aspirations, presenter }: { 
                               );
                             })}
 
-                          {actOpen && !presenter && (
+                          {actOpen && (
                             <div className="flex">
                               {addingConceptFor === act.id ? (
                                 <div className="flex w-full items-center gap-1.5 border-t border-border bg-black/[0.01] py-1.5 pl-9 pr-2">
@@ -637,7 +624,7 @@ export default function GanttPlaneacion({ activity, aspirations, presenter }: { 
                       );
                     })}
 
-                  {projOpen && !presenter && (
+                  {projOpen && (
                     <div className="flex">
                       {addingActivityFor === a.id ? (
                         <div className="flex w-full items-center gap-1.5 border-t border-border bg-black/[0.01] py-1.5 pl-5 pr-2">
@@ -728,16 +715,14 @@ function AccionPanel({ action, presenter, onClose }: { action: PlanActionRow; pr
             <input
               className={inputCls}
               defaultValue={action.name}
-              disabled={presenter}
-              onBlur={(e) => e.target.value !== action.name && commit({ name: e.target.value })}
+                            onBlur={(e) => e.target.value !== action.name && commit({ name: e.target.value })}
             />
           </Field>
           <Field label="Responsable">
             <input
               className={inputCls}
               defaultValue={action.owner ?? ""}
-              disabled={presenter}
-              onBlur={(e) => e.target.value !== action.owner && commit({ owner: e.target.value || null })}
+                            onBlur={(e) => e.target.value !== action.owner && commit({ owner: e.target.value || null })}
             />
           </Field>
         </div>
@@ -745,8 +730,7 @@ function AccionPanel({ action, presenter, onClose }: { action: PlanActionRow; pr
           <textarea
             className={inputCls + " min-h-14 resize-y"}
             defaultValue={action.scope ?? ""}
-            disabled={presenter}
-            onBlur={(e) => e.target.value !== action.scope && commit({ scope: e.target.value || null })}
+                        onBlur={(e) => e.target.value !== action.scope && commit({ scope: e.target.value || null })}
           />
         </Field>
         <div className="grid gap-3 sm:grid-cols-2">
@@ -754,16 +738,14 @@ function AccionPanel({ action, presenter, onClose }: { action: PlanActionRow; pr
             <input
               className={inputCls}
               defaultValue={action.objetivo_estrategico ?? ""}
-              disabled={presenter}
-              onBlur={(e) => e.target.value !== action.objetivo_estrategico && commit({ objetivo_estrategico: e.target.value || null })}
+                            onBlur={(e) => e.target.value !== action.objetivo_estrategico && commit({ objetivo_estrategico: e.target.value || null })}
             />
           </Field>
           <Field label="Meta que se pretende alcanzar">
             <input
               className={inputCls}
               defaultValue={action.meta_descripcion ?? ""}
-              disabled={presenter}
-              onBlur={(e) => e.target.value !== action.meta_descripcion && commit({ meta_descripcion: e.target.value || null })}
+                            onBlur={(e) => e.target.value !== action.meta_descripcion && commit({ meta_descripcion: e.target.value || null })}
             />
           </Field>
         </div>
@@ -772,16 +754,14 @@ function AccionPanel({ action, presenter, onClose }: { action: PlanActionRow; pr
             <input
               className={inputCls}
               defaultValue={action.kpi ?? ""}
-              disabled={presenter}
-              onBlur={(e) => e.target.value !== action.kpi && commit({ kpi: e.target.value || null })}
+                            onBlur={(e) => e.target.value !== action.kpi && commit({ kpi: e.target.value || null })}
             />
           </Field>
           <Field label="Frecuencia de medición">
             <select
               className={inputCls}
               defaultValue={action.frecuencia_medicion ?? ""}
-              disabled={presenter}
-              onChange={(e) => commit({ frecuencia_medicion: (e.target.value || null) as PlanActionRow["frecuencia_medicion"] })}
+                            onChange={(e) => commit({ frecuencia_medicion: (e.target.value || null) as PlanActionRow["frecuencia_medicion"] })}
             >
               <option value="">Sin definir…</option>
               <option value="semanal">Semanal</option>
@@ -797,8 +777,7 @@ function AccionPanel({ action, presenter, onClose }: { action: PlanActionRow; pr
             <select
               className={inputCls}
               defaultValue={action.tipo_medida ?? ""}
-              disabled={presenter}
-              onChange={(e) => commit({ tipo_medida: (e.target.value || null) as PlanActionRow["tipo_medida"] })}
+                            onChange={(e) => commit({ tipo_medida: (e.target.value || null) as PlanActionRow["tipo_medida"] })}
             >
               <option value="">Sin definir…</option>
               <option value="valor">Valor o monto</option>
@@ -810,8 +789,7 @@ function AccionPanel({ action, presenter, onClose }: { action: PlanActionRow; pr
             <select
               className={inputCls}
               defaultValue={action.polaridad ?? ""}
-              disabled={presenter}
-              onChange={(e) => commit({ polaridad: (e.target.value || null) as PlanActionRow["polaridad"] })}
+                            onChange={(e) => commit({ polaridad: (e.target.value || null) as PlanActionRow["polaridad"] })}
             >
               <option value="">Sin definir…</option>
               <option value="ascendente">Ascendente</option>
@@ -822,8 +800,7 @@ function AccionPanel({ action, presenter, onClose }: { action: PlanActionRow; pr
             <input
               className={inputCls}
               defaultValue={action.linea_base ?? ""}
-              disabled={presenter}
-              onBlur={(e) => e.target.value !== action.linea_base && commit({ linea_base: e.target.value || null })}
+                            onBlur={(e) => e.target.value !== action.linea_base && commit({ linea_base: e.target.value || null })}
             />
           </Field>
         </div>
@@ -832,19 +809,18 @@ function AccionPanel({ action, presenter, onClose }: { action: PlanActionRow; pr
             <input
               className={inputCls}
               defaultValue={action.valor_meta ?? ""}
-              disabled={presenter}
               onBlur={(e) => e.target.value !== action.valor_meta && commit({ valor_meta: e.target.value || null })}
             />
           </Field>
           <Field label="Fecha inicio">
-            <input type="date" className={inputCls} value={start} disabled={presenter} onChange={(e) => commitStart(e.target.value)} />
+            <input type="date" className={inputCls} value={start} onChange={(e) => commitStart(e.target.value)} />
           </Field>
           <Field label="Fecha final">
-            <input type="date" className={inputCls} value={end} disabled={presenter} onChange={(e) => commitEnd(e.target.value)} />
+            <input type="date" className={inputCls} value={end} onChange={(e) => commitEnd(e.target.value)} />
           </Field>
         </div>
         {error && <p className="text-xs text-red-600">{error}</p>}
-        {!presenter && (
+        {presenter && (
           <div className="flex justify-end border-t border-border pt-3">
             <DeleteButton label="eliminar proyecto estratégico" onConfirm={() => deletePlanAction(action.id).then(onClose)} />
           </div>
@@ -899,8 +875,7 @@ function ActividadPanel({
             <input
               className={inputCls}
               defaultValue={activity.name}
-              disabled={presenter}
-              onBlur={(e) => e.target.value !== activity.name && commit({ name: e.target.value })}
+                            onBlur={(e) => e.target.value !== activity.name && commit({ name: e.target.value })}
             />
           </Field>
           <Field label="Área responsable">
@@ -908,24 +883,22 @@ function ActividadPanel({
               className={inputCls}
               placeholder="p. ej. PYO - Planificación y Operaciones"
               defaultValue={activity.area_responsable ?? ""}
-              disabled={presenter}
-              onBlur={(e) => e.target.value !== activity.area_responsable && commit({ area_responsable: e.target.value || null })}
+                            onBlur={(e) => e.target.value !== activity.area_responsable && commit({ area_responsable: e.target.value || null })}
             />
           </Field>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Fecha inicio">
-            <input type="date" className={inputCls} value={start} disabled={presenter} onChange={(e) => commitStart(e.target.value)} />
+            <input type="date" className={inputCls} value={start} onChange={(e) => commitStart(e.target.value)} />
           </Field>
           <Field label="Fecha fin">
-            <input type="date" className={inputCls} value={end} disabled={presenter} onChange={(e) => commitEnd(e.target.value)} />
+            <input type="date" className={inputCls} value={end} onChange={(e) => commitEnd(e.target.value)} />
           </Field>
         </div>
         <Field label="Código presupuestal">
           <CostCenterPicker
             value={activity.cost_center}
             costCenters={costCenters}
-            disabled={presenter}
             onChange={(next) => next !== activity.cost_center && commit({ cost_center: next })}
           />
         </Field>
@@ -933,12 +906,11 @@ function ActividadPanel({
           <textarea
             className={inputCls + " min-h-14 resize-y"}
             defaultValue={activity.notes ?? ""}
-            disabled={presenter}
-            onBlur={(e) => e.target.value !== activity.notes && commit({ notes: e.target.value || null })}
+                        onBlur={(e) => e.target.value !== activity.notes && commit({ notes: e.target.value || null })}
           />
         </Field>
         {error && <p className="text-xs text-red-600">{error}</p>}
-        {!presenter && (
+        {presenter && (
           <div className="flex justify-end border-t border-border pt-3">
             <DeleteButton label="eliminar actividad" onConfirm={() => deletePlanActivity(activity.id).then(onClose)} />
           </div>
@@ -1016,16 +988,14 @@ function ConceptoPanel({
             <input
               className={inputCls}
               defaultValue={item.concept}
-              disabled={presenter}
-              onBlur={(e) => e.target.value !== item.concept && commit({ concept: e.target.value })}
+                            onBlur={(e) => e.target.value !== item.concept && commit({ concept: e.target.value })}
             />
           </Field>
           <Field label="Presupuesto">
             <input
               className={inputCls + " text-right"}
               value={approvedDraft !== null ? approvedDraft : item.approved ? String(item.approved) : ""}
-              disabled={presenter}
-              onChange={(e) => setApprovedDraft(e.target.value.replace(/[^\d]/g, ""))}
+                            onChange={(e) => setApprovedDraft(e.target.value.replace(/[^\d]/g, ""))}
               onFocus={() => setApprovedDraft(item.approved ? String(item.approved) : "")}
               onBlur={() => {
                 if (approvedDraft !== null) commit({ approved: parseMoney(approvedDraft) });
@@ -1036,10 +1006,10 @@ function ConceptoPanel({
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Fecha inicio de la planeación">
-            <input type="date" className={inputCls} value={start} disabled={presenter} onChange={(e) => commitStart(e.target.value)} />
+            <input type="date" className={inputCls} value={start} onChange={(e) => commitStart(e.target.value)} />
           </Field>
           <Field label="Fecha final de la planeación">
-            <input type="date" className={inputCls} value={end} disabled={presenter} onChange={(e) => commitEnd(e.target.value)} />
+            <input type="date" className={inputCls} value={end} onChange={(e) => commitEnd(e.target.value)} />
           </Field>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
@@ -1047,8 +1017,7 @@ function ConceptoPanel({
             <input
               className={inputCls}
               value={responsable}
-              disabled={presenter}
-              onChange={(e) => setResponsable(e.target.value)}
+                            onChange={(e) => setResponsable(e.target.value)}
               onBlur={() => responsable !== (item.plan_responsable ?? "") && commit({ plan_responsable: responsable || null })}
             />
           </Field>
@@ -1056,8 +1025,7 @@ function ConceptoPanel({
             <select
               className={inputCls}
               value={estado}
-              disabled={presenter}
-              onChange={(e) => {
+                            onChange={(e) => {
                 const v = e.target.value as BudgetItemPlanEstado;
                 setEstado(v);
                 commit({ plan_estado: v });
@@ -1073,13 +1041,12 @@ function ConceptoPanel({
           <textarea
             className={inputCls + " min-h-16"}
             value={notes}
-            disabled={presenter}
-            onChange={(e) => setNotes(e.target.value)}
+                        onChange={(e) => setNotes(e.target.value)}
             onBlur={() => notes !== (item.plan_notes ?? "") && commit({ plan_notes: notes || null })}
           />
         </Field>
         {error && <p className="text-xs text-red-600">{error}</p>}
-        {!presenter && (
+        {presenter && (
           <div className="flex justify-end border-t border-border pt-3">
             <DeleteButton label="eliminar concepto" onConfirm={() => deleteBudgetItem(item.id).then(onClose)} />
           </div>
