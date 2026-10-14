@@ -15,6 +15,8 @@ import {
   formatMoney,
   formatPct,
 } from "@/lib/budget";
+import { useStrategyTree } from "@/app/estrategia/useStrategyTree";
+import StrategyViews from "@/app/estrategia/StrategyViews";
 import type { ActivityRow, Aspiration, BudgetByAspiration, BudgetTotal, BudgetVsProgress, SessionRow } from "@/lib/types";
 
 // Versión proyectable (pantalla completa, solo facilitador) del dashboard financiero global —
@@ -61,6 +63,13 @@ export default function PresupuestoFullscreenPage({ params }: { params: Promise<
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activityId]);
+
+  // Mismas 5 visuales de /estrategia (organigrama, matriz cascada, mapa de impacto, visión
+  // radial, roadmap Gantt) — usa el `actionsFrom` real de esta actividad para el tablero de
+  // proyectos del taller S6, igual que GanttPlaneacion, en vez de asumir siempre la actividad 31.
+  const proyectosActivityId =
+    (activity?.config.actionsFrom as number | undefined) ?? (activity?.config.inputsFrom as number[] | undefined)?.[0];
+  const { tree, loaded: treeLoaded } = useStrategyTree(proyectosActivityId);
 
   if (!participant || !activity || !session || !loaded || !total) {
     return <div className="flex min-h-screen items-center justify-center bg-dark text-sm text-white/60">Cargando…</div>;
@@ -131,6 +140,14 @@ export default function PresupuestoFullscreenPage({ params }: { params: Promise<
             </div>
           );
         })}
+      </div>
+
+      <div className="mx-auto mt-8 max-w-[1500px] rounded-2xl bg-background p-6">
+        <h2 className="text-lg font-bold text-dark">Estrategia general</h2>
+        <p className="mb-5 text-sm text-muted">
+          Del propósito superior hasta la actividad de menor nivel, con las mismas conexiones reales del sistema.
+        </p>
+        <StrategyViews tree={tree} loaded={treeLoaded} />
       </div>
     </div>
   );
