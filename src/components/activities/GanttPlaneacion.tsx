@@ -388,8 +388,8 @@ export default function GanttPlaneacion({ activity, aspirations, presenter }: { 
         </div>
       )}
 
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="flex rounded-md border border-border bg-card p-0.5">
+      <div className="flex flex-nowrap items-center gap-2 overflow-x-auto pb-1">
+        <div className="flex shrink-0 rounded-md border border-border bg-card p-0.5">
           {(["day", "week", "month"] as ViewMode[]).map((v) => (
             <button
               key={v}
@@ -403,7 +403,11 @@ export default function GanttPlaneacion({ activity, aspirations, presenter }: { 
             </button>
           ))}
         </div>
-        <select className={inputCls + " w-auto"} value={filterAsp} onChange={(e) => setFilterAsp(e.target.value === "all" ? "all" : Number(e.target.value))}>
+        <select
+          className={inputCls + " w-auto shrink-0 max-w-[11rem]"}
+          value={filterAsp}
+          onChange={(e) => setFilterAsp(e.target.value === "all" ? "all" : Number(e.target.value))}
+        >
           <option value="all">Todas las aspiraciones</option>
           {aspirations.map((a) => (
             <option key={a.id} value={a.id}>
@@ -411,7 +415,7 @@ export default function GanttPlaneacion({ activity, aspirations, presenter }: { 
             </option>
           ))}
         </select>
-        <select className={inputCls + " w-auto"} value={filterArea} onChange={(e) => setFilterArea(e.target.value)}>
+        <select className={inputCls + " w-auto shrink-0 max-w-[10rem]"} value={filterArea} onChange={(e) => setFilterArea(e.target.value)}>
           <option value="">Toda área responsable</option>
           {areaOptions.map((a) => (
             <option key={a} value={a}>
@@ -419,7 +423,7 @@ export default function GanttPlaneacion({ activity, aspirations, presenter }: { 
             </option>
           ))}
         </select>
-        <select className={inputCls + " w-auto"} value={filterCentro} onChange={(e) => setFilterCentro(e.target.value)}>
+        <select className={inputCls + " w-auto shrink-0 max-w-[10rem]"} value={filterCentro} onChange={(e) => setFilterCentro(e.target.value)}>
           <option value="">Todo centro de costo</option>
           {centroOptions.map((c) => (
             <option key={c} value={c}>
@@ -428,7 +432,7 @@ export default function GanttPlaneacion({ activity, aspirations, presenter }: { 
           ))}
         </select>
         <input
-          className={inputCls + " w-auto"}
+          className={inputCls + " w-auto shrink-0 min-w-[11rem]"}
           placeholder="Buscar responsable de planeación…"
           value={filterResponsable}
           onChange={(e) => setFilterResponsable(e.target.value)}
