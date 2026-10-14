@@ -114,11 +114,29 @@ function arcPath(cx: number, cy: number, rInner: number, rOuter: number, a0Deg: 
   ].join(" ");
 }
 
+const PROPOSITO_KEY = "proposito";
+
 export default function RadialView({ tree }: { tree: StrategyTree }) {
   const [selected, setSelected] = useState<Wedge | null>(null);
+  const [hovered, setHovered] = useState<string | null>(null);
   const wedges = buildWedges(tree);
   const cx = 240;
   const cy = 240;
+
+  const propositoWedge: Wedge = {
+    key: PROPOSITO_KEY,
+    depth: 1,
+    a0: 0,
+    a1: 0,
+    color: "var(--brand-dark)",
+    label: "Propósito superior",
+    breadcrumb: tree.proposito,
+    budget: tree.totalBudget,
+  };
+
+  function selectAndAnnounce(w: Wedge) {
+    setSelected(w);
+  }
 
   if (tree.aspiraciones.length === 0) {
     return <p className="text-sm text-muted">Aún no hay datos para mostrar en la visión radial.</p>;
@@ -128,24 +146,39 @@ export default function RadialView({ tree }: { tree: StrategyTree }) {
     <div>
       <p className="mb-4 text-sm text-muted">
         Del centro hacia afuera: propósito, aspiraciones, metas, proyectos estratégicos y actividades — el tamaño de
-        cada sector es proporcional a cuántas actividades cuelgan de él. Haz clic en un sector para ver el detalle.
+        cada sector es proporcional a cuántas actividades cuelgan de él. Haz clic (o usa Tab + Enter) en un sector para
+        ver el detalle.
       </p>
       <div className="flex flex-col items-center gap-4 lg:flex-row lg:items-start lg:justify-center">
-        <svg viewBox="0 0 480 480" className="w-full max-w-[480px]">
+        <svg viewBox="0 0 480 480" className="w-full max-w-[480px]" role="img" aria-label="Visión radial de la estrategia, desde el propósito superior hasta las actividades">
           {wedges.map((w) => {
             const [rInner, rOuter] = RING[w.depth];
             const pad = Math.min(0.5, (w.a1 - w.a0) * 0.08);
             const isSelected = selected?.key === w.key;
+            const isHovered = hovered === w.key;
             return (
               <path
                 key={w.key}
                 d={arcPath(cx, cy, rInner, rOuter, w.a0 + pad, w.a1 - pad)}
                 fill={w.color}
-                fillOpacity={OPACITY[w.depth]}
+                fillOpacity={isHovered ? Math.min(1, OPACITY[w.depth] + 0.15) : OPACITY[w.depth]}
                 stroke={isSelected ? "var(--foreground)" : "var(--card)"}
-                strokeWidth={isSelected ? 2 : 1}
-                className="cursor-pointer transition-[stroke-width] duration-150"
-                onClick={() => setSelected(w)}
+                strokeWidth={isSelected ? 2.5 : 1}
+                tabIndex={0}
+                role="button"
+                aria-label={`${w.breadcrumb}${w.budget !== null ? ` — ${formatMoney(w.budget)}` : ""}`}
+                className="cursor-pointer outline-none transition-[fill-opacity,stroke-width] duration-150 focus-visible:stroke-brand-dark focus-visible:[stroke-width:3]"
+                onClick={() => selectAndAnnounce(w)}
+                onMouseEnter={() => setHovered(w.key)}
+                onMouseLeave={() => setHovered((k) => (k === w.key ? null : k))}
+                onFocus={() => setHovered(w.key)}
+                onBlur={() => setHovered((k) => (k === w.key ? null : k))}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    selectAndAnnounce(w);
+                  }
+                }}
               >
                 <title>
                   {w.label}
@@ -154,11 +187,36 @@ export default function RadialView({ tree }: { tree: StrategyTree }) {
               </path>
             );
           })}
-          <circle cx={cx} cy={cy} r={36} fill="var(--brand)" fillOpacity={0.18} stroke="var(--brand-dark)" strokeWidth={1.5} className="cursor-pointer" onClick={() => setSelected({ key: "proposito", depth: 1, a0: 0, a1: 0, color: "var(--brand-dark)", label: "Propósito superior", breadcrumb: tree.proposito, budget: tree.totalBudget })} />
-          <text x={cx} y={cy - 4} textAnchor="middle" className="fill-brand-dark text-[11px] font-bold">
+          <circle
+            cx={cx}
+            cy={cy}
+            r={36}
+            fill="var(--brand)"
+            fillOpacity={hovered === PROPOSITO_KEY ? 0.3 : 0.18}
+            stroke="var(--brand-dark)"
+            strokeWidth={selected?.key === PROPOSITO_KEY ? 2.5 : 1.5}
+            tabIndex={0}
+            role="button"
+            aria-label={`Propósito superior — ${tree.proposito}`}
+            className="cursor-pointer outline-none transition-[fill-opacity,stroke-width] duration-150 focus-visible:[stroke-width:3]"
+            onClick={() => selectAndAnnounce(propositoWedge)}
+            onMouseEnter={() => setHovered(PROPOSITO_KEY)}
+            onMouseLeave={() => setHovered((k) => (k === PROPOSITO_KEY ? null : k))}
+            onFocus={() => setHovered(PROPOSITO_KEY)}
+            onBlur={() => setHovered((k) => (k === PROPOSITO_KEY ? null : k))}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                selectAndAnnounce(propositoWedge);
+              }
+            }}
+          >
+            <title>Propósito superior — {tree.proposito}</title>
+          </circle>
+          <text x={cx} y={cy - 4} textAnchor="middle" className="pointer-events-none fill-brand-dark text-[11px] font-bold">
             Propósito
           </text>
-          <text x={cx} y={cy + 10} textAnchor="middle" className="fill-muted text-[9px]">
+          <text x={cx} y={cy + 10} textAnchor="middle" className="pointer-events-none fill-muted text-[9px]">
             superior
           </text>
         </svg>

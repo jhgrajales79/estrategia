@@ -90,14 +90,14 @@ export default function OrgChartView({ tree }: { tree: StrategyTree }) {
           <button
             type="button"
             onClick={() => setExpanded(new Set(allIds(root)))}
-            className="rounded-md border border-border px-2.5 py-1 text-xs font-semibold text-foreground hover:bg-black/5"
+            className="rounded-md border border-border px-2.5 py-1 text-xs font-semibold text-foreground outline-none hover:bg-black/5 focus-visible:ring-2 focus-visible:ring-brand-dark"
           >
             Expandir todo
           </button>
           <button
             type="button"
             onClick={() => setExpanded(new Set(["proposito", ...tree.aspiraciones.map((a) => `asp-${a.id}`)]))}
-            className="rounded-md border border-border px-2.5 py-1 text-xs font-semibold text-foreground hover:bg-black/5"
+            className="rounded-md border border-border px-2.5 py-1 text-xs font-semibold text-foreground outline-none hover:bg-black/5 focus-visible:ring-2 focus-visible:ring-brand-dark"
           >
             Contraer todo
           </button>
@@ -147,7 +147,8 @@ function OrgNodeItem({
       <button
         type="button"
         onClick={() => hasChildren && onToggle(node.id)}
-        className={`relative z-10 inline-flex ${CARD_WIDTH[depth] ?? "max-w-[200px]"} flex-col items-start gap-0.5 rounded-lg border ${CARD_PAD[depth] ?? "px-2.5 py-1.5"} text-left shadow-sm transition-transform ${
+        aria-expanded={hasChildren ? isOpen : undefined}
+        className={`relative z-10 inline-flex ${CARD_WIDTH[depth] ?? "max-w-[200px]"} flex-col items-start gap-0.5 rounded-lg border ${CARD_PAD[depth] ?? "px-2.5 py-1.5"} text-left shadow-sm outline-none transition-transform focus-visible:ring-2 focus-visible:ring-brand-dark ${
           hasChildren ? "cursor-pointer hover:scale-[1.03] hover:shadow-md" : "cursor-default"
         } ${
           isRoot

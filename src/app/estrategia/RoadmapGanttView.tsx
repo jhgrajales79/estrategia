@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { formatMoney } from "@/lib/budget";
 import { aspClasses } from "@/lib/aspirationStyle";
+import PropositoBanner from "./PropositoBanner";
 import type { ProyectoEstrategicoNode, StrategyTree } from "./strategyTree";
 
 type ViewMode = "week" | "month";
@@ -70,7 +71,12 @@ export default function RoadmapGanttView({ tree }: { tree: StrategyTree }) {
   }
 
   if (allDates.length === 0) {
-    return <p className="text-sm text-muted">Aún no hay fechas programadas en el plan de acción para mostrar un roadmap.</p>;
+    return (
+      <div>
+        <PropositoBanner text={tree.proposito} />
+        <p className="text-sm text-muted">Aún no hay fechas programadas en el plan de acción para mostrar un roadmap.</p>
+      </div>
+    );
   }
 
   const minDate = new Date(Math.min(...allDates.map((d) => d.getTime())));
@@ -102,6 +108,7 @@ export default function RoadmapGanttView({ tree }: { tree: StrategyTree }) {
 
   return (
     <div>
+      <PropositoBanner text={tree.proposito} />
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-muted">
           Línea de tiempo consolidada del plan de acción — cada proyecto estratégico y sus actividades, con fechas
@@ -113,7 +120,8 @@ export default function RoadmapGanttView({ tree }: { tree: StrategyTree }) {
               key={v}
               type="button"
               onClick={() => setView(v)}
-              className={`rounded px-2.5 py-1 text-xs font-semibold transition-colors ${
+              aria-pressed={view === v}
+              className={`rounded px-2.5 py-1 text-xs font-semibold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-brand-dark ${
                 view === v ? "bg-brand text-dark" : "text-muted hover:bg-black/5"
               }`}
             >
@@ -126,7 +134,12 @@ export default function RoadmapGanttView({ tree }: { tree: StrategyTree }) {
       <div className="overflow-x-auto rounded-lg border border-border">
         <div className="inline-block min-w-full">
           <div className="flex">
-            <div className="sticky left-0 z-10 w-72 shrink-0 border-r border-border bg-card" />
+            <div
+              className="sticky left-0 z-10 flex w-72 shrink-0 items-center gap-1 truncate border-r border-b border-border bg-card px-2 text-[11px] font-semibold text-brand-dark"
+              title={tree.proposito}
+            >
+              🧭 Propósito superior
+            </div>
             <div className="relative shrink-0 border-b border-border bg-black/[0.02]" style={{ width: timelineWidth, height: 26 }}>
               {ticks.map((t) => (
                 <div
@@ -150,7 +163,8 @@ export default function RoadmapGanttView({ tree }: { tree: StrategyTree }) {
                   <button
                     type="button"
                     onClick={() => toggle(aspKey)}
-                    className="sticky left-0 z-10 flex w-72 shrink-0 items-center gap-1.5 border-r border-b border-border px-2 py-1.5 text-left"
+                    aria-expanded={aspOpen}
+                    className="sticky left-0 z-10 flex w-72 shrink-0 items-center gap-1.5 border-r border-b border-border px-2 py-1.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-brand-dark"
                   >
                     <span className="text-xs text-muted">{aspOpen ? "▾" : "▸"}</span>
                     <span className={`truncate text-xs font-bold uppercase tracking-wide ${tone.text}`}>

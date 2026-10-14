@@ -2,6 +2,7 @@
 
 import { formatMoney } from "@/lib/budget";
 import { aspClasses } from "@/lib/aspirationStyle";
+import PropositoBanner from "./PropositoBanner";
 import type { ActividadNode, AspiracionNode, MetaNode, ProyectoEstrategicoNode, StrategyTree } from "./strategyTree";
 
 interface CascadeRow {
@@ -55,24 +56,30 @@ export default function CascadeMatrixView({ tree }: { tree: StrategyTree }) {
   const seenProy = new Set<string>();
 
   if (rows.length === 0) {
-    return <p className="text-sm text-muted">Aún no hay datos para mostrar en la matriz cascada.</p>;
+    return (
+      <div>
+        <PropositoBanner text={tree.proposito} />
+        <p className="text-sm text-muted">Aún no hay datos para mostrar en la matriz cascada.</p>
+      </div>
+    );
   }
 
   return (
     <div>
+      <PropositoBanner text={tree.proposito} />
       <p className="mb-4 text-sm text-muted">
         Cada fila es una actividad del plan de acción; las celdas de la izquierda se fusionan hacia abajo para mostrar
         de qué aspiración, meta y proyecto estratégico se desprende, de arriba hacia abajo.
       </p>
-      <div className="overflow-x-auto rounded-lg border border-border">
+      <div className="max-h-[70vh] overflow-auto rounded-lg border border-border">
         <table className="w-full min-w-[920px] border-collapse text-sm">
           <thead>
             <tr className="bg-black/[0.03] text-left text-xs font-semibold uppercase tracking-wide text-muted">
-              <th className="sticky top-0 border-b border-border px-3 py-2">Aspiración</th>
-              <th className="sticky top-0 border-b border-border px-3 py-2">Meta</th>
-              <th className="sticky top-0 border-b border-border px-3 py-2">Proyecto estratégico</th>
-              <th className="sticky top-0 border-b border-border px-3 py-2">Actividad</th>
-              <th className="sticky top-0 border-b border-border px-3 py-2 text-right">Presupuesto</th>
+              <th className="sticky top-0 z-10 border-b border-border bg-card px-3 py-2">Aspiración</th>
+              <th className="sticky top-0 z-10 border-b border-border bg-card px-3 py-2">Meta</th>
+              <th className="sticky top-0 z-10 border-b border-border bg-card px-3 py-2">Proyecto estratégico</th>
+              <th className="sticky top-0 z-10 border-b border-border bg-card px-3 py-2">Actividad</th>
+              <th className="sticky top-0 z-10 border-b border-border bg-card px-3 py-2 text-right">Presupuesto</th>
             </tr>
           </thead>
           <tbody>
