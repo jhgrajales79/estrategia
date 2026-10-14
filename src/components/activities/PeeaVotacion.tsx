@@ -47,6 +47,10 @@ export function computePosture(byAxis: (axis: AxisDef["axis"]) => number) {
 // persona vota su propio puntaje por eje (0-scaleMax) y escribe su sustento — sin pelearse por
 // un control compartido. La postura estratégica final se calcula con el PROMEDIO de los votos de
 // cada eje, y cualquiera puede ver cuántas personas ya votaron y qué sustentos dejaron los demás.
+// Cada persona puede votar como máximo en MAX_VOTES ejes; bajar un voto a 0 (sin sustento) lo
+// retira y libera el cupo para votar en otro eje.
+const MAX_VOTES = 3;
+
 export default function PeeaVotacion({ activity, session, participant }: ActivityComponentProps) {
   const axes = (activity.config.items as AxisDef[]) ?? [];
   const scaleMax = (activity.config.scaleMax as number) ?? 6;
@@ -68,19 +72,31 @@ export default function PeeaVotacion({ activity, session, participant }: Activit
   // acaba de votar en el mismo instante.
   async function mutateContent(fn: (latest: Content) => Content, opts?: { eventType?: string; summary?: string }) {
     const latest = await fetchLatestContent<Content>(activity.id, null, emptyContent);
-    await save(fn(latest), opts);
+    const next = fn(latest);
+    if (next !== latest) await save(next, opts);
   }
 
   function myVote(axis: AxisDef["axis"]) {
     return content.votes.find((v) => v.participant_id === participant.id && v.axis === axis);
   }
+  function myVoteCount(votes: Vote[]) {
+    return votes.filter((v) => v.participant_id === participant.id).length;
+  }
+  // Se valida contra la fila más reciente (no solo contra el estado local) para que la misma
+  // persona no supere el máximo votando desde dos pestañas a la vez.
+  function overLimit(latest: Content, id: string) {
+    return !latest.votes.some((v) => v.id === id) && myVoteCount(latest.votes) >= MAX_VOTES;
+  }
   function setScore(axis: AxisDef["axis"], score: number) {
     const id = `${axis}:${participant.id}`;
     mutateContent(
       (latest) => {
+        if (overLimit(latest, id)) return latest;
         const existing = latest.votes.find((v) => v.id === id);
+        const others = latest.votes.filter((v) => v.id !== id);
+        if (score === 0 && !existing?.note?.trim()) return { votes: others };
         const vote: Vote = { id, axis, participant_id: participant.id, participant_name: participant.name, score, note: existing?.note };
-        return { votes: [...latest.votes.filter((v) => v.id !== id), vote] };
+        return { votes: [...others, vote] };
       },
       { eventType: "voto_peea", summary: `${participant.name} votó en "${activity.title}"` }
     );
@@ -95,7 +111,9 @@ export default function PeeaVotacion({ activity, session, participant }: Activit
       return next;
     });
     mutateContent((latest) => {
+      if (overLimit(latest, id)) return latest;
       const existing = latest.votes.find((v) => v.id === id);
+      if (!existing && !value.trim()) return latest;
       const vote: Vote = { id, axis, participant_id: participant.id, participant_name: participant.name, score: existing?.score ?? 0, note: value };
       return { votes: [...latest.votes.filter((v) => v.id !== id), vote] };
     });
@@ -111,6 +129,8 @@ export default function PeeaVotacion({ activity, session, participant }: Activit
 
   const { x, y, posture } = computePosture(axisAverage);
   const totalVoters = new Set(content.votes.map((v) => v.participant_id)).size;
+  const myVotes = myVoteCount(content.votes);
+  const limitReached = myVotes >= MAX_VOTES;
 
   return (
     <div className="space-y-3">
@@ -130,6 +150,12 @@ export default function PeeaVotacion({ activity, session, participant }: Activit
         {totalVoters} {totalVoters === 1 ? "persona ha votado" : "personas han votado"} — cada quien pone su propio puntaje y
         sustento por eje; el resultado final es el promedio de todos.
       </p>
+      {!presenter && (
+        <p className={`text-xs font-medium ${limitReached ? "text-brand-dark" : "text-muted"}`}>
+          Llevas {myVotes} de {MAX_VOTES} votos.
+          {limitReached && " Para votar en otro eje, baja a 0 uno de tus votos."}
+        </p>
+      )}
 
       <div className="grid gap-3 sm:grid-cols-2">
         {axes.map((a) => {
@@ -137,6 +163,7 @@ export default function PeeaVotacion({ activity, session, participant }: Activit
           const average = axisAverage(a.axis);
           const mine = myVote(a.axis);
           const noteId = `${a.axis}:${participant.id}`;
+          const blocked = !mine && limitReached;
           return (
             <div key={a.key} className="rounded-lg border border-border bg-card p-3">
               <p className="text-sm font-semibold text-foreground">{a.label}</p>
@@ -166,7 +193,7 @@ export default function PeeaVotacion({ activity, session, participant }: Activit
                   <button
                     type="button"
                     className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-border text-base font-semibold hover:bg-black/5 disabled:opacity-30"
-                    disabled={(mine?.score ?? 0) >= scaleMax}
+                    disabled={blocked || (mine?.score ?? 0) >= scaleMax}
                     onClick={() => setScore(a.axis, Math.min(scaleMax, (mine?.score ?? 0) + 1))}
                     aria-label="Subir mi puntaje"
                   >
@@ -180,7 +207,8 @@ export default function PeeaVotacion({ activity, session, participant }: Activit
               {!presenter && (
                 <input
                   className={inputCls + " mt-2"}
-                  placeholder="Mi sustento…"
+                  placeholder={blocked ? `Ya usaste tus ${MAX_VOTES} votos` : "Mi sustento…"}
+                  disabled={blocked}
                   value={noteDrafts[noteId] ?? mine?.note ?? ""}
                   onChange={(e) => setNoteDrafts((d) => ({ ...d, [noteId]: e.target.value }))}
                   onBlur={() => commitNote(a.axis)}
