@@ -49,6 +49,11 @@ function aspToOrg(a: AspiracionNode): OrgNode {
   };
 }
 
+// Recorre el árbol completo recolectando todos los ids — para el botón "Expandir todo".
+function allIds(node: OrgNode): string[] {
+  return [node.id, ...(node.children ?? []).flatMap(allIds)];
+}
+
 export default function OrgChartView({ tree }: { tree: StrategyTree }) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set(["proposito"]));
 
@@ -76,81 +81,74 @@ export default function OrgChartView({ tree }: { tree: StrategyTree }) {
 
   return (
     <div>
-      <style>{`
-        .ec-tree, .ec-tree ul { display: flex; list-style: none; margin: 0; padding: 0; }
-        .ec-tree { justify-content: center; }
-        .ec-tree ul { padding-top: 28px; }
-        .ec-tree li {
-          position: relative;
-          flex: 1;
-          text-align: center;
-          padding: 28px 10px 0 10px;
-          min-width: 180px;
-        }
-        .ec-tree li::before, .ec-tree li::after {
-          content: "";
-          position: absolute;
-          top: 0;
-          right: 50%;
-          border-top: 2px solid var(--ec-line, #d1d5db);
-          width: 50%;
-          height: 28px;
-        }
-        .ec-tree li::after { right: auto; left: 50%; border-left: 2px solid var(--ec-line, #d1d5db); }
-        .ec-tree li:only-child::before, .ec-tree li:only-child::after { display: none; }
-        .ec-tree li:only-child { padding-top: 0; }
-        .ec-tree li:first-child::before { border: 0 none; }
-        .ec-tree li:last-child::after { border: 0 none; }
-        .ec-tree li:first-child::after { border-radius: 6px 0 0 0; }
-        .ec-tree li:last-child::before { border-radius: 0 6px 0 0; }
-        .ec-tree > li { padding-top: 0; }
-        .ec-tree > li::before, .ec-tree > li::after { display: none; }
-        .ec-tree ul::before {
-          content: "";
-          position: absolute;
-          top: 0;
-          left: 50%;
-          border-left: 2px solid var(--ec-line, #d1d5db);
-          width: 0;
-          height: 28px;
-        }
-      `}</style>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm text-muted">
+          Del propósito superior a las aspiraciones, sus metas, los proyectos estratégicos y sus actividades (con su
+          presupuesto) — haz clic en cualquier nodo para contraerlo o expandirlo.
+        </p>
+        <div className="flex shrink-0 gap-1.5">
+          <button
+            type="button"
+            onClick={() => setExpanded(new Set(allIds(root)))}
+            className="rounded-md border border-border px-2.5 py-1 text-xs font-semibold text-foreground hover:bg-black/5"
+          >
+            Expandir todo
+          </button>
+          <button
+            type="button"
+            onClick={() => setExpanded(new Set(["proposito", ...tree.aspiraciones.map((a) => `asp-${a.id}`)]))}
+            className="rounded-md border border-border px-2.5 py-1 text-xs font-semibold text-foreground hover:bg-black/5"
+          >
+            Contraer todo
+          </button>
+        </div>
+      </div>
 
-      <p className="mb-4 text-sm text-muted">
-        Del propósito superior a las aspiraciones, sus metas, los proyectos estratégicos y sus actividades (con su
-        presupuesto) — haz clic en cualquier nodo para contraerlo o expandirlo.
-      </p>
-
-      <div className="overflow-x-auto pb-6">
-        <ul className="ec-tree min-w-max">
-          <OrgNodeItem node={root} expanded={expanded} onToggle={toggle} isRoot />
+      <div className="overflow-x-auto pb-4">
+        <ul className="flex min-w-max items-center py-2">
+          <OrgNodeItem node={root} expanded={expanded} onToggle={toggle} depth={0} isRoot />
         </ul>
       </div>
     </div>
   );
 }
 
+// Tamaño de card y grosor tipográfico decrecen con la profundidad — para que el peso visual siga
+// la jerarquía (aspiración pesa más que una actividad hoja) en vez de verse todo igual de grande.
+const CARD_WIDTH: Record<number, string> = { 0: "max-w-[220px]", 1: "max-w-[230px]", 2: "max-w-[220px]", 3: "max-w-[210px]", 4: "max-w-[200px]" };
+const CARD_PAD: Record<number, string> = { 0: "px-3.5 py-3", 1: "px-3 py-2.5", 2: "px-3 py-2", 3: "px-2.5 py-2", 4: "px-2.5 py-1.5" };
+const TITLE_SIZE: Record<number, string> = { 0: "text-sm", 1: "text-sm", 2: "text-[13px]", 3: "text-[13px]", 4: "text-xs" };
+
 function OrgNodeItem({
   node,
   expanded,
   onToggle,
   isRoot,
+  depth,
 }: {
   node: OrgNode;
   expanded: Set<string>;
   onToggle: (id: string) => void;
   isRoot?: boolean;
+  depth: number;
 }) {
   const hasChildren = Boolean(node.children && node.children.length > 0);
   const isOpen = expanded.has(node.id);
   const tone = node.tone;
+
   return (
-    <li>
+    <li
+      className={
+        isRoot
+          ? "flex items-center"
+          : "relative flex items-center py-2 pl-7 before:absolute before:left-0 before:top-0 before:bottom-0 before:w-0 before:border-l-2 before:border-border after:absolute after:left-0 after:top-1/2 after:h-0 after:w-7 after:border-t-2 after:border-border first:before:top-1/2 last:before:bottom-1/2 only:before:hidden"
+      }
+    >
       <button
         type="button"
         onClick={() => hasChildren && onToggle(node.id)}
-        className={`inline-flex max-w-[260px] flex-col items-start gap-0.5 rounded-lg border px-3 py-2.5 text-left shadow-sm transition-transform ${
-          hasChildren ? "cursor-pointer hover:scale-[1.02]" : "cursor-default"
+        className={`relative z-10 inline-flex ${CARD_WIDTH[depth] ?? "max-w-[200px]"} flex-col items-start gap-0.5 rounded-lg border ${CARD_PAD[depth] ?? "px-2.5 py-1.5"} text-left shadow-sm transition-transform ${
+          hasChildren ? "cursor-pointer hover:scale-[1.03] hover:shadow-md" : "cursor-default"
         } ${
           isRoot
             ? "border-brand bg-brand/10"
@@ -160,7 +158,7 @@ function OrgNodeItem({
         }`}
       >
         <div className="flex w-full items-center justify-between gap-2">
-          <span className={`text-sm font-semibold ${isRoot ? "text-brand-dark" : tone ? tone.text : "text-foreground"}`}>
+          <span className={`${TITLE_SIZE[depth] ?? "text-xs"} font-semibold ${isRoot ? "text-brand-dark" : tone ? tone.text : "text-foreground"}`}>
             {node.title}
           </span>
           <span className="flex shrink-0 items-center gap-1">
@@ -170,14 +168,18 @@ function OrgNodeItem({
             {hasChildren && <span className="text-xs text-muted">{isOpen ? "▾" : "▸"}</span>}
           </span>
         </div>
-        {node.subtitle && <span className="whitespace-normal break-words text-xs text-muted">{node.subtitle}</span>}
+        {node.subtitle && <span className="whitespace-normal break-words text-[11px] text-muted">{node.subtitle}</span>}
       </button>
+
       {hasChildren && isOpen && (
-        <ul>
-          {node.children!.map((child) => (
-            <OrgNodeItem key={child.id} node={child} expanded={expanded} onToggle={onToggle} />
-          ))}
-        </ul>
+        <>
+          <span className="h-px w-7 shrink-0 bg-border" aria-hidden />
+          <ul className="flex flex-col">
+            {node.children!.map((child) => (
+              <OrgNodeItem key={child.id} node={child} expanded={expanded} onToggle={onToggle} depth={depth + 1} />
+            ))}
+          </ul>
+        </>
       )}
     </li>
   );
