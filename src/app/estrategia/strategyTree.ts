@@ -177,3 +177,21 @@ export function buildStrategyTree(input: {
 
   return { proposito: input.proposito, totalBudget: aspiraciones.reduce((s, a) => s + a.budget, 0), aspiraciones };
 }
+
+// Vista "ajustada" del mismo árbol: solo lo que ya bajó al plan de acción costeado (proyectos
+// promovidos a plan_actions) y las metas/aspiraciones que los contienen. Frente a la vista
+// "pensada" (todo lo que salió del taller, tenga o no acciones), permite comparar lo planteado
+// con lo que de verdad quedó en ejecución. Los presupuestos no cambian: un proyecto sin promover
+// no tiene actividades ni presupuesto, así que quitarlo no altera ningún total.
+export function ajustarStrategyTree(tree: StrategyTree): StrategyTree {
+  const aspiraciones = tree.aspiraciones
+    .map((a) => {
+      const metas = a.metas
+        .map((m) => ({ ...m, proyectos: m.proyectos.filter((p) => p.promoted) }))
+        .filter((m) => m.proyectos.length > 0)
+        .map((m) => ({ ...m, budget: m.proyectos.reduce((s, p) => s + p.budget, 0) }));
+      return { ...a, metas, budget: metas.reduce((s, m) => s + m.budget, 0) };
+    })
+    .filter((a) => a.metas.length > 0);
+  return { ...tree, aspiraciones, totalBudget: aspiraciones.reduce((s, a) => s + a.budget, 0) };
+}

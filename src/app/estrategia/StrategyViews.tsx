@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import type { StrategyTree } from "./strategyTree";
+import { useMemo, useState } from "react";
+import { ajustarStrategyTree, type StrategyTree } from "./strategyTree";
 import OrgChartView from "./OrgChartView";
 import CascadeMatrixView from "./CascadeMatrixView";
 import ImpactMapView from "./ImpactMapView";
@@ -21,11 +21,27 @@ const VIEWS: { key: ViewKey; label: string; icon: string; description: string }[
 // Las 5 visuales de "Estrategia general" (propósito → aspiración → meta → proyecto estratégico →
 // actividad), empaquetadas para reutilizarse en cualquier tablero que ya tenga un StrategyTree —
 // por ejemplo /estrategia y el tablero de presupuesto proyectable.
-export default function StrategyViews({ tree, loaded }: { tree: StrategyTree; loaded: boolean }) {
+export default function StrategyViews({ tree: fullTree, loaded }: { tree: StrategyTree; loaded: boolean }) {
   const [view, setView] = useState<ViewKey>("organigrama");
+  // "Tablero pensado" (todo lo del taller) vs. "tablero ajustado" (solo lo que tiene acciones en
+  // el plan de acción costeado) — el mismo check filtra las 5 visuales a la vez.
+  const [soloConAcciones, setSoloConAcciones] = useState(false);
+  const tree = useMemo(() => (soloConAcciones ? ajustarStrategyTree(fullTree) : fullTree), [fullTree, soloConAcciones]);
 
   return (
     <div>
+      <label className="mb-3 inline-flex cursor-pointer items-center gap-2 text-sm text-foreground">
+        <input
+          type="checkbox"
+          className="h-4 w-4 accent-brand-dark"
+          checked={soloConAcciones}
+          onChange={(e) => setSoloConAcciones(e.target.checked)}
+        />
+        <span>
+          <span className="font-semibold">Ver tablero ajustado</span>
+          <span className="text-muted"> · solo lo que tiene acciones en el plan de acción (sin marcar: tablero pensado, todo lo del taller)</span>
+        </span>
+      </label>
       <div role="tablist" aria-label="Visuales de la estrategia general" className="mb-5 flex flex-wrap gap-1.5 border-b border-border pb-4">
         {VIEWS.map((v, i) => {
           const active = v.key === view;
@@ -61,6 +77,8 @@ export default function StrategyViews({ tree, loaded }: { tree: StrategyTree; lo
 
       {!loaded ? (
         <p className="text-sm text-muted">Cargando la estrategia…</p>
+      ) : soloConAcciones && tree.aspiraciones.length === 0 ? (
+        <p className="text-sm text-muted">Todavía no hay proyectos con acciones en el plan de acción.</p>
       ) : (
         VIEWS.map((v) => (
           <div key={v.key} role="tabpanel" id={`panel-${v.key}`} aria-labelledby={`tab-${v.key}`} hidden={view !== v.key}>

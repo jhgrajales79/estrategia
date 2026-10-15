@@ -225,6 +225,11 @@ export default function VotacionFichas({ activity, session, aspirations, partici
     // así el escalafón de 3 puestos queda siempre resuelto, nunca en tablas.
     .sort((a, b) => b.total - a.total || b.voters - a.voters);
   const hasVotes = totals.some((t) => t.total > 0);
+  // La lista donde se vota NO se reordena con cada voto (las tarjetas saltarían bajo el dedo de
+  // quien está apoyando) — se muestra en orden de llegada y el escalafón solo se refleja en la
+  // medalla de cada tarjeta, calculada a partir de `totals` (ya ordenado por puntos).
+  const rankById = new Map(totals.map((t, i) => [t.c.id, i]));
+  const listed = visibleCandidates.map((c) => totals[rankById.get(c.id)!]);
 
   return (
     <div className="space-y-4">
@@ -344,7 +349,8 @@ export default function VotacionFichas({ activity, session, aspirations, partici
       )}
 
       <div className="space-y-2">
-        {totals.map(({ c, total, voters }, idx) => {
+        {listed.map(({ c, total, voters }) => {
+          const idx = rankById.get(c.id)!;
           const myPoints = myVotes.find((v) => v.candidate_id === c.id)?.points ?? 0;
           const canDeleteOwn = c.author_id ? c.author_id === participant.id : c.author === participant.name;
           // El facilitador puede eliminar cualquier candidata desde su sesión (p. ej. duplicadas,
