@@ -100,7 +100,7 @@ const RING: Record<1 | 2 | 3 | 4, [number, number]> = {
 };
 const OPACITY: Record<1 | 2 | 3 | 4, number> = { 1: 1, 2: 0.82, 3: 0.64, 4: 0.46 };
 
-function arcPath(cx: number, cy: number, rInner: number, rOuter: number, a0Deg: number, a1Deg: number): string {
+export function arcPath(cx: number, cy: number, rInner: number, rOuter: number, a0Deg: number, a1Deg: number): string {
   const toRad = (d: number) => ((d - 90) * Math.PI) / 180;
   const x = (r: number, a: number) => cx + r * Math.cos(toRad(a));
   const y = (r: number, a: number) => cy + r * Math.sin(toRad(a));

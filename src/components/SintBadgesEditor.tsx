@@ -10,6 +10,7 @@ import {
   deleteBadge,
   deleteMeta,
   setBadgeAlerta,
+  setMetaFechas,
   useNuevaMetaBadges,
   useNuevasMetas,
   type BadgeTipo,
@@ -152,6 +153,38 @@ function MetaCard({ meta, toneBorder, badges }: { meta: NuevaMeta; toneBorder: s
         )}
       </div>
       {error && <p className="mb-1 text-[11px] text-red-600">{error}</p>}
+      <div className="mb-2 flex flex-wrap items-center gap-2 text-[11px] text-muted">
+        <span className="font-semibold">📅 Roadmap:</span>
+        <label className="flex items-center gap-1">
+          Inicio
+          <input
+            type="date"
+            value={meta.fecha_inicio ?? ""}
+            onChange={(e) =>
+              setMetaFechas(meta.key, { fecha_inicio: e.target.value || null }).catch((err) => {
+                console.error(err);
+                setError("No se pudo guardar la fecha.");
+              })
+            }
+            className="rounded-md border border-border bg-background px-1.5 py-0.5 text-[11px] text-foreground"
+          />
+        </label>
+        <label className="flex items-center gap-1">
+          Fin
+          <input
+            type="date"
+            value={meta.fecha_fin ?? ""}
+            min={meta.fecha_inicio ?? undefined}
+            onChange={(e) =>
+              setMetaFechas(meta.key, { fecha_fin: e.target.value || null }).catch((err) => {
+                console.error(err);
+                setError("No se pudo guardar la fecha.");
+              })
+            }
+            className="rounded-md border border-border bg-background px-1.5 py-0.5 text-[11px] text-foreground"
+          />
+        </label>
+      </div>
       <div className="space-y-2">
         {BADGE_TIPOS.map((t) => (
           <BadgeRow

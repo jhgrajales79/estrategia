@@ -46,6 +46,7 @@ export interface MetaTag {
   label: string;
   subtitle?: string;
   className: string;
+  hex?: string;
   children?: { id: string | number; label: string; alert: boolean }[];
 }
 

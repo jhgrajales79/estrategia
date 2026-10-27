@@ -9,15 +9,19 @@ export interface NuevaMeta {
   aspiracion: number;
   texto: string;
   orden: number;
+  // Para el Roadmap Gantt del tablero (YYYY-MM-DD).
+  fecha_inicio: string | null;
+  fecha_fin: string | null;
 }
 
 export type BadgeTipo = "foco" | "alternativa" | "recurso";
 
 // Orden, nombre y color de cada tipo de badge — el mismo en el editor SINT y en el tablero.
-export const BADGE_TIPOS: { tipo: BadgeTipo; label: string; icon: string; chip: string }[] = [
-  { tipo: "foco", label: "Foco estratégico", icon: "🎯", chip: "bg-brand/15 text-brand-dark" },
-  { tipo: "alternativa", label: "Alternativa", icon: "🔀", chip: "bg-sky-100 text-sky-800" },
-  { tipo: "recurso", label: "Recursos necesarios (tipo)", icon: "🧰", chip: "bg-amber-100 text-amber-800" },
+// `hex` colorea la visión radial (SVG), donde no aplican las clases de Tailwind.
+export const BADGE_TIPOS: { tipo: BadgeTipo; label: string; icon: string; chip: string; hex: string }[] = [
+  { tipo: "foco", label: "Foco estratégico", icon: "🎯", chip: "bg-brand/15 text-brand-dark", hex: "var(--brand-dark)" },
+  { tipo: "alternativa", label: "Alternativa", icon: "🔀", chip: "bg-sky-100 text-sky-800", hex: "#0284c7" },
+  { tipo: "recurso", label: "Recursos necesarios (tipo)", icon: "🧰", chip: "bg-amber-100 text-amber-800", hex: "#d97706" },
 ];
 
 export interface NuevaMetaBadge {
@@ -42,7 +46,7 @@ async function fetchBadges(): Promise<NuevaMetaBadge[]> {
 }
 
 async function fetchMetas(): Promise<NuevaMeta[]> {
-  const { data, error } = await supabase.from("nuevas_metas").select("key,aspiracion,texto,orden").order("orden").order("created_at");
+  const { data, error } = await supabase.from("nuevas_metas").select("key,aspiracion,texto,orden,fecha_inicio,fecha_fin").order("orden").order("created_at");
   if (error) {
     console.error(error);
     return [];
@@ -72,6 +76,11 @@ export function useNuevasMetas(): { metas: NuevaMeta[]; loaded: boolean } {
 
 export async function addMeta(aspiracion: number, texto: string, orden: number) {
   const { error } = await supabase.from("nuevas_metas").insert({ aspiracion, texto, orden });
+  if (error) throw error;
+}
+
+export async function setMetaFechas(key: string, fechas: { fecha_inicio?: string | null; fecha_fin?: string | null }) {
+  const { error } = await supabase.from("nuevas_metas").update(fechas).eq("key", key);
   if (error) throw error;
 }
 
