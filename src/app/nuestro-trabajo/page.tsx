@@ -184,7 +184,7 @@ export default function NuestroTrabajoPage() {
         )}
       </div>
 
-      {sintOpen && presenter && <SintBadgesEditor aspirations={aspirations} canEdit={presenter} />}
+      {sintOpen && presenter && <SintBadgesEditor aspirations={aspirations} />}
 
       {!sintOpen && activeSession && (!isPublicallyVisible(activeSession) && !presenter ? (
         <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border bg-card p-10 text-center">

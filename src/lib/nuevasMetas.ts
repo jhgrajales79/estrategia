@@ -1,22 +1,15 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
-// Nuevas metas acordadas para cada aspiración — enunciados fijos (no salen de la Subasta ni de la
-// tabla goals), enlazados por el NÚMERO de la aspiración, no por su id en la base de datos. La
-// `key` es estable y es lo que guardan los badges (nueva_meta_badges.meta_key): si se corrige el
-// texto de una meta, sus badges no se pierden.
-export const NUEVAS_METAS: { key: string; aspiracion: number; texto: string }[] = [
-  { key: "lineas-servicio", aspiracion: 2, texto: "Líneas de servicio" },
-  { key: "capacidades-tendencias", aspiracion: 2, texto: "Capacidades y tendencias" },
-  { key: "anticipacion-tendencias", aspiracion: 2, texto: "Anticipación tendencias / oportunidades" },
-  { key: "gestion-conocimiento", aspiracion: 1, texto: "Gestión del conocimiento" },
-  { key: "ia-tecnologia", aspiracion: 2, texto: "IA / tecnología al servicio de SOCYA" },
-  { key: "optimizacion-organizacional", aspiracion: 3, texto: "Optimización organizacional → Competitividad (eficiencia operativa) ERP" },
-  { key: "retencion-talento", aspiracion: 1, texto: "Retención talento Vs Rotación" },
-  { key: "coworking", aspiracion: 2, texto: "Coworking" },
-  { key: "posicionamiento-marca", aspiracion: 3, texto: "Posicionamiento de marca" },
-  { key: "sostenibilidad-financiera", aspiracion: 3, texto: "Sostenibilidad financiera" },
-];
+// Nuevas metas de cada aspiración (tabla nuevas_metas), enlazadas por el NÚMERO de la aspiración,
+// no por su id en la base de datos. Las agrega o quita el facilitador en la pestaña SINT de
+// "Nuestro trabajo"; `key` es lo que guardan sus badges (nueva_meta_badges.meta_key).
+export interface NuevaMeta {
+  key: string;
+  aspiracion: number;
+  texto: string;
+  orden: number;
+}
 
 export type BadgeTipo = "foco" | "alternativa" | "recurso";
 
@@ -42,6 +35,46 @@ async function fetchBadges(): Promise<NuevaMetaBadge[]> {
     return [];
   }
   return data as NuevaMetaBadge[];
+}
+
+async function fetchMetas(): Promise<NuevaMeta[]> {
+  const { data, error } = await supabase.from("nuevas_metas").select("key,aspiracion,texto,orden").order("orden").order("created_at");
+  if (error) {
+    console.error(error);
+    return [];
+  }
+  return data as NuevaMeta[];
+}
+
+// Nuevas metas en vivo — el tablero se actualiza solo cuando el facilitador agrega o quita una.
+export function useNuevasMetas(): { metas: NuevaMeta[]; loaded: boolean } {
+  const [metas, setMetas] = useState<NuevaMeta[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  useEffect(() => {
+    fetchMetas().then((rows) => {
+      setMetas(rows);
+      setLoaded(true);
+    });
+    const channel = supabase
+      .channel("nuevas-metas")
+      .on("postgres_changes", { event: "*", schema: "public", table: "nuevas_metas" }, () => fetchMetas().then(setMetas))
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+  return { metas, loaded };
+}
+
+export async function addMeta(aspiracion: number, texto: string, orden: number) {
+  const { error } = await supabase.from("nuevas_metas").insert({ aspiracion, texto, orden });
+  if (error) throw error;
+}
+
+// Sus badges se borran en cascada (FK de nueva_meta_badges.meta_key).
+export async function deleteMeta(key: string) {
+  const { error } = await supabase.from("nuevas_metas").delete().eq("key", key);
+  if (error) throw error;
 }
 
 // Badges en vivo — el tablero de nuevas metas se actualiza solo mientras se editan en SINT.

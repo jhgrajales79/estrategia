@@ -8,12 +8,12 @@ import { ARCHETYPE_LABEL } from "@/lib/aspirationStyle";
 import { PROPOSITO } from "../estrategia/useStrategyTree";
 import OrgChartView from "../estrategia/OrgChartView";
 import type { StrategyTree } from "../estrategia/strategyTree";
-import { NUEVAS_METAS, BADGE_TIPOS, useNuevaMetaBadges, type NuevaMetaBadge } from "@/lib/nuevasMetas";
+import { BADGE_TIPOS, useNuevaMetaBadges, useNuevasMetas, type NuevaMeta, type NuevaMetaBadge } from "@/lib/nuevasMetas";
 
 // Propósito → aspiraciones → nuevas metas, sin proyectos ni presupuesto: reutiliza el organigrama
 // de "Estrategia general" con un StrategyTree recortado a esos tres niveles. Cada meta lleva sus
 // badges SINT (foco estratégico, alternativa, tipo de recurso), agrupados por tipo.
-function buildTree(aspirations: Aspiration[], badges: NuevaMetaBadge[]): StrategyTree {
+function buildTree(aspirations: Aspiration[], nuevasMetas: NuevaMeta[], badges: NuevaMetaBadge[]): StrategyTree {
   return {
     proposito: PROPOSITO,
     totalBudget: 0,
@@ -23,7 +23,7 @@ function buildTree(aspirations: Aspiration[], badges: NuevaMetaBadge[]): Strateg
       name: a.name,
       archetype: ARCHETYPE_LABEL[a.number] ?? "",
       budget: 0,
-      metas: NUEVAS_METAS.filter((m) => m.aspiracion === a.number).map((m) => ({
+      metas: nuevasMetas.filter((m) => m.aspiracion === a.number).map((m) => ({
         id: `nueva-${m.key}`,
         title: m.texto,
         isNew: false,
@@ -44,6 +44,7 @@ export default function NuevasMetasPage() {
   const [aspirations, setAspirations] = useState<Aspiration[]>([]);
   const [loaded, setLoaded] = useState(false);
   const badges = useNuevaMetaBadges();
+  const { metas, loaded: metasLoaded } = useNuevasMetas();
 
   useEffect(() => {
     fetchAspirations().then((rows) => {
@@ -60,9 +61,9 @@ export default function NuevasMetasPage() {
       <p className="mb-5 text-sm text-muted">
         El propósito superior, las aspiraciones y las nuevas metas que se enlazan con cada una.
       </p>
-      {!loaded ? <p className="text-sm text-muted">Cargando la estrategia…</p> : (
+      {!loaded || !metasLoaded ? <p className="text-sm text-muted">Cargando la estrategia…</p> : (
         <OrgChartView
-          tree={buildTree(aspirations, badges)}
+          tree={buildTree(aspirations, metas, badges)}
           intro="Del propósito superior a las aspiraciones y sus nuevas metas, con sus badges: 🎯 foco estratégico, 🔀 alternativa y 🧰 tipo de recurso necesario — haz clic en cualquier nodo para contraerlo o expandirlo."
         />
       )}
