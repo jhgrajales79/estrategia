@@ -126,7 +126,7 @@ function connectorClasses(isFirst: boolean, isLast: boolean): string {
   return `${base} before:top-0 before:bottom-0`;
 }
 
-export default function OrgChartView({ tree }: { tree: StrategyTree }) {
+export default function OrgChartView({ tree, intro }: { tree: StrategyTree; intro?: string }) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set(["proposito"]));
 
   useEffect(() => {
@@ -157,9 +157,8 @@ export default function OrgChartView({ tree }: { tree: StrategyTree }) {
     <div>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-muted">
-          Del propósito superior a las aspiraciones, sus metas, las acciones y sus actividades (con su presupuesto) —
-          haz clic en cualquier nodo para contraerlo o expandirlo. Las columnas aparecen a medida que expandes cada
-          nivel.
+          {intro ??
+            "Del propósito superior a las aspiraciones, sus metas, las acciones y sus actividades (con su presupuesto) — haz clic en cualquier nodo para contraerlo o expandirlo. Las columnas aparecen a medida que expandes cada nivel."}
         </p>
         <div className="flex shrink-0 gap-1.5">
           <button

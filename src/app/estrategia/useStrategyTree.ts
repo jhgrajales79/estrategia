@@ -12,7 +12,7 @@ import { buildStrategyTree, type StrategyTree, type TableroProject } from "./str
 // conexiones...' ratificado como marco del plan" y la Ruta de Planeación Estratégica. No tiene
 // campo propio en la base de datos (es un enunciado fijo, no algo que el equipo edite en vivo),
 // así que queda como constante aquí, igual que otros enunciados fijos del módulo.
-const PROPOSITO = "Tejemos conexiones para incidir en el cuidado del ser humano y la naturaleza";
+export const PROPOSITO = "Tejemos conexiones para incidir en el cuidado del ser humano y la naturaleza";
 
 // Mismas fuentes de datos que /metas (metas vigentes + nuevas ganadoras de la Subasta, actividad
 // 18, fija en toda la app — ver TableroProyectos.tsx/metas/page.tsx) y el tablero de proyectos

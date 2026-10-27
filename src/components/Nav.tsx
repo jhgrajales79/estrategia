@@ -11,6 +11,7 @@ const LINKS = [
   { href: "/sesiones", label: "Sesiones" },
   { href: "/nuestro-trabajo", label: "Nuestro trabajo" },
   { href: "/estrategia", label: "Estrategia general" },
+  { href: "/nuevas-metas", label: "Nuevas metas" },
   { href: "/metas", label: "Metas" },
   { href: "/tablero", label: "Tablero" },
   { href: "/presupuesto", label: "Presupuesto" },
