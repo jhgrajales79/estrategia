@@ -12,6 +12,7 @@ interface OrgNode {
   title: string;
   subtitle?: string;
   badge?: string;
+  tags?: { label: string; className: string }[];
   tone?: Tone;
   children?: OrgNode[];
 }
@@ -33,6 +34,7 @@ function metaToOrg(m: MetaNode, tone: Tone): OrgNode {
     id: `meta-${m.id}`,
     title: m.title,
     badge: m.isNew ? "NUEVA" : m.isUnassigned ? String(m.proyectos.length) : undefined,
+    tags: m.tags,
     tone,
     children: m.proyectos.length > 0 ? m.proyectos.map((p) => proyectoToOrg(p, tone)) : undefined,
   };
@@ -262,6 +264,15 @@ function NodeCard({
         </span>
       </div>
       {node.subtitle && <span className="whitespace-normal break-words text-[11px] text-muted">{node.subtitle}</span>}
+      {node.tags && node.tags.length > 0 && (
+        <span className="mt-1 flex flex-wrap gap-1">
+          {node.tags.map((t, i) => (
+            <span key={i} className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${t.className}`}>
+              {t.label}
+            </span>
+          ))}
+        </span>
+      )}
     </button>
   );
 }

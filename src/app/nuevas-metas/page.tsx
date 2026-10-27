@@ -8,25 +8,12 @@ import { ARCHETYPE_LABEL } from "@/lib/aspirationStyle";
 import { PROPOSITO } from "../estrategia/useStrategyTree";
 import OrgChartView from "../estrategia/OrgChartView";
 import type { StrategyTree } from "../estrategia/strategyTree";
-
-// Nuevas metas acordadas para cada aspiración — enunciados fijos (no salen de la Subasta ni de la
-// tabla goals), enlazados por el NÚMERO de la aspiración, no por su id en la base de datos.
-const NUEVAS_METAS: { aspiracion: number; texto: string }[] = [
-  { aspiracion: 2, texto: "Líneas de servicio" },
-  { aspiracion: 2, texto: "Capacidades y tendencias" },
-  { aspiracion: 2, texto: "Anticipación tendencias / oportunidades" },
-  { aspiracion: 1, texto: "Gestión del conocimiento" },
-  { aspiracion: 2, texto: "IA / tecnología al servicio de SOCYA" },
-  { aspiracion: 3, texto: "Optimización organizacional → Competitividad (eficiencia operativa) ERP" },
-  { aspiracion: 1, texto: "Retención talento Vs Rotación" },
-  { aspiracion: 2, texto: "Coworking" },
-  { aspiracion: 3, texto: "Posicionamiento de marca" },
-  { aspiracion: 3, texto: "Sostenibilidad financiera" },
-];
+import { NUEVAS_METAS, BADGE_TIPOS, useNuevaMetaBadges, type NuevaMetaBadge } from "@/lib/nuevasMetas";
 
 // Propósito → aspiraciones → nuevas metas, sin proyectos ni presupuesto: reutiliza el organigrama
-// de "Estrategia general" con un StrategyTree recortado a esos tres niveles.
-function buildTree(aspirations: Aspiration[]): StrategyTree {
+// de "Estrategia general" con un StrategyTree recortado a esos tres niveles. Cada meta lleva sus
+// badges SINT (foco estratégico, alternativa, tipo de recurso), agrupados por tipo.
+function buildTree(aspirations: Aspiration[], badges: NuevaMetaBadge[]): StrategyTree {
   return {
     proposito: PROPOSITO,
     totalBudget: 0,
@@ -36,10 +23,15 @@ function buildTree(aspirations: Aspiration[]): StrategyTree {
       name: a.name,
       archetype: ARCHETYPE_LABEL[a.number] ?? "",
       budget: 0,
-      metas: NUEVAS_METAS.filter((m) => m.aspiracion === a.number).map((m, i) => ({
-        id: `nueva-${a.number}-${i}`,
+      metas: NUEVAS_METAS.filter((m) => m.aspiracion === a.number).map((m) => ({
+        id: `nueva-${m.key}`,
         title: m.texto,
         isNew: false,
+        tags: BADGE_TIPOS.flatMap((t) =>
+          badges
+            .filter((b) => b.meta_key === m.key && b.tipo === t.tipo)
+            .map((b) => ({ label: `${t.icon} ${b.label}`, className: t.chip })),
+        ),
         budget: 0,
         proyectos: [],
       })),
@@ -51,6 +43,7 @@ export default function NuevasMetasPage() {
   const participant = useRequireParticipant();
   const [aspirations, setAspirations] = useState<Aspiration[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const badges = useNuevaMetaBadges();
 
   useEffect(() => {
     fetchAspirations().then((rows) => {
@@ -69,8 +62,8 @@ export default function NuevasMetasPage() {
       </p>
       {!loaded ? <p className="text-sm text-muted">Cargando la estrategia…</p> : (
         <OrgChartView
-          tree={buildTree(aspirations)}
-          intro="Del propósito superior a las aspiraciones y sus nuevas metas — haz clic en cualquier nodo para contraerlo o expandirlo."
+          tree={buildTree(aspirations, badges)}
+          intro="Del propósito superior a las aspiraciones y sus nuevas metas, con sus badges: 🎯 foco estratégico, 🔀 alternativa y 🧰 tipo de recurso necesario — haz clic en cualquier nodo para contraerlo o expandirlo."
         />
       )}
     </div>

@@ -17,6 +17,7 @@ import ActivityResults from "@/components/results/ActivityResults";
 import { LockBadge } from "@/components/activities/shared";
 import WeaveGalleryViewer, { MediaGroup } from "@/components/WeaveGalleryViewer";
 import SessionAudio from "@/components/SessionAudio";
+import SintBadgesEditor from "@/components/SintBadgesEditor";
 
 // Página pública: no requiere haber ingresado con nombre/rol. Una sesión es visible para
 // cualquier visitante si el facilitador la habilitó manualmente, o si ya está en curso o
@@ -46,6 +47,8 @@ export default function NuestroTrabajoPage() {
   const [loadingTab, setLoadingTab] = useState(false);
   const [tejidoMedia, setTejidoMedia] = useState<TejidoActivityMedia[]>([]);
   const [generalGalleryOpen, setGeneralGalleryOpen] = useState(false);
+  // Pestaña SINT (badges de las nuevas metas) — solo para el facilitador, al lado de las sesiones.
+  const [sintOpen, setSintOpen] = useState(false);
 
   useEffect(() => {
     fetchSessions().then(setSessions).catch(console.error);
@@ -117,7 +120,7 @@ export default function NuestroTrabajoPage() {
           </h1>
           <p className="mt-0.5 text-sm text-muted">Los resultados de cada ejercicio, sesión por sesión.</p>
         </div>
-        {!loadingTab && activeSession && activities.length > 0 && (
+        {!sintOpen && !loadingTab && activeSession && activities.length > 0 && (
           <span className="shrink-0 rounded-full bg-brand/10 px-3 py-1 text-xs font-semibold text-brand-dark">
             {withDataCount} de {activities.length} con datos
           </span>
@@ -144,11 +147,15 @@ export default function NuestroTrabajoPage() {
       <div className="mb-6 flex flex-wrap gap-1.5 border-b border-border pb-4">
         {sessions.map((s) => {
           const locked = !isPublicallyVisible(s) && !presenter;
-          const active = activeTab === s.id;
+          const active = !sintOpen && activeTab === s.id;
           return (
             <button
               key={s.id}
-              onClick={() => !locked && setActiveTab(s.id)}
+              onClick={() => {
+                if (locked) return;
+                setActiveTab(s.id);
+                setSintOpen(false);
+              }}
               disabled={locked}
               title={locked ? "El facilitador aún no ha habilitado esta sesión" : s.name}
               className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors ${
@@ -164,9 +171,22 @@ export default function NuestroTrabajoPage() {
             </button>
           );
         })}
+        {presenter && (
+          <button
+            onClick={() => setSintOpen(true)}
+            title="Badges de las nuevas metas: foco estratégico, alternativa y recursos necesarios"
+            className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors ${
+              sintOpen ? "bg-brand text-dark shadow-sm" : "bg-black/5 text-foreground hover:bg-black/10"
+            }`}
+          >
+            🏷️ SINT
+          </button>
+        )}
       </div>
 
-      {activeSession && (!isPublicallyVisible(activeSession) && !presenter ? (
+      {sintOpen && presenter && <SintBadgesEditor aspirations={aspirations} canEdit={presenter} />}
+
+      {!sintOpen && activeSession && (!isPublicallyVisible(activeSession) && !presenter ? (
         <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border bg-card p-10 text-center">
           <LockBadge text="El facilitador aún no ha habilitado esta sesión" />
         </div>
@@ -196,7 +216,7 @@ export default function NuestroTrabajoPage() {
         </div>
       ))}
 
-      {!activeSession && sessions.length > 0 && (
+      {!sintOpen && !activeSession && sessions.length > 0 && (
         <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border bg-card p-10 text-center">
           <LockBadge text="Aún no hay sesiones habilitadas por el facilitador" />
         </div>

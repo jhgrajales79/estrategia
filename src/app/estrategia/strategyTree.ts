@@ -44,6 +44,8 @@ export interface MetaNode {
   title: string;
   isNew: boolean;
   isUnassigned?: boolean;
+  // Etiquetas extra bajo el título (p. ej. los badges SINT del tablero de nuevas metas).
+  tags?: { label: string; className: string }[];
   budget: number;
   proyectos: ProyectoEstrategicoNode[];
 }
