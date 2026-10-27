@@ -31,9 +31,11 @@ function buildTree(aspirations: Aspiration[], nuevasMetas: NuevaMeta[], badges: 
           badges
             .filter((b) => b.meta_key === m.key && b.tipo === t.tipo && b.parent_id === null)
             .map((b) => ({
+              id: b.id,
               label: `${t.icon} ${b.label}`,
+              subtitle: t.label,
               className: t.chip,
-              children: badges.filter((h) => h.parent_id === b.id).map((h) => ({ label: h.label, alert: h.alerta })),
+              children: badges.filter((h) => h.parent_id === b.id).map((h) => ({ id: h.id, label: `↳ ${h.label}`, alert: h.alerta })),
             })),
         ),
         budget: 0,
@@ -68,7 +70,9 @@ export default function NuevasMetasPage() {
       {!loaded || !metasLoaded ? <p className="text-sm text-muted">Cargando la estrategia…</p> : (
         <OrgChartView
           tree={buildTree(aspirations, metas, badges)}
-          intro="Del propósito superior a las aspiraciones y sus nuevas metas, con sus badges: 🎯 foco estratégico, 🔀 alternativa y 🧰 tipo de recurso necesario — haz clic en cualquier nodo para contraerlo o expandirlo."
+          columnLabels={["Propósito", "Aspiraciones", "Metas", "Badges", "Hijos"]}
+          expandAll
+          intro="Del propósito superior a las aspiraciones, sus nuevas metas, sus badges (🎯 foco estratégico, 🔀 alternativa, 🧰 tipo de recurso) y los hijos de cada badge — en rojo los que marcó el facilitador. Haz clic en cualquier nodo para contraerlo o expandirlo."
         />
       )}
     </div>

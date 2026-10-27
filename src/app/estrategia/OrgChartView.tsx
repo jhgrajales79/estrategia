@@ -12,8 +12,10 @@ interface OrgNode {
   title: string;
   subtitle?: string;
   badge?: string;
-  tags?: MetaTag[];
   tone?: Tone;
+  // Clases de color propias (badges SINT) y marca roja (sus hijos) — ganan sobre el tono.
+  chip?: string;
+  alert?: boolean;
   children?: OrgNode[];
 }
 
@@ -29,14 +31,34 @@ function proyectoToOrg(p: ProyectoEstrategicoNode, tone: Tone): OrgNode {
   };
 }
 
+// Badges SINT de una meta (tablero de nuevas metas) como nodos propios, con sus hijos debajo.
+function tagToOrg(t: MetaTag, tone: Tone): OrgNode {
+  return {
+    id: `tag-${t.id}`,
+    title: t.label,
+    subtitle: t.subtitle,
+    tone,
+    chip: t.className,
+    children:
+      t.children && t.children.length > 0
+        ? t.children.map((c) => ({ id: `tag-${c.id}`, title: c.label, tone, alert: c.alert }))
+        : undefined,
+  };
+}
+
 function metaToOrg(m: MetaNode, tone: Tone): OrgNode {
+  const children =
+    m.tags && m.tags.length > 0
+      ? m.tags.map((t) => tagToOrg(t, tone))
+      : m.proyectos.length > 0
+        ? m.proyectos.map((p) => proyectoToOrg(p, tone))
+        : undefined;
   return {
     id: `meta-${m.id}`,
     title: m.title,
     badge: m.isNew ? "NUEVA" : m.isUnassigned ? String(m.proyectos.length) : undefined,
-    tags: m.tags,
     tone,
-    children: m.proyectos.length > 0 ? m.proyectos.map((p) => proyectoToOrg(p, tone)) : undefined,
+    children,
   };
 }
 
@@ -128,14 +150,39 @@ function connectorClasses(isFirst: boolean, isLast: boolean): string {
   return `${base} before:top-0 before:bottom-0`;
 }
 
-export default function OrgChartView({ tree, intro }: { tree: StrategyTree; intro?: string }) {
+export default function OrgChartView({
+  tree,
+  intro,
+  columnLabels = COLUMN_LABELS,
+  expandAll = false,
+}: {
+  tree: StrategyTree;
+  intro?: string;
+  columnLabels?: string[];
+  // true = todo nodo nuevo aparece expandido (tablero de nuevas metas, que es corto).
+  expandAll?: boolean;
+}) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set(["proposito"]));
+
+  const root: OrgNode = {
+    id: "proposito",
+    title: "Propósito superior",
+    subtitle: tree.proposito,
+    children: tree.aspiraciones.map(aspToOrg),
+  };
+  const rootIdsKey = expandAll ? allIds(root).join("|") : "";
 
   useEffect(() => {
     if (tree.aspiraciones.length === 0) return;
     setExpanded((prev) => new Set([...prev, ...tree.aspiraciones.map((a) => `asp-${a.id}`)]));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tree.aspiraciones.length]);
+
+  useEffect(() => {
+    if (!rootIdsKey) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setExpanded((prev) => new Set([...prev, ...rootIdsKey.split("|")]));
+  }, [rootIdsKey]);
 
   function toggle(id: string) {
     setExpanded((prev) => {
@@ -145,13 +192,6 @@ export default function OrgChartView({ tree, intro }: { tree: StrategyTree; intr
       return next;
     });
   }
-
-  const root: OrgNode = {
-    id: "proposito",
-    title: "Propósito superior",
-    subtitle: tree.proposito,
-    children: tree.aspiraciones.map(aspToOrg),
-  };
 
   const { placed, totalRows, maxDepth } = layoutTree(root, expanded);
 
@@ -185,7 +225,7 @@ export default function OrgChartView({ tree, intro }: { tree: StrategyTree; intr
           className="grid min-w-max"
           style={{ gridTemplateColumns: GRID_TEMPLATE_COLUMNS, gridTemplateRows: `auto repeat(${totalRows}, minmax(0, auto))` }}
         >
-          {COLUMN_LABELS.slice(0, maxDepth + 1).map((label, d) => (
+          {columnLabels.slice(0, maxDepth + 1).map((label, d) => (
             <div
               key={label}
               style={{ gridColumn: d * 2 + 1, gridRow: 1 }}
@@ -247,13 +287,17 @@ function NodeCard({
       } ${
         isRoot
           ? "border-brand bg-brand/10"
-          : tone
+          : node.alert
+            ? "border-red-600 bg-red-600"
+            : node.chip
+              ? `${tone?.border ?? "border-border"} ${node.chip}`
+              : tone
             ? `${tone.border} ${isOpen ? tone.bgSoft : "bg-card"}`
             : "border-border bg-card"
       }`}
     >
       <div className="flex w-full items-center justify-between gap-2">
-        <span className={`${TITLE_SIZE[depth] ?? "text-xs"} font-semibold ${isRoot ? "text-brand-dark" : tone ? tone.text : "text-foreground"}`}>
+        <span className={`${TITLE_SIZE[depth] ?? "text-xs"} font-semibold ${isRoot ? "text-brand-dark" : node.alert ? "text-white" : node.chip ? "" : tone ? tone.text : "text-foreground"}`}>
           {node.title}
         </span>
         <span className="flex shrink-0 items-center gap-1">
@@ -263,33 +307,8 @@ function NodeCard({
           {hasChildren && <span className="text-xs text-muted">{isOpen ? "▾" : "▸"}</span>}
         </span>
       </div>
-      {node.subtitle && <span className="whitespace-normal break-words text-[11px] text-muted">{node.subtitle}</span>}
-      {node.tags && node.tags.length > 0 && (
-        <span className="mt-1 flex flex-wrap gap-1">
-          {node.tags.map((t, i) =>
-            t.children && t.children.length > 0 ? (
-              <span key={i} className="flex w-full flex-col items-start gap-0.5">
-                <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${t.className}`}>{t.label}</span>
-                <span className="flex flex-wrap gap-0.5 pl-3">
-                  {t.children.map((c, j) => (
-                    <span
-                      key={j}
-                      className={`rounded-full border px-1.5 py-px text-[10px] ${
-                        c.alert ? "border-red-600 bg-red-600 font-semibold text-white" : "border-border bg-card text-foreground"
-                      }`}
-                    >
-                      ↳ {c.label}
-                    </span>
-                  ))}
-                </span>
-              </span>
-            ) : (
-              <span key={i} className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${t.className}`}>
-                {t.label}
-              </span>
-            ),
-          )}
-        </span>
+      {node.subtitle && (
+        <span className={`whitespace-normal break-words text-[11px] ${node.chip ? "opacity-75" : "text-muted"}`}>{node.subtitle}</span>
       )}
     </button>
   );

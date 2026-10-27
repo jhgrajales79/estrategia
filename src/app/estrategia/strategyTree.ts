@@ -39,11 +39,14 @@ export interface ProyectoEstrategicoNode {
   actividades: ActividadNode[];
 }
 
-// Etiqueta de una meta, con hijos opcionales que se pueden marcar en rojo (alert).
+// Etiqueta de una meta (badge SINT del tablero de nuevas metas): el organigrama la dibuja como un
+// nivel propio bajo la meta, con sus hijos debajo; un hijo con alert se pinta en rojo.
 export interface MetaTag {
+  id: string | number;
   label: string;
+  subtitle?: string;
   className: string;
-  children?: { label: string; alert: boolean }[];
+  children?: { id: string | number; label: string; alert: boolean }[];
 }
 
 export interface MetaNode {
