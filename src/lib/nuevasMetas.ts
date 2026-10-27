@@ -25,6 +25,10 @@ export interface NuevaMetaBadge {
   meta_key: string;
   tipo: BadgeTipo;
   label: string;
+  // null = badge raíz; si no, es hijo de ese badge (mismo meta_key y tipo que el padre).
+  parent_id: number | null;
+  // Solo en hijos: el facilitador lo marca en rojo.
+  alerta: boolean;
   created_at: string;
 }
 
@@ -93,11 +97,17 @@ export function useNuevaMetaBadges(): NuevaMetaBadge[] {
   return badges;
 }
 
-export async function addBadge(meta_key: string, tipo: BadgeTipo, label: string) {
-  const { error } = await supabase.from("nueva_meta_badges").insert({ meta_key, tipo, label });
+export async function addBadge(meta_key: string, tipo: BadgeTipo, label: string, parent_id: number | null = null) {
+  const { error } = await supabase.from("nueva_meta_badges").insert({ meta_key, tipo, label, parent_id });
   if (error) throw error;
 }
 
+export async function setBadgeAlerta(id: number, alerta: boolean) {
+  const { error } = await supabase.from("nueva_meta_badges").update({ alerta }).eq("id", id);
+  if (error) throw error;
+}
+
+// Sus hijos se borran en cascada (FK de parent_id).
 export async function deleteBadge(id: number) {
   const { error } = await supabase.from("nueva_meta_badges").delete().eq("id", id);
   if (error) throw error;

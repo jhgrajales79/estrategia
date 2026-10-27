@@ -3,7 +3,7 @@
 import { Fragment, useEffect, useState } from "react";
 import { formatMoney } from "@/lib/budget";
 import { aspClasses } from "@/lib/aspirationStyle";
-import type { AspiracionNode, MetaNode, ProyectoEstrategicoNode, StrategyTree } from "./strategyTree";
+import type { AspiracionNode, MetaNode, MetaTag, ProyectoEstrategicoNode, StrategyTree } from "./strategyTree";
 
 type Tone = ReturnType<typeof aspClasses>;
 
@@ -12,7 +12,7 @@ interface OrgNode {
   title: string;
   subtitle?: string;
   badge?: string;
-  tags?: { label: string; className: string }[];
+  tags?: MetaTag[];
   tone?: Tone;
   children?: OrgNode[];
 }
@@ -266,11 +266,29 @@ function NodeCard({
       {node.subtitle && <span className="whitespace-normal break-words text-[11px] text-muted">{node.subtitle}</span>}
       {node.tags && node.tags.length > 0 && (
         <span className="mt-1 flex flex-wrap gap-1">
-          {node.tags.map((t, i) => (
-            <span key={i} className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${t.className}`}>
-              {t.label}
-            </span>
-          ))}
+          {node.tags.map((t, i) =>
+            t.children && t.children.length > 0 ? (
+              <span key={i} className="flex w-full flex-col items-start gap-0.5">
+                <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${t.className}`}>{t.label}</span>
+                <span className="flex flex-wrap gap-0.5 pl-3">
+                  {t.children.map((c, j) => (
+                    <span
+                      key={j}
+                      className={`rounded-full border px-1.5 py-px text-[10px] ${
+                        c.alert ? "border-red-600 bg-red-600 font-semibold text-white" : "border-border bg-card text-foreground"
+                      }`}
+                    >
+                      ↳ {c.label}
+                    </span>
+                  ))}
+                </span>
+              </span>
+            ) : (
+              <span key={i} className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${t.className}`}>
+                {t.label}
+              </span>
+            ),
+          )}
         </span>
       )}
     </button>

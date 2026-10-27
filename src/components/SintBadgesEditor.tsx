@@ -9,6 +9,7 @@ import {
   addMeta,
   deleteBadge,
   deleteMeta,
+  setBadgeAlerta,
   useNuevaMetaBadges,
   useNuevasMetas,
   type BadgeTipo,
@@ -180,76 +181,151 @@ function BadgeRow({
   chip: string;
   badges: NuevaMetaBadge[];
 }) {
+  const [error, setError] = useState<string | null>(null);
+  const roots = badges.filter((b) => b.parent_id === null);
+  const fail = (msg: string) => (e: unknown) => {
+    console.error(e);
+    setError(msg);
+  };
+
+  return (
+    <div>
+      <p className="mb-1 text-[11px] font-semibold text-muted">{label}</p>
+      <div className="space-y-1.5">
+        {roots.map((b) => {
+          const hijos = badges.filter((h) => h.parent_id === b.id);
+          return (
+            <div key={b.id}>
+              <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${chip}`}>
+                {b.label}
+                <button
+                  type="button"
+                  aria-label={`Quitar ${b.label}${hijos.length > 0 ? " y sus hijos" : ""}`}
+                  title={hijos.length > 0 ? "Quita el badge y sus hijos" : "Quitar"}
+                  className="leading-none opacity-60 hover:opacity-100"
+                  onClick={() => deleteBadge(b.id).catch(fail("No se pudo quitar el badge."))}
+                >
+                  ×
+                </button>
+              </span>
+              <div className="mt-1 flex flex-wrap items-center gap-1 pl-4">
+                {hijos.map((h) => (
+                  <span
+                    key={h.id}
+                    className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] ${
+                      h.alerta ? "border-red-600 bg-red-600 font-semibold text-white" : "border-border bg-card text-foreground"
+                    }`}
+                  >
+                    <button
+                      type="button"
+                      aria-pressed={h.alerta}
+                      title={h.alerta ? "Quitar la marca roja" : "Marcar en rojo"}
+                      onClick={() => setBadgeAlerta(h.id, !h.alerta).catch(fail("No se pudo cambiar la marca."))}
+                    >
+                      ↳ {h.label}
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={`Quitar ${h.label}`}
+                      className="leading-none opacity-60 hover:opacity-100"
+                      onClick={() => deleteBadge(h.id).catch(fail("No se pudo quitar el hijo."))}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+                <AddInput
+                  placeholder="Agregar hijo…"
+                  ariaLabel={`Agregar hijo a ${b.label}`}
+                  small
+                  onAdd={(value) => addBadge(metaKey, tipo, value, b.id)}
+                  onError={fail("No se pudo guardar el hijo.")}
+                />
+              </div>
+            </div>
+          );
+        })}
+        <AddInput
+          placeholder="Agregar…"
+          ariaLabel={`Agregar ${label}`}
+          suggestions={tipo === "recurso" ? RECURSO_SUGERENCIAS : undefined}
+          listId={`sint-${metaKey}-${tipo}`}
+          onAdd={(value) => addBadge(metaKey, tipo, value)}
+          onError={fail("No se pudo guardar el badge.")}
+        />
+      </div>
+      {roots.some((b) => badges.some((h) => h.parent_id === b.id)) && (
+        <p className="mt-1 text-[10px] text-muted">Haz clic en un hijo para marcarlo o desmarcarlo en rojo.</p>
+      )}
+      {error && <p className="mt-1 text-[11px] text-red-600">{error}</p>}
+    </div>
+  );
+}
+
+function AddInput({
+  placeholder,
+  ariaLabel,
+  onAdd,
+  onError,
+  small,
+  suggestions,
+  listId,
+}: {
+  placeholder: string;
+  ariaLabel: string;
+  onAdd: (value: string) => Promise<void>;
+  onError: (e: unknown) => void;
+  small?: boolean;
+  suggestions?: string[];
+  listId?: string;
+}) {
   const [text, setText] = useState("");
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const listId = `sint-${metaKey}-${tipo}`;
 
   async function submit() {
     const value = text.trim();
     if (!value || saving) return;
     setSaving(true);
-    setError(null);
     try {
-      await addBadge(metaKey, tipo, value);
+      await onAdd(value);
       setText("");
     } catch (e) {
-      console.error(e);
-      setError("No se pudo guardar el badge.");
+      onError(e);
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <div>
-      <p className="mb-1 text-[11px] font-semibold text-muted">{label}</p>
-      <div className="flex flex-wrap items-center gap-1.5">
-        {badges.map((b) => (
-          <span key={b.id} className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${chip}`}>
-            {b.label}
-            <button
-              type="button"
-              aria-label={`Quitar ${b.label}`}
-              className="leading-none opacity-60 hover:opacity-100"
-              onClick={() => deleteBadge(b.id).catch(() => setError("No se pudo quitar el badge."))}
-            >
-              ×
-            </button>
-          </span>
-        ))}
-        <form
-          className="flex items-center gap-1"
-          onSubmit={(e) => {
-            e.preventDefault();
-            submit();
-          }}
-        >
-          <input
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            list={tipo === "recurso" ? listId : undefined}
-            placeholder="Agregar…"
-            aria-label={`Agregar ${label}`}
-            className="w-32 rounded-md border border-border bg-background px-2 py-0.5 text-xs outline-none focus:border-brand-dark"
-          />
-          {tipo === "recurso" && (
-            <datalist id={listId}>
-              {RECURSO_SUGERENCIAS.map((s) => (
-                <option key={s} value={s} />
-              ))}
-            </datalist>
-          )}
-          <button
-            type="submit"
-            disabled={!text.trim() || saving}
-            className="rounded-md bg-brand px-2 py-0.5 text-xs font-semibold text-dark disabled:opacity-40"
-          >
-            +
-          </button>
-        </form>
-      </div>
-      {error && <p className="mt-1 text-[11px] text-red-600">{error}</p>}
-    </div>
+    <form
+      className="flex items-center gap-1"
+      onSubmit={(e) => {
+        e.preventDefault();
+        submit();
+      }}
+    >
+      <input
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        list={suggestions ? listId : undefined}
+        placeholder={placeholder}
+        aria-label={ariaLabel}
+        className={`${small ? "w-28 text-[11px]" : "w-32 text-xs"} rounded-md border border-border bg-background px-2 py-0.5 outline-none focus:border-brand-dark`}
+      />
+      {suggestions && (
+        <datalist id={listId}>
+          {suggestions.map((s) => (
+            <option key={s} value={s} />
+          ))}
+        </datalist>
+      )}
+      <button
+        type="submit"
+        disabled={!text.trim() || saving}
+        className="rounded-md bg-brand px-2 py-0.5 text-xs font-semibold text-dark disabled:opacity-40"
+      >
+        +
+      </button>
+    </form>
   );
 }

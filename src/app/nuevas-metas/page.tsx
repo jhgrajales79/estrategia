@@ -29,8 +29,12 @@ function buildTree(aspirations: Aspiration[], nuevasMetas: NuevaMeta[], badges: 
         isNew: false,
         tags: BADGE_TIPOS.flatMap((t) =>
           badges
-            .filter((b) => b.meta_key === m.key && b.tipo === t.tipo)
-            .map((b) => ({ label: `${t.icon} ${b.label}`, className: t.chip })),
+            .filter((b) => b.meta_key === m.key && b.tipo === t.tipo && b.parent_id === null)
+            .map((b) => ({
+              label: `${t.icon} ${b.label}`,
+              className: t.chip,
+              children: badges.filter((h) => h.parent_id === b.id).map((h) => ({ label: h.label, alert: h.alerta })),
+            })),
         ),
         budget: 0,
         proyectos: [],

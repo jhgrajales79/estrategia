@@ -39,13 +39,20 @@ export interface ProyectoEstrategicoNode {
   actividades: ActividadNode[];
 }
 
+// Etiqueta de una meta, con hijos opcionales que se pueden marcar en rojo (alert).
+export interface MetaTag {
+  label: string;
+  className: string;
+  children?: { label: string; alert: boolean }[];
+}
+
 export interface MetaNode {
   id: string;
   title: string;
   isNew: boolean;
   isUnassigned?: boolean;
   // Etiquetas extra bajo el título (p. ej. los badges SINT del tablero de nuevas metas).
-  tags?: { label: string; className: string }[];
+  tags?: MetaTag[];
   budget: number;
   proyectos: ProyectoEstrategicoNode[];
 }
