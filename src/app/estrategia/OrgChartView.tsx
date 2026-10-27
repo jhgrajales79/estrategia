@@ -16,6 +16,9 @@ interface OrgNode {
   // Clases de color propias (badges SINT) y marca roja (sus hijos) — ganan sobre el tono.
   chip?: string;
   alert?: boolean;
+  // Recursos de la meta (tablero de nuevas metas): bloque en una columna aparte a la derecha que
+  // abarca todas las filas de la meta, es decir, todos sus badges.
+  aside?: MetaTag[];
   children?: OrgNode[];
 }
 
@@ -58,6 +61,7 @@ function metaToOrg(m: MetaNode, tone: Tone): OrgNode {
     title: m.title,
     badge: m.isNew ? "NUEVA" : m.isUnassigned ? String(m.proyectos.length) : undefined,
     tone,
+    aside: m.recursos && m.recursos.length > 0 ? m.recursos : undefined,
     children,
   };
 }
@@ -130,9 +134,9 @@ const NODE_COL_WIDTH: Record<number, number> = { 0: 210, 1: 230, 2: 220, 3: 210,
 const CONNECTOR_WIDTH = 40;
 const HEADER_ROWS = 1;
 
-const GRID_TEMPLATE_COLUMNS = [0, 1, 2, 3, 4]
-  .map((d) => `${NODE_COL_WIDTH[d]}px`)
-  .join(` ${CONNECTOR_WIDTH}px `);
+function gridTemplateColumns(columns: number): string {
+  return Array.from({ length: columns }, (_, d) => `${NODE_COL_WIDTH[d] ?? 220}px`).join(` ${CONNECTOR_WIDTH}px `);
+}
 
 // Tamaño de card y grosor tipográfico decrecen con la profundidad — para que el peso visual siga
 // la jerarquía (aspiración pesa más que una actividad hoja) en vez de verse todo igual de grande.
@@ -194,6 +198,10 @@ export default function OrgChartView({
   }
 
   const { placed, totalRows, maxDepth } = layoutTree(root, expanded);
+  // Columna de recursos, justo después del nivel más profundo visible — solo si alguna meta los tiene.
+  const hasAside = placed.some((p) => p.node.aside && p.node.aside.length > 0);
+  const asideDepth = maxDepth + 1;
+  const templateColumns = gridTemplateColumns(Math.max(5, hasAside ? asideDepth + 1 : 0));
 
   return (
     <div>
@@ -223,7 +231,7 @@ export default function OrgChartView({
       <div className="overflow-x-auto pb-4">
         <div
           className="grid min-w-max"
-          style={{ gridTemplateColumns: GRID_TEMPLATE_COLUMNS, gridTemplateRows: `auto repeat(${totalRows}, minmax(0, auto))` }}
+          style={{ gridTemplateColumns: templateColumns, gridTemplateRows: `auto repeat(${totalRows}, minmax(0, auto))` }}
         >
           {columnLabels.slice(0, maxDepth + 1).map((label, d) => (
             <div
@@ -234,6 +242,14 @@ export default function OrgChartView({
               {label}
             </div>
           ))}
+          {hasAside && (
+            <div
+              style={{ gridColumn: asideDepth * 2 + 1, gridRow: 1 }}
+              className="sticky top-0 z-20 mb-2 border-b-2 border-amber-400 bg-background pb-2 text-xs font-bold uppercase tracking-wide text-amber-800"
+            >
+              🧰 Recursos necesarios
+            </div>
+          )}
 
           {placed.map((p) => {
             const isRoot = p.node.id === root.id;
@@ -252,6 +268,14 @@ export default function OrgChartView({
                 >
                   <NodeCard node={p.node} depth={p.depth} isRoot={isRoot} isOpen={expanded.has(p.node.id)} onToggle={toggle} />
                 </div>
+                {p.node.aside && p.node.aside.length > 0 && (
+                  <div
+                    style={{ gridColumn: asideDepth * 2 + 1, gridRow: `${p.rowStart + HEADER_ROWS + 1} / span ${p.rowSpan}` }}
+                    className="flex py-1.5"
+                  >
+                    <AsideCard title={p.node.title} items={p.node.aside} />
+                  </div>
+                )}
               </Fragment>
             );
           })}
@@ -311,5 +335,34 @@ function NodeCard({
         <span className={`whitespace-normal break-words text-[11px] ${node.chip ? "opacity-75" : "text-muted"}`}>{node.subtitle}</span>
       )}
     </button>
+  );
+}
+
+// Bloque de recursos de una meta: abarca la altura de todos sus badges y lista cada recurso con sus
+// hijos (en rojo los marcados por el facilitador).
+function AsideCard({ title, items }: { title: string; items: MetaTag[] }) {
+  return (
+    <div className="flex w-full flex-col gap-1.5 rounded-lg border-2 border-dashed border-amber-400 bg-amber-50 px-2.5 py-2">
+      <span className="text-[10px] font-semibold uppercase tracking-wide text-amber-800">Para: {title}</span>
+      {items.map((t) => (
+        <div key={t.id} className="flex flex-col items-start gap-0.5">
+          <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${t.className}`}>{t.label}</span>
+          {t.children && t.children.length > 0 && (
+            <span className="flex flex-wrap gap-0.5 pl-3">
+              {t.children.map((c) => (
+                <span
+                  key={c.id}
+                  className={`rounded-full border px-1.5 py-px text-[10px] ${
+                    c.alert ? "border-red-600 bg-red-600 font-semibold text-white" : "border-border bg-card text-foreground"
+                  }`}
+                >
+                  {c.label}
+                </span>
+              ))}
+            </span>
+          )}
+        </div>
+      ))}
+    </div>
   );
 }

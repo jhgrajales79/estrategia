@@ -56,6 +56,8 @@ export interface MetaNode {
   isUnassigned?: boolean;
   // Etiquetas extra bajo el título (p. ej. los badges SINT del tablero de nuevas metas).
   tags?: MetaTag[];
+  // Recursos de la meta, que abarcan todos sus badges (tablero de nuevas metas).
+  recursos?: MetaTag[];
   budget: number;
   proyectos: ProyectoEstrategicoNode[];
 }
